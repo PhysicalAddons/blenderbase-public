@@ -8,6 +8,8 @@ Blenderbase is the property of `Physical Addons` and has no legal binding to `Bl
 
 Currently there exists no formal agreement between `Physical Addons` and `Blender Foundation` regarding the use of their online resources.
 
+Blenderbase was built using the Tauri framework, and its backend is written in Rust. Its frontend is written using ReactJS. For specialized tasks inside of a Blender instance, Python and BPY is used.
+
 ## As of `v1.0.21`, Blenderbase can:
 - Run on Windows 10/11 (x64),
 - Manage up to `3` modifiable Blender parent installation directories,
