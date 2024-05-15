@@ -22,7 +22,7 @@ Currently there exists no formal agreement between `Physical Addons` and `Blende
 - Uninstall (or delete the semantic link of) community addons,
 - Open recently opened blend files in any selected Blender version.
 
-Blenderbase is currently free and allowed to be used in any projects involving Blender use, addon development or Blender project management.
+Blenderbase is currently free and allowed to be used in any projects involving Blender use, addon development or Blender project management, included hobby, educational or commercial reasons.
 
 ```
 ⠀⠀⠀⠀⠀⠀⠀⠀⣀⣠⣤⠴⣶⣶⣶⣶⣶⣦⣤⣄⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
