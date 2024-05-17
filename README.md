@@ -8,6 +8,8 @@
 Copyright Physical Addons 2024
 ```
 
+# Blenderbase
+
 Blenderbase is a utility app for Blender 3D (supporting versions 3.1.0+) that manages installed Blender versions, community and official addons and blend files.
 
 It was inspired by similar apps, such as `Blender launcher` and owes its success to all forerunners, who, like Blenderbase, tried to improve the user experience for Blender.
