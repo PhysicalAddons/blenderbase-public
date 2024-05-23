@@ -20,7 +20,7 @@ Currently there exists no formal agreement between `Physical Addons` and `Blende
 
 Blenderbase was built using the Tauri framework, and its backend is written in Rust. Its frontend is written using ReactJS. For specialized tasks inside of a Blender instance, Python and BPY is used.
 
-![image](https://github.com/PhysicalAddons/blenderbase-public/assets/60788469/3c6f0b9c-be83-4d90-82e5-cb20069a2f82)
+![image](https://github.com/PhysicalAddons/blenderbase-public/assets/60788469/c8ddb72a-3b2b-4260-aef7-3644fa3821d1)
 
 ## As of `v1.0.24`, Blenderbase can:
 - Run on Windows 10/11 (x64),
