@@ -1,13 +1,3 @@
-```
-    ____  __               __          __                  
-   / __ )/ /__  ____  ____/ /__  _____/ /_  ____ _________ 
-  / __  / / _ \/ __ \/ __  / _ \/ ___/ __ \/ __ `/ ___/ _ \
- / /_/ / /  __/ / / / /_/ /  __/ /  / /_/ / /_/ (__  )  __/
-/_____/_/\___/_/ /_/\__,_/\___/_/  /_.___/\__,_/____/\___/ 
-
-Copyright Physical Addons 2024
-```
-
 # Blenderbase
 
 Blenderbase is a utility app for Blender 3D (supporting versions 3.1.0+) that manages installed Blender versions, community and official addons and blend files.
