@@ -12,7 +12,7 @@ Blenderbase was built using the Tauri framework, and its backend is written in R
 
 ![image](https://github.com/PhysicalAddons/blenderbase-public/assets/60788469/c8ddb72a-3b2b-4260-aef7-3644fa3821d1)
 
-## As of `v1.0.24`, Blenderbase can:
+## As of `v1.0.26`, Blenderbase can:
 - Run on Windows 10/11 (x64),
 - Manage up to `3` modifiable Blender parent installation directories,
 - Externally register installed Blender versions, their addons, recent blend files and up to date downloadable Blender versions,
