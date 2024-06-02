@@ -27,4 +27,4 @@ Blenderbase was built using the Tauri framework, and its backend is written in R
 - Uninstall (or delete the semantic link of) community addons,
 - Open recently saved .blend files in any selected Blender version (provided the specific Blender version works for the .blend file).
 
-Blenderbase is currently free (closed source) and allowed to be used in any projects involving Blender use, addon development or Blender project management, weather for hobby, educational or commercial reasons.
+Blenderbase is currently free (closed source) and allowed to be used in any projects involving Blender use, addon development or Blender project management, Whether for hobby, educational or commercial reasons.
