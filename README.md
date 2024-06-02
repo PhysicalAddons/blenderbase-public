@@ -14,16 +14,17 @@ Blenderbase was built using the Tauri framework, and its backend is written in R
 
 ## As of `v1.0.26`, Blenderbase can:
 - Run on Windows 10/11 (x64),
-- Manage up to `3` modifiable Blender parent installation directories,
-- Externally register installed Blender versions, their addons, recent blend files and up to date downloadable Blender versions,
-- Download and install portable Blender versions from publicly accessible Blender foundation resources (Stable and LTS version are taken from the European mirror website),
+- Receive new version of the app via an auto-updater,
+- Manage up to 3 modifiable Blender parent installation directories,
+- Register installed Blender versions, their addons, recent blend files and the most recent downloadable Blender versions,
+- Download and install portable Blender versions from publicly accessible Blender foundation resources (Stable and LTS versions are currently taken from the European mirror website),
 - Uninstall both portable and installer installed (.msi) Blender versions,
-- Launch selected Blender versions, 
-- Enable and disable addons when a Blender instance is launched through Blenderbase,
+- Launch selected Blender versions,
+- Enable and disable addons when launching a Blender instance through Blenderbase,
 - Enable/disable addons outside of a Blender instance,
-- Install community addons via `.zip` or `.py`,
-- Semantic link addon directories (meant for addon development),
+- Install community addons via .zip or .py,
+- Semantic link addon directories (meant for easier addon development),
 - Uninstall (or delete the semantic link of) community addons,
-- Open recently opened blend files in any selected Blender version.
+- Open recently saved .blend files in any selected Blender version (provided the specific Blender version works for the .blend file).
 
 Blenderbase is currently free (closed source) and allowed to be used in any projects involving Blender use, addon development or Blender project management, weather for hobby, educational or commercial reasons.
