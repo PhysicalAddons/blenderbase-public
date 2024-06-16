@@ -25,7 +25,7 @@ This database stores data, such as:
 - Uninstall both portable and `.msi` installed Blender versions (for `Windows 10/11`),
 - Launch any registered Blender version through `Blenderbase`, enabling/disabling its add-ons, which are registered in the `Blenderbase` database,
 - Enable/disable add-ons outside of a Blender instance, saving the changes in the `Blenderbase` database,
-- Install any community add-ons via a `.zip` or a `.py`,
+- Install any community add-ons via a `.zip` or a `.py` files,
 - Semantic link add-on directories (meant for easier add-on development) when `Blenderbase` is launched `as admin`,
 - Uninstall any community add-on or delete the semantic link if there is one,
 - Open recently saved `.blend` files in any selected Blender version (provided the specific Blender version works for the `.blend` file).
