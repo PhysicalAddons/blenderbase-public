@@ -22,13 +22,12 @@ This database stores data, such as:
 - Manage up to `3` modifiable Blender parent installation directories, that hold installed Blender version source file directories,
 - Locally register installed Blender versions, their addons, recently used .blend files and the most recently published downloadable Blender versions,
 - Download and install portable Blender versions from publicly accessible Blender Fouddtion online resources (`Stable` and `LTS` versions are currently taken from the European mirror website, `Daily` and `Patch` versions are taken from the main Blender Foundation website)
-- Uninstall both portable and installer installed (.msi) Blender versions,
-- Launch selected Blender versions,
-- Enable and disable addons when launching a Blender instance through Blenderbase,
-- Enable/disable addons outside of a Blender instance,
-- Install community addons via .zip or .py,
-- Semantic link addon directories (meant for easier addon development),
-- Uninstall (or delete the semantic link of) community addons,
+- Uninstall both portable and .msi installed Blender versions (for `Windows 10/11`),
+- Launch any registered Blender version through Blenderbase, enabling/disabling its addons, which are registered in the Blenderbase database,
+- Enable/disable addons outside of a Blender instance, saving the changes in the Blenderbase databse,
+- Install any community addons via a `.zip` or a `.py`,
+- Semantic link addon directories (meant for easier addon development), when Blenderbase is launched `as admin`,
+- Uninstall any community addon or delete the semantic link, if there is one,
 - Open recently saved .blend files in any selected Blender version (provided the specific Blender version works for the .blend file).
 
 ## Notice
@@ -40,6 +39,6 @@ As of v1.0.27, Blenderbase scrapes downloadable portable Blender versions from:
 - https://builder.blender.org/download/daily/
 - https://builder.blender.org/download/patch/
 
-**Note:** **_There are plans to allow users to choose from any one of the publically accesible mirror websites or their own mirror websites (link), to better suit their own geographical region. The EU mirror was chosen to currently be the only LTS and Stable version source, because the apps developers are based in the EU region._**
+**Note:** **_There are plans to allow users to choose from any one of the publically accesible mirror websites or their own mirror websites (link), to better suit their own geographical region. The EU mirror was chosen to currently be the only LTS and Stable version source, because the apps developers are based in the EU region. There are also plans to create our own endpoints, that would decrease the impact on Blender Foundation online resources even more._**
 
-Blenderbase is currently free (closed source) and is allowed to be used in any projects involving Blender use, addon development or Blender project management wheter for hobby, education or commercial reasons. If there ever were to be a paid Blenderbase version (Enterprise), it will exist alongside a free and open source (Community) version. 
+Blenderbase is currently free (closed source) and is allowed to be used in any projects involving Blender use, addon development or Blender project management wheter for hobby, educational or commercial reasons. If there ever were to be a paid Blenderbase version (Enterprise), it will exist alongside a free and open source (Community) version. 
