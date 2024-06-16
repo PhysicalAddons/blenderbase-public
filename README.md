@@ -1,4 +1,4 @@
-#`Blenderbase` 
+# `Blenderbase` 
 
 Blenderbase is a free utility app for Blender 3D (supporting versions `3.1.0.+`) that manages installed Blender versions, community and official addons and blend files. It was first developed as an internal tool for the `Physical Addons` team for addon development, but has been proven to be useful for general Blender use as well.
 
