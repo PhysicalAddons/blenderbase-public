@@ -4,7 +4,7 @@
 
 ![image](https://github.com/PhysicalAddons/blenderbase-public/assets/60788469/c8ddb72a-3b2b-4260-aef7-3644fa3821d1)
 
-It was inspired by similar apps, such as `Blender Launcher`, and owes its success to all forerunners who, like `Blenderbase`, tried to improve the user experience for Blender. It was built using the `Tauri framework`, which uses the `Rust` programming language, making the app fast, reliable, and lightweight. For specialized tasks inside of a Blender instance, `Python` and `BPY` are used.
+It was inspired by similar apps, such as `Blender Launcher`. It was built using the `Tauri framework`, which uses the `Rust` programming language, making the app fast, reliable, and lightweight. For specialized tasks inside of a Blender instance, `Python` and `BPY` are used.
 
 `Blenderbase` improves upon apps like `Blender Launcher` by providing faster downloadable Blender version web scraping and limiting the footprint on Blender Foundation's bandwidth by only scraping versions starting from `3.1.0.+` and ignoring older versions. It also allows the integration of already installed Blender versions (starting from `3.0.0.` - `3.1.0.` versions), meaning you can manage already installed Blender versions through `Blenderbase`, whereas `Blender Launcher` was built to only manage Blender versions downloaded through it. `Blenderbase` also allows accessing locally saved `.blend` files and launching them via any Blender version (as long as the Blender version and `.blend` file are compatible), as well as many other features.
 
