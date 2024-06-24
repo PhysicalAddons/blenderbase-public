@@ -16,7 +16,7 @@ This database stores data, such as:
 - Recently used `.blend` files file paths, allowing easy access to your project files, as well as a way to launch them in any Blender version of your choosing,
 - Downloadable portable Blender version metadata, which is web scraped from publicly accessible Blender Foundation online resources and mirror websites.
 
-## As of v1.0.27, `Blenderbase` can:
+## `Blenderbase` can:
 - Support `Windows 10/11` (x64),
 - `Auto-update` to new versions of the app when they are published,
 - Manage up to `3` modifiable Blender parent installation directories that hold installed Blender version source file directories,
