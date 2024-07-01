@@ -34,7 +34,7 @@ This database stores data, such as:
 
 `Blenderbase` is the property of `Physical Addons` and has no legal binding to `Blender Foundation`, unless further specified. Currently there exists no formal agreement between `Physical Addons` and `Blender Foundation` regarding the use of their online resources, but all `Blender Foundation` resources are used in good faith and with the utmost care, so as to not strain, slow down or misuse `Blender Foundation` online resources, those being the `official` and `mirror` download pages, hosting the `Stable`, `LTS`, `Daily` and `Patch` Blender version releases.
 
-As of v1.0.27, Blenderbase scrapes downloadable portable Blender versions from:
+Since v1.0.28, Blenderbase scrapes downloadable portable Blender versions from:
 - https://ftp.nluug.nl/pub/graphics/blender/release/
 - https://builder.blender.org/download/daily/
 - https://builder.blender.org/download/patch/
