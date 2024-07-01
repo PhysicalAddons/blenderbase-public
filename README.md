@@ -41,4 +41,4 @@ Since v1.0.28, Blenderbase scrapes downloadable portable Blender versions from:
 
 **Note:** **_The EU mirror was chosen to currently be the only LTS and Stable version source, because the apps developers are based in the EU region._**
 
-Blenderbase is currently free (closed source) and is allowed to be used in any projects involving Blender use, addon development or Blender project management wheter for hobby, educational or commercial reasons. If there ever were to be a paid Blenderbase version (Enterprise), it will exist alongside a free and open source (Community) version. 
+Blenderbase is currently free (closed source) and is allowed to be used in any projects involving Blender use, addon development or Blender project management wheter for hobby, educational or commercial reasons. 
