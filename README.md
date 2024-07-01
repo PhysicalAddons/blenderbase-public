@@ -1,5 +1,7 @@
 # `Blenderbase` 
 
+[Dowmload](https://github.com/PhysicalAddons/blenderbase-public/releases) | [Documentation](https://github.com/PhysicalAddons/blenderbase-public/wiki) | [Get Help](https://discord.com/invite/4pseCn9pys)
+
 Blenderbase is a free utility app for Blender 3D (supporting versions `3.0.0.+`) that manages installed Blender versions, community and official addons and blend files. It was first developed as an internal tool for the `Physical Addons` team for addon development, but has been proven to be useful for general Blender use as well.
 
 ![image](https://github.com/PhysicalAddons/blenderbase-public/assets/60788469/c8ddb72a-3b2b-4260-aef7-3644fa3821d1)
