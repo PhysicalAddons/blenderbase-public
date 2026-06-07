@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE \n            app_setting_action_type \n            SET \n            code = ?, \n            name = ?, \n            description = ?, \n            modified = CURRENT_TIMESTAMP \n            WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "62c01f115c2f8c3b9b75097ee605d3ed592d9b93ae0037dd5b945943427454ef"
+}

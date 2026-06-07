@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO blend_file_blender_series \n            (blend_file_id, blender_series_id, created, modified) VALUES (?, ?, ?, ?) ON CONFLICT(blend_file_id, blender_series_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "f5685b016d4cb9938b8239fd6b08f352f036840f7ffbb093c155e7934671bf9c"
+}

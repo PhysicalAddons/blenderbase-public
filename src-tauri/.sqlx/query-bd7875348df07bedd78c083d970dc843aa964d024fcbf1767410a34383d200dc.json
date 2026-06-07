@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO blend_file \n            (id, file_path, file_name, file_size, created_datetime, modified_datetime, accessed_datetime, last_used_blender_version_id, created, modified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(file_path) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "bd7875348df07bedd78c083d970dc843aa964d024fcbf1767410a34383d200dc"
+}

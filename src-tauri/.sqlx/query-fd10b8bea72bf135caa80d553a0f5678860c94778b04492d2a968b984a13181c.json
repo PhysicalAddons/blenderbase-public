@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE \n            app_setting \n            SET \n            code = ?,\n            name = ?,\n            description = ?,\n            disclaimer = ?,\n            is_enabled = ?,\n            is_read_on_app_launch = ?,\n            is_read_on_app_exit = ?,\n            default_int_value = ?,\n            int_value = ?,\n            min_int_value = ?,\n            max_int_value = ?,\n            is_signed_int_value = ?,\n            default_text_value = ?,\n            text_value = ?,\n            min_length_text_value = ?,\n            max_length_text_value = ?,\n            regex_format_text_value = ?,\n            default_range_int_value_from = ?,\n            default_range_int_value_to = ?,\n            range_int_value_from = ?,\n            range_int_value_to = ?,\n            min_range_int_value_from = ?,\n            min_range_int_value_to = ?,\n            max_range_int_value_from = ?,\n            max_range_int_value_to = ?,\n            is_signed_range_int_value_from = ?,\n            is_signed_range_int_value_to = ?,\n            default_range_text_value_from = ?,\n            default_range_text_value_to = ?,\n            range_text_value_from = ?,\n            range_text_value_to = ?,\n            min_length_range_text_value_from = ?,\n            max_length_range_text_value_from = ?,\n            min_length_range_text_value_to = ?,\n            max_length_range_text_value_to = ?,\n            regex_format_range_text_value_from = ?,\n            regex_format_range_text_value_to = ?,\n            control_title = ?,\n            parent_app_setting_id = ?,\n            app_setting_type_id = ?,\n            app_setting_action_type_id = ?,\n            measurement_unit_type_id = ?,\n            input_value_type_id = ?,\n            modified = CURRENT_TIMESTAMP \n            WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 44
+    },
+    "nullable": []
+  },
+  "hash": "fd10b8bea72bf135caa80d553a0f5678860c94778b04492d2a968b984a13181c"
+}

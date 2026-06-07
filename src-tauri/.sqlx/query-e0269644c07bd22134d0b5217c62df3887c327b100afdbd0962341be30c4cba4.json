@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE blender_series SET is_collapsed = ?, series = ?, config_directory_path = ?, modified = CURRENT_TIMESTAMP WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "e0269644c07bd22134d0b5217c62df3887c327b100afdbd0962341be30c4cba4"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE blender_installation_location \n            SET \n            is_default = ?,\n            full_control = ?,\n            modify = ?,\n            read_and_execute = ?,\n            list_folder_contents = ?,\n            read = ?,\n            write = ?,\n            special_permissions = ?,\n            directory_path = ?,\n            created_by = ?,\n            modified = CURRENT_TIMESTAMP\n            WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "e2c881443ee6190153f4cefbb4cffbde2ff4d7aea9a94fff16ffe89b5f783623"
+}

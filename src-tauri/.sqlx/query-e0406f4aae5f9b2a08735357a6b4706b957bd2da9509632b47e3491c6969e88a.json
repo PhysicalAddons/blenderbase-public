@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE blender_version \n            SET \n            is_default = ?,\n            custom_name = ?,\n            url = ?,\n            app = ?,\n            version = ?,\n            series = ?,\n            risk_id = ?,\n            branch = ?,\n            patch_url = ?,\n            patch = ?,\n            hash_url = ?,\n            hash = ?,\n            platform = ?,\n            architecture = ?,\n            bitness = ?,\n            file_mtime = ?,\n            file_name = ?,\n            file_size = ?,\n            file_extension = ?,\n            release_cycle = ?,\n            checksum = ?,\n            installation_directory_path = ?,\n            executable_file_path = ?,\n            blender_installation_location_id = ?,\n            download_status_type_id = ?,\n            modified = CURRENT_TIMESTAMP\n            WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 26
+    },
+    "nullable": []
+  },
+  "hash": "e0406f4aae5f9b2a08735357a6b4706b957bd2da9509632b47e3491c6969e88a"
+}

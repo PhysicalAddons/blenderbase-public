@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE blend_file_blender_series SET modified = CURRENT_TIMESTAMP WHERE blend_file_id = ? AND blender_series_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "9aae11b610dc467293ec1830c444666c49bea1bc7cbaf7065915cdbe892c3cad"
+}

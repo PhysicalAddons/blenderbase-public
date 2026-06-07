@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE download_status_type SET code = ?, name = ?, description = ?, parent_download_status_type_id = ?, modified = CURRENT_TIMESTAMP WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "3467df51dcc6fcf96fe4e89363f5ab46e9601519a2a3c5cc3719e19c8d70052c"
+}

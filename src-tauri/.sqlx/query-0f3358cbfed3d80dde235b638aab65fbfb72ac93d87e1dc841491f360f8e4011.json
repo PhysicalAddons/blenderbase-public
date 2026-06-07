@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO blender_version_build_type (is_default, code, name, description, created, modified) VALUES (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "0f3358cbfed3d80dde235b638aab65fbfb72ac93d87e1dc841491f360f8e4011"
+}

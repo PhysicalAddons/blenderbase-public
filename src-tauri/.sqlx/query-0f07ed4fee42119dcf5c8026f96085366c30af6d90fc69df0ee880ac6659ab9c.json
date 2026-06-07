@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO download_status_type (code, name, description, parent_download_status_type_id, created, modified) VALUES (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "0f07ed4fee42119dcf5c8026f96085366c30af6d90fc69df0ee880ac6659ab9c"
+}

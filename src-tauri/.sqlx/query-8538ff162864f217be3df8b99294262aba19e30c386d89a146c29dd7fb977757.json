@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO blender_installation_location\n            (\n            id,\n            is_default,\n            full_control,\n            modify,\n            read_and_execute,\n            list_folder_contents,\n            read,\n            write,\n            special_permissions,\n            directory_path,\n            created_by,\n            created,\n            modified\n            ) VALUES ( \n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?\n            ) ON CONFLICT(directory_path) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 13
+    },
+    "nullable": []
+  },
+  "hash": "8538ff162864f217be3df8b99294262aba19e30c386d89a146c29dd7fb977757"
+}

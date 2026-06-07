@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO addon\n            (\n            id,\n            is_enabled,\n            is_symbolic_link,\n            main_python_file_path,\n            installation_directory,\n            variant_type,\n            functional_name,\n            name,\n            author,\n            version,\n            blender_version,\n            location,\n            description,\n            warning,\n            documentation_url,\n            tracker_url,\n            support,\n            category,\n            parent_blender_version_id,\n            created,\n            modified\n            ) VALUES ( \n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?\n            ) ON CONFLICT(main_python_file_path) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 21
+    },
+    "nullable": []
+  },
+  "hash": "8d6e484e8691ee6551339d1df6f63ec55d14c63f32d37fb72173a6b3696f7aa7"
+}

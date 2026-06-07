@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE blender_version_build_type SET is_default = ?, code = ?, name = ?, description = ?, modified = CURRENT_TIMESTAMP WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "018b5b3f7cdec65c72c04e4c5deb2a30644904155da365faf1e766f6289f20ac"
+}

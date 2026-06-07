@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE blend_file SET file_path = ?, file_name = ?, file_size = ?, created_datetime = ?, modified_datetime = ?, accessed_datetime = ?, last_used_blender_version_id = ?, modified = CURRENT_TIMESTAMP WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "8f44dd6f0ab4bd613c10fc3f25e9de081b2b97d8d143b34efacaf75fe3e542ae"
+}

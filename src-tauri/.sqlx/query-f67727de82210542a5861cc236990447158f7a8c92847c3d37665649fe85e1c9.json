@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO blender_version\n            (\n            id,\n            is_default,\n            custom_name,\n            url,\n            app,\n            version,\n            series,\n            risk_id,\n            branch,\n            patch,\n            patch_url,\n            hash,\n            hash_url,\n            platform,\n            architecture,\n            bitness,\n            file_mtime,\n            file_name,\n            file_size,\n            file_extension,\n            release_cycle,\n            checksum,\n            installation_directory_path,\n            executable_file_path,\n            blender_installation_location_id,\n            download_status_type_id,\n            created,\n            modified\n            ) VALUES ( \n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?,\n            ?\n            ) \n            ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 28
+    },
+    "nullable": []
+  },
+  "hash": "f67727de82210542a5861cc236990447158f7a8c92847c3d37665649fe85e1c9"
+}

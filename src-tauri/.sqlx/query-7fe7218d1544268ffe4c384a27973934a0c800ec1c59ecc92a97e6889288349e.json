@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO \n            input_value_type \n            (\n            id, \n            code, \n            name, \n            description, \n            created, \n            modified\n            ) \n            VALUES \n            (\n            ?, \n            ?, \n            ?, \n            ?, \n            ?, \n            ?\n            )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "7fe7218d1544268ffe4c384a27973934a0c800ec1c59ecc92a97e6889288349e"
+}

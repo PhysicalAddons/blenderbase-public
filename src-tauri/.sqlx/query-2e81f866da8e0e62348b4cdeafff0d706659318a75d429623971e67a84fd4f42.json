@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO blender_series (id, is_collapsed, series, config_directory_path, created, modified) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(config_directory_path) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "2e81f866da8e0e62348b4cdeafff0d706659318a75d429623971e67a84fd4f42"
+}

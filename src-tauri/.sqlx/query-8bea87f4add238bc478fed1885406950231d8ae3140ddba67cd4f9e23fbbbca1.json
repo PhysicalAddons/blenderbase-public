@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO \n            app_setting_type \n            (\n            id, \n            code, \n            name, \n            description, \n            parent_app_setting_type_id, \n            created, \n            modified\n            ) \n            VALUES \n            (\n            ?, \n            ?, \n            ?, \n            ?, \n            ?, \n            ?, \n            ?\n            )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "8bea87f4add238bc478fed1885406950231d8ae3140ddba67cd4f9e23fbbbca1"
+}

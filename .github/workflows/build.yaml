@@ -33,6 +33,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SQLX_OFFLINE: true
         with:
           tagName: v__VERSION__
           releaseName: Blenderbase v__VERSION__
