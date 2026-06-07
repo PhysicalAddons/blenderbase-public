@@ -1,0 +1,56 @@
+use serde::{Deserialize, Serialize};
+use sqlx::prelude::FromRow;
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize, FromRow)]
+pub struct AppSetting {
+    pub id: i64,
+    pub code: String,
+    pub name: String,
+    pub description: String,
+    pub disclaimer: Option<String>,
+    pub is_enabled: bool,
+    pub is_read_on_app_launch: bool,
+    pub is_read_on_app_exit: bool,
+    pub default_int_value: Option<i64>,
+    pub int_value: Option<i64>,
+    pub min_int_value: Option<i64>,
+    pub max_int_value: Option<i64>,
+    pub is_signed_int_value: Option<bool>,
+    pub default_text_value: Option<String>,
+    pub text_value: Option<String>,
+    pub min_length_text_value: Option<i64>,
+    pub max_length_text_value: Option<i64>,
+    pub regex_format_text_value: Option<String>,
+
+    pub default_range_int_value_from: Option<i64>,
+    pub default_range_int_value_to: Option<i64>,
+    pub range_int_value_from: Option<i64>,
+    pub range_int_value_to: Option<i64>,
+
+    pub min_range_int_value_from: Option<i64>,
+    pub min_range_int_value_to: Option<i64>,
+    pub max_range_int_value_from: Option<i64>,
+    pub max_range_int_value_to: Option<i64>,
+
+    pub is_signed_range_int_value_from: Option<bool>,
+    pub is_signed_range_int_value_to: Option<bool>,
+
+    pub default_range_text_value_from: Option<String>,
+    pub default_range_text_value_to: Option<String>,
+    pub range_text_value_from: Option<String>,
+    pub range_text_value_to: Option<String>,
+    pub min_length_range_text_value_from: Option<i64>,
+    pub max_length_range_text_value_from: Option<i64>,
+    pub min_length_range_text_value_to: Option<i64>,
+    pub max_length_range_text_value_to: Option<i64>,
+    pub regex_format_range_text_value_from: Option<String>,
+    pub regex_format_range_text_value_to: Option<String>,
+    pub control_title: Option<String>,
+    pub parent_app_setting_id: Option<String>,
+    pub app_setting_type_id: i64,
+    pub app_setting_action_type_id: i64,
+    pub measurement_unit_type_id: Option<i64>,
+    pub input_value_type_id: i64,
+    pub created: String,
+    pub modified: String,
+}

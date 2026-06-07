@@ -1,0 +1,89 @@
+.addon_table {
+    .cds--popover {
+        opacity: 0;
+    }
+
+    .cds--popover {
+        display: none;
+    }
+    padding: 0px 80px;
+    margin-top: -42px;
+    margin-bottom: 160px;
+    @media screen and (max-width: 1056px) {
+        padding: 0px 0px;
+        margin-bottom: 160px;
+    }
+    @media screen and (min-width: 1584px) {
+        max-width: 1600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    // Addon table controls
+    .cds--form-item {
+        max-width: 120px;
+        min-width: 120px;
+        select {
+            border-bottom: none;
+        }
+    }
+    .cds--inline-loading {
+        width: 48px;
+        padding: 16px;
+    }
+    .cds--dropdown {
+        min-width: 150px;
+        border: none; 
+        border-left: 2px solid rgba(211, 211, 211, 0.20);
+    }
+    .cds--list-box__menu {
+        // z-index: 2;
+        color: red;
+    }
+    .cds--toggle__switch--checked {
+        background-color: $primary-color;
+    }
+    .cds--table-toolbar {
+        // z-index: 1; // HERE
+        // z-index: 0;
+        background-color: transparent;
+    }
+    .cds--dropdown {
+        background-color: transparent;
+    }
+    thead {
+        background-color: transparent;
+        tr {
+            background-color: transparent;
+            th {
+                background-color: transparent;
+                border-bottom: 2px solid colors.$gray-80 !important;
+                button {
+                    background-color: transparent;
+                }
+            }
+        }
+    }
+    tbody {
+        background-color: transparent;
+        tr {
+            background-color: transparent;
+            td {
+                background-color: transparent;
+                border-top-color: transparent;
+                border-bottom-color: transparent;
+            }
+        }
+    }
+
+    .delete_addon_button {
+        border: none;
+        color: white;
+        background: none;
+        // z-index: 0;
+    }
+
+    .cds--data-table-content {
+        overflow: visible;
+        padding-bottom: 100px;
+    }
+}

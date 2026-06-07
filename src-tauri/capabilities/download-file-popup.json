@@ -1,0 +1,13 @@
+{
+    "$schema": "../gen/schemas/desktop-schema.json",
+    "identifier": "download-file-popup",
+    "description": "Capability for the download popup window",
+    "windows": [
+        "download-file-popup"
+    ],
+    "permissions": [
+        "core:default",
+        "core:window:default",
+        "core:window:allow-close"
+    ]
+}

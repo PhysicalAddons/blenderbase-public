@@ -1,0 +1,138 @@
+.launcher_bar {
+    z-index: 1;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    position: fixed;
+    bottom: 0px;
+    background: $background;
+
+    .launcher_bar__logo {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        width: 128px;
+        height: 64px;
+        opacity: 0.4;
+        margin-left: 12px;
+    
+        &:hover {
+            opacity: 0.5;
+        }
+    
+        @media screen and (max-width: 672px) {
+            display: none;
+        }
+    
+        @media screen and (min-width: 1057px) {
+            margin-left: 90px; 
+        }
+    
+        .launcher_bar__logo_text {
+            text-decoration: none;
+            color: white;
+            font-size: 1.3em;
+        }
+    
+        .library_logo {
+            fill: white;
+            stroke-width: 0px;
+            width: 128px;
+            height: 20px;
+        }
+    
+        .app_version {
+            color: white;
+            font-size: 0.8em;
+            margin-top: 5px; /* Adjust as needed */
+        }
+    }
+    
+    .launcher_bar__actions {
+        display: flex;
+        flex-direction: row;
+        @media screen and (max-width: 672px) {
+            width: 100%;
+        }
+        .launcher_bar__dropdown {
+            width: 300px;
+            border-left: 1px solid #262626;
+            box-sizing: content-box;
+            @media screen and (max-width: 672px) {
+                width: 50%;
+            }
+            .launcher_bar__no_versions {
+                opacity: 0.4;
+                font-size: 14px;
+                padding: 16px;
+            }
+            .launcher_bar__main_button {
+                z-index: 1;
+                background: $background;
+            }
+            button {
+                width: 100%;
+                color: #F4F4F4;
+                padding: 10px 16px;
+                .launcher_bar__version {
+                    font-size: 20px;
+                    letter-spacing: -0.4px;
+                }
+                .launcher_bar__meta {
+                    font-size: 14px;
+                    color: #393939;
+                    position: absolute;
+                    bottom: 10px;
+                    .launcher_bar__type {
+                        color: #6F6F6F;
+                        padding-right: 4px;
+                    }
+                }
+            }
+            .launcher_bar__select {
+                position: absolute;
+                top: 0px;
+                width: 300px;
+                background: black;
+                border-bottom: 1px solid #161616;
+                transform: translateY(-100%);
+                // transition: transform motion.$duration-moderate-01;
+                transition: transform 0.1s;
+                max-height: 495px;
+                overflow-y: scroll;
+                @media screen and (max-width: 672px) {
+                    width: calc(50% - 1px);
+                }
+                &.hidden {
+                    opacity: 0.5;
+                    transform: translateY(0%);
+                    // transition: transform motion.$duration-moderate-01;
+                    transition: transform 0.1s;
+                }
+                button {
+                    border-bottom: 1px solid #161616;
+                }
+                .launcher_bar__active {
+                    background: #161616;
+                    border: 2px solid #F4F4F4;
+                }
+            }
+        }
+        .launcher_bar__button {
+            width: 300px;
+            border-left: 1px solid #161616;
+            @media screen and (max-width: 672px) {
+                width: 50%;
+            }
+            button {
+                width: 100%;
+            }
+            &--disabled {
+                background-color: colors.$gray-80;
+                color: colors.$gray-50;
+            }
+        }
+    }
+}

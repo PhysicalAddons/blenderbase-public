@@ -1,0 +1,303 @@
+.settings_page {
+    display: flex;
+    justify-content: center;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 32px 0 120px 0;
+    overflow-y: auto;
+    height: 100%;
+
+    @media screen and (max-width: 1056px) {
+        padding: 16px 32px 120px 32px;
+    }
+
+    @media screen and (max-width: 672px) {
+        padding: 8px 16px 120px 16px;
+    }
+
+    // .section_searchbar {
+    // }
+
+    // .sidebar_container {
+    // }
+
+    .content_container {
+        max-width: 900px;
+        width: 100%;
+        padding: 0 16px;
+
+        @media screen and (max-width: 672px) {
+            padding: 0 8px;
+        }
+
+        h1 {
+            margin-bottom: 32px;
+        }
+
+        .settings_section {
+            border-radius: 8px;
+            margin-top: 16px;
+            margin-bottom: 1em;
+
+            .blender_installation_directory_heading {
+            }
+
+            .blender_installation_directory_settings {
+                .cds--popover {
+                    opacity: 0;
+                }
+                .cds--popover {
+                    display: none;
+                }
+                .cds--inline-loading {
+                    width: 48px;
+                    padding: 16px;
+                }
+                .cds--dropdown {
+                    min-width: 150px;
+                    border: none; 
+                    border-left: 2px solid rgba(211, 211, 211, 0.20);
+                }
+                .cds--list-box__menu {
+                    // z-index: 2;
+                    color: red;
+                }
+                .cds--toggle__switch--checked {
+                    background-color: $primary-color;
+                }
+                .delete_blender_installation_location_button {
+                    border: none;
+                    color: white;
+                    background: none;
+                    // z-index: 0;
+                }
+            }
+
+            .input_group {
+                display: flex;
+
+                button {
+                    height: 40px;
+                    margin-top: 24px;
+                    margin-left: 8px;
+                }
+
+                .blender_installation_directory_text_input {
+                    // background: blue;
+                }
+            }
+        }
+
+        .settings_subsection {
+            margin-top: 32px;
+            padding: 1em;
+            background-color: #262626;
+            border-radius: 8px;
+            color: white;
+
+            .settings_subsection_heading {
+                margin: 0 0 1em 0;
+            }
+
+            .setting_description_content {
+                display: flex;
+                gap: 1.2em;
+            }
+
+            .setting_description_hyperlink {
+                text-decoration: none;
+                color: white;
+            }
+
+            .setting_description_hyperlink:hover {
+                color: rgba(255, 255, 255, 0.7);
+            }
+
+            .cds--toggle__switch--checked {
+                background-color: $primary-color;
+            }
+
+            .settings_subsection_row {
+                margin-bottom: 1em;
+                &.disabled {
+                    opacity: 0.4;
+                    pointer-events: none;
+                    cursor: not-allowed;
+                }
+
+                &.enabled {
+                    opacity: 1;
+                }
+            }
+
+            .setting_row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .setting_title {
+                font-size: 1.2em;
+                flex: 1;
+            }
+
+            .setting_toggle {
+                flex: 0;
+
+            }
+
+            .setting_range {
+                display: flex;
+                flex-direction: row;
+                gap: 0.25rem;
+                align-items: center;
+            }
+
+            .setting_range_from,
+            .setting_range_to {
+                display: flex;
+            }
+            .setting_range_from_input,
+            .setting_range_to_input {
+                width: 120px;
+
+                padding: 0.15rem 0.35rem;
+
+                border-radius: 4px;
+                border: 1px solid #555;
+
+                background-color: #333;
+                color: white;
+            }
+
+            .setting_decimal_input {
+                width: 120px;
+
+                padding: 0.15rem 0.35rem;
+
+                border-radius: 4px;
+                border: 1px solid #555;
+
+                background-color: #333;
+                color: white;
+
+                -moz-appearance: textfield;
+                appearance: textfield;
+
+                &::-webkit-outer-spin-button,
+                &::-webkit-inner-spin-button {
+                    -webkit-appearance: none;
+                    margin: 0;
+                }
+            }
+
+            .setting_button {
+                width: auto;
+                height: 32px;
+                padding: 0 12px;
+                margin-right: 8px;
+                color: white;
+                background-color: #4F4F59;
+                border: 0;
+                border-radius: 0.25rem;
+                min-width: 56px;
+                white-space: nowrap;
+            }
+
+            .setting_button:hover {
+                background-color: #6F6F79;
+            }
+
+            .setting_button:active {
+                background-color: #81838F;
+            }
+
+            .setting_button_inline_loading {
+                padding-right: 12px;
+            }
+
+            .setting_description {
+                margin-top: 1em;
+                font-size: 1em;
+                color: rgba($color: #cccccc, $alpha: 0.7);
+            }
+
+            .setting_validation_error {
+                margin-top: 1em;
+                font-size: 1em;
+                color: rgba($color: #f34747, $alpha: 0.7);
+            }
+
+            .setting_disclaimer_text {
+                color: #ffb300;
+            }
+
+            // SCSS for sub-toggle
+            .sub_toggle_row {
+                margin-left: 1em;
+                margin-top: 1em;
+
+                .sub_setting_row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+
+                .sub_setting_title {
+                    font-size: 1em;
+                    flex: 1;
+                }
+
+                .sub_setting_toggle {
+                    flex: 0;
+                }
+
+                .sub_setting_decimal {
+                    flex: 0;
+                }
+
+                .sub_setting_description {
+                    margin-top: 0.5em;
+                    font-size: 0.9em;
+                    color: rgba($color: #cccccc, $alpha: 0.7);
+                }
+            }
+
+            .divider {
+                border: 0;
+                height: 1px;
+                background: #444;
+                margin-top: 1.5em;
+                margin-bottom: 1.5em;
+            }
+        }
+
+        .page_container {
+            padding-bottom: 1em;
+        }
+
+        .center_content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+
+            .settings_subsection_heading {
+                margin-bottom: 0.5em;
+            }
+
+            .setting_description_content {
+                justify-content: center;
+            }
+        }
+
+        .description {
+            font-size: 14px;
+            letter-spacing: 0.32px;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+    }
+}

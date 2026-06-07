@@ -1,0 +1,52 @@
+name: Publish private test release
+on:
+  push:
+    branches:
+      # Put the current branch name here: 
+      - 'dev' 
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - platform: 'demo' # window-latest equivalent.
+
+    runs-on: ${{ matrix.settings.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # lts/*
+
+      - name: install frontend dependencies
+        run: npm install # Change this to npm, pnpm or bun depending on which one you use.
+
+      - name: Build and upload a GitHub release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_FOR_PUBLIC_REPO }} 
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          tagName: v_test___VERSION__
+          releaseName: "v_test___VERSION__" 
+          releaseBody: |
+            Release notes: tba.
+          releaseDraft: false 
+          prerelease: false
+          includeUpdaterJson: true # 
+          # Put the current branch name here:
+          releaseCommitish: 'dev'

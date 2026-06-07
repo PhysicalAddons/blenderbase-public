@@ -1,0 +1,63 @@
+name: Publish Release
+on:
+  push:
+    branches:
+      - main # Add a branch to which the app should be build and released or update the on:push in general
+             # to be something more specialized, than a simple on:push.
+      
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+    #   matrix:
+    #     platform: ["demo"]
+    #     # settings:
+    #       # - platform: "macos-latest" # for Arm based macs (M1 and above).
+    #         # args: "--target aarch64-apple-darwin"
+    #       # - platform: "windows-latest"
+    #       #   args: ""
+    # runs-on:  ${{ matrix.platform }}
+      matrix:
+        settings:
+          - platform: 'demo' # window-latest equivalent.
+
+    runs-on: ${{ matrix.settings.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # lts/*
+
+      - name: install frontend dependencies
+        run: npm install # Change this to npm, pnpm or bun depending on which one you use.
+
+      - name: Build and upload a GitHub release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_FOR_PUBLIC_REPO }} # ${{ secrets.GITHUB_TOKEN }} # 
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          owner: PhysicalAddons
+          repo: blenderbase-public
+          tagName: v__VERSION__
+          releaseName: "Blenderbase v__VERSION__" 
+          # TODO add the documentation url here, so that users use a single source for it, rather than us trying to manage it in
+          # several places.
+          releaseBody: |
+            Release notes: tba.
+          releaseDraft: false # Maybe do this ("true") when building, and then change the release text post build.
+          prerelease: false # Means that the release is available to people, but not production ready.
+          includeUpdaterJson: true # If false, auto update will not work.
+          releaseCommitish: main # This has to be the name of a branch in the target public repo, i.e. main branch in blenderbase-public-repo

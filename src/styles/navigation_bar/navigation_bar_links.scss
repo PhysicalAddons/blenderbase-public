@@ -1,0 +1,59 @@
+.navigation_links {
+    display: flex;
+    // Add padding to the left side of the navigation_links at certain screen widths
+    @media screen and (min-width: 1057px) {
+        padding-left: 80px; // Set this value as per your requirement
+    }
+    .navigation_links_options {
+        height: $navbar-height;
+        
+        // Makes sure that the icons are centered.
+        display: flex; 
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+
+        padding-top: $navigation_bar_links-padding-top;
+        padding-bottom: $navigation_bar_links-padding-bottom;
+        padding-left: $navigation_bar_links-padding-left;
+        padding-right: $navigation_bar_links-padding-right;
+
+        @media screen and (max-width: 672px) {
+            padding-left: calc($navigation_bar_links-padding-left / 2);
+            padding-right: calc($navigation_bar_links-padding-right / 2);
+        }
+
+        @media screen and (max-width: 350px) {
+            padding-left: calc($navigation_bar_links-padding-left / 4);
+            padding-right: calc($navigation_bar_links-padding-right / 4);
+        }
+
+        font-size: $navigation_bar_links-font-size;
+        // color: $navigation_bar_links-text-color;
+        color: $text-placeholder;
+        
+        // Remove any default styling.
+        text-decoration: none;
+
+        // Make it so that it is on top of the `navigation_bar_drag_region.`
+        z-index: 1; 
+
+        
+    }
+
+    .navigation_links_options:hover {
+        background-color: $background-hover;
+    }
+
+    .navigation_links_options:active {
+        background-color: $background-hover;
+        // border-bottom: 1px solid $navigation_bar_links-active-bottom-border;
+    }
+
+    .navigation_links_options.active {
+        // background-color: red; // Change this to the desired active background color
+        color: $text-primary;
+        background: $layer-01;
+        border-bottom: 1px solid $border-subtle-01;
+    }  
+}

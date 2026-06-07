@@ -1,0 +1,51 @@
+.navigation_bar_utilities {
+    display: flex;
+    margin-right: 0.5em;
+
+    @media screen and (max-width: 672px) {
+        margin-right: 0;
+    }
+
+    .navigation_bar_utilities_option {
+        height: $navbar-height;
+        width: $navigation_bar_utils-control-width;
+        
+        // Makes sure, that the icons are centered. 
+        display: flex; 
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+
+        // Make it so that it is on top of the `navigation_bar_drag_region.`
+        z-index: 1; 
+    }
+    
+    .navigation_bar_utilities_option:hover {
+        background-color: $background-hover;
+    }
+
+    .get_help_navbar {
+        text-decoration: none;
+        color: #d8d8d8;
+    }
+    .get_help_navbar:hover {
+        text-decoration: none;
+        color: #5892c9;
+    }
+    .internet_connection_positive_navbar {
+        text-decoration: none;
+        color: #d8d8d8;
+    }
+    .internet_connection_positive_navbar:hover {
+        text-decoration: none;
+        color: #5892c9;
+    }
+    .internet_connection_negative_navbar {
+        text-decoration: none;
+        color: #e99898;
+    }
+    .internet_connection_negative_navbar:hover {
+        text-decoration: none;
+        color: #f34747;
+    }
+}

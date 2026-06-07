@@ -1,0 +1,163 @@
+.recent_files_panel {
+    -webkit-user-select: none; /* Chrome, Safari, and Opera */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* Internet Explorer/Edge */
+    user-select: none;         /* Non-prefixed version, currently supported by Chrome, Opera, and Edge */
+    
+    position: relative;
+    left: 0px;
+    width: 300px;
+    display: inline-block;
+    @media screen and (max-width: 672px) {
+        width: 50%;
+    }
+    @media screen and (max-width: 500px) {
+        width: 100%;
+    }
+    .recent_files {
+        position: sticky;
+        overflow-y: scroll;
+        background: $background;
+        height: calc(100vh - 40px);
+        border-left: 1px solid #222222;
+        padding-bottom: 200px;
+        .blender_series_heading {
+            padding-left: 1em;
+            padding-right: 1em;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            margin-left: 1px;
+            margin-right: 2px;
+        }
+        .blender_series_heading:active {
+            outline: 1px solid white
+        }
+        .recent_files__blender_series_number {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+        }
+        .blender_series_number {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .recent_files__overflow_menu {
+            opacity: 0;
+        }
+        .recent_files__empty_blender {
+            opacity: 0.5;
+        }
+        .recent_files__empty_all_blenders {
+            color: colors.$gray-60;
+            display: block;
+            text-align: center;
+            padding: 64px 16px;
+            svg {
+                width: 64px;
+                height: 64px;
+                opacity: 0.3;
+                margin-bottom: 16px;
+            }
+        }
+        h4 {
+            padding: 16px 16px 48px 16px;
+            @include type.type-style("heading-compact-02");
+            font-size: 16px;
+            line-height: 100%;
+            color: colors.$gray-60;
+            font-weight: 400;
+        }
+        .cds--contained-list--on-page + .cds--contained-list--on-page {
+            margin-block-start: 24px;
+        }
+        .cds--contained-list__label {
+            font-weight: bold;
+            color: #6a6a6a;
+        }
+        .cds--contained-list__header {
+            background: $background;
+            border-bottom: 1px solid #222222;
+        }
+        .cds--overflow-menu__wrapper {
+            opacity: 0;
+            padding-right: 10px;
+            height: 32px;
+            button {
+                min-height: 32px !important;
+            }
+        }
+        li {
+            &:hover {
+                .cds--overflow-menu__wrapper {
+                    opacity: 1;
+                }
+            }
+        }
+        .truncate {
+            div {
+                width: 100%;
+                direction: revert-layer;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                overflow: hidden;
+                color: #c6c6c6;
+            }
+        }
+        // .blend_file_blender_version_menu:focus {
+
+        // }
+        .cds--contained-list--inset-rulers
+            .cds--contained-list-item:not(:last-of-type)::before {
+            right: 0px;
+        }
+        .cds--contained-list-item:not(:last-of-type)::before {
+            background: #222222;
+        }
+    }
+}
+
+.sidebar_toggle__open {
+    position: absolute;
+    right: 0px;
+    .cds--popover {
+        opacity: 0;
+    }
+
+    .cds--popover {
+        display: none;
+    }
+}
+
+.sidebar_toggle__close {
+    display: inline-block;
+    top: 0px;
+    color: colors.$gray-60;
+    position: absolute;
+    right: 0px;
+    z-index: 1000;
+    button {
+        svg {
+            fill: colors.$gray-80 !important;
+        }
+        &:hover {
+            svg {
+                fill: colors.$gray-10 !important;
+            }
+        }
+    }
+    .cds--popover {
+        opacity: 0;
+    }
+}
+
+
+.cds--popover--open {
+    margin-right: 0px;
+}
+
+.cds--contained-list__header {
+    padding-left: 0px;
+    padding-right: 0px;
+}

@@ -1,0 +1,32 @@
+@import "./color_consts.scss";
+@import "./size_consts.scss";
+@import "./navigation_bar_links.scss";
+@import "./navigation_bar_drag_region.scss";
+@import "./navigation_bar_utilities.scss";
+@import "./window_controls.scss";
+
+.navigation_bar {
+    // border: 1px solid red;
+    // background-color: $background_color;
+    background-color: $background;
+    height: $navbar-height;
+    user-select: none; 
+    display: flex;
+    border-bottom: 1px solid $navigation_bar-bottom-border-color;
+    // Used for better navbar 
+    // position: relative;
+    // Used for old navbar
+    position: fixed; 
+    top: 0;
+    left: 0;
+    right: 0;
+    /* Ensure it stays above other content */
+    z-index: 100; 
+}
+
+.navigation_bar_delimiter {
+    // border: 1px solid blue;
+    margin-left: auto;   
+    flex-grow: 1;
+    // z-index: 2;
+}

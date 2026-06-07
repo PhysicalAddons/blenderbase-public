@@ -1,0 +1,22 @@
+// **Navigation bar**
+// TODO make it so that the items within the navbar are slightly shorter (less height)
+// so that there isnt any droop over the navbar bottom border.
+$navbar-height: 2.3em;
+$app_window-control_close-window-height:2.3em;
+
+$navigation_bar_drag_region-height: 1.726em;//1.663em;
+$navigation_bar_drag_region-cutoff-width: 0.313em;//0.375em;
+
+$app_window-control-width: 2.86em;
+
+$macos_app_window-control-width: 1.875em;
+
+$navigation_bar_utils-control-width: 2.5em;
+
+$navigation_bar_links-padding-top: 0em;
+$navigation_bar_links-padding-bottom: 0em;
+$navigation_bar_links-padding-left: 1em;
+$navigation_bar_links-padding-right: 3.25em;
+
+
+$navigation_bar_links-font-size: 1em //1em; //0.938em; //0.875em;

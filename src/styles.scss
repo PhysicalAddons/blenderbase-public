@@ -1,0 +1,24 @@
+@use '@carbon/react';
+@use '@carbon/colors';
+@use "@carbon/react/scss/spacing" as *;
+@use "@carbon/react/scss/type" as *;
+@use "@carbon/react/scss/breakpoint" as *;
+@use "@carbon/react/scss/theme" as *;
+@use "@carbon/type";
+@use '@carbon/motion';
+@include type.reset();
+@include type.default-type();
+@include type.type-classes();
+// Fonts
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+// Tokens
+@import "styles/color.scss";
+// Layout
+@import "styles/layout.scss";
+// Components
+@import "styles/navigation_bar/navbar.scss";
+@import "styles/components/Settings.scss";
+@import "styles/components/RecentFilesPanel.scss";
+@import "styles/components/AddonManager";
+@import "styles/components/BlenderManager";
+@import "styles/components/LauncherBar";
