@@ -70,10 +70,14 @@ impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceI
         if let Err(e) = std::fs::create_dir_all(&path) {
             return Err(format!("Failed confirm blender installation location: could not create {}: {:?}", path, e));
         }
-        let permission_details: PermissionDetails = match get_permission_details(path.as_str()) {
-            Ok(v) => v,
-            Err(e) => return Err(format!("Failed confirm blender installation location: {:?}", e)),
-        };
+        // The ACL probe spawns PowerShell and waits for it; keep that off the async runtime.
+        let probe_path = path.clone();
+        let permission_details: PermissionDetails =
+            match tokio::task::spawn_blocking(move || get_permission_details(&probe_path)).await {
+                Ok(Ok(v)) => v,
+                Ok(Err(e)) => return Err(format!("Failed confirm blender installation location: {:?}", e)),
+                Err(e) => return Err(format!("Failed confirm blender installation location: {:?}", e)),
+            };
         let blr = state.blender_installation_location_repository();
         if let Err(e) = blr.confirm(&id, &path, &permission_details).await {
             return Err(format!("Failed confirm blender installation location: {:?}", e));
@@ -143,12 +147,13 @@ impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceI
             Ok(v) => v,
             Err(e) => return Err(format!("Failed insert blender installation location: {:?}", e)),
         };
-        let permission_details: PermissionDetails = match get_permission_details(
-            repo_directory_path.to_string_lossy().to_string().as_str(),
-        ) {
-            Ok(v) => v,
-            Err(e) => return Err(format!("Failed insert blender installation location: {:?}", e)),
-        };
+        let probe_path = repo_directory_path.to_string_lossy().to_string();
+        let permission_details: PermissionDetails =
+            match tokio::task::spawn_blocking(move || get_permission_details(&probe_path)).await {
+                Ok(Ok(v)) => v,
+                Ok(Err(e)) => return Err(format!("Failed insert blender installation location: {:?}", e)),
+                Err(e) => return Err(format!("Failed insert blender installation location: {:?}", e)),
+            };
         let entry = BlenderInstallationLocation {
             id: uuid::Uuid::new_v4().to_string(),
             is_default: existing_entries.is_empty(),
@@ -246,10 +251,11 @@ impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceI
             Some(v) => {
                 if results.is_empty() && v == true {
                     instance_native_ok_dialog_window(
-                    app.clone(),
-                    format!("Please set a default Blender installation location in the Settings tab"),
-                    tauri_plugin_dialog::MessageDialogKind::Error,
-                );
+                        app.clone(),
+                        format!("Please set a default Blender installation location in the Settings tab"),
+                        tauri_plugin_dialog::MessageDialogKind::Error,
+                    )
+                    .await;
                     return Err(format!("'Missing default Blender installation location"));
                 }
             }

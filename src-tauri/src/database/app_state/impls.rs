@@ -88,13 +88,8 @@ impl TAppState for AppStateImpl {
             Ok(_) => {}
             Err(e) => return Err(format!("Failed to refresh blender versions{:?}", e)),
         }
-        match BlendFileServiceImpl
-            .refresh_blender_series(app.clone(), state.clone())
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => return Err(format!("Failed to refresh blender series: {:?}", e)),
-        }
+        // `refresh_blend_files` refreshes the series first, so this is the
+        // single series scan at startup.
         match BlendFileServiceImpl
             .refresh_blend_files(app.clone(), state.clone())
             .await

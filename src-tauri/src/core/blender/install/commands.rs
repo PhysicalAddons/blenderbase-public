@@ -140,20 +140,6 @@ pub async fn cmd_fetch_blender_versions(
     download_status_types: Option<Vec<String>>,
 ) -> Result<Vec<BlenderVersion>, String> {
     match BlenderInstallServiceImpl
-        .refresh_blender_versions(app.clone(), state.clone())
-        .await
-    {
-        Ok(_) => {}
-        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
-    }
-    match BlenderInstallServiceImpl
-        .set_default_blender_version(app.clone(), state.clone())
-        .await
-    {
-        Ok(_) => {}
-        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
-    }
-    match BlenderInstallServiceImpl
         .fetch_blender_versions(
             app,
             state,
@@ -168,6 +154,30 @@ pub async fn cmd_fetch_blender_versions(
         .await
     {
         Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
+
+/// Rescans the installation locations and makes sure a default version is set.
+/// Kept separate from `cmd_fetch_blender_versions` so that plain reads stay cheap.
+#[named]
+#[tauri::command]
+pub async fn cmd_refresh_blender_versions(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    match BlenderInstallServiceImpl
+        .refresh_blender_versions(app.clone(), state.clone())
+        .await
+    {
+        Ok(_) => {}
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+    match BlenderInstallServiceImpl
+        .set_default_blender_version(app, state)
+        .await
+    {
+        Ok(_) => Ok(()),
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }

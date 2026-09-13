@@ -1,16 +1,16 @@
-use std::{
-    io::{Read, Write},
-    os::windows::process::CommandExt,
-};
+use std::io::{Read, Write};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 use sha2::{Digest, Sha256};
 
 use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
+use crate::core::{PermissionDetails, NO_SENTANCE_CASE, YES_SENTANCE_CASE};
+#[cfg(windows)]
 use crate::core::{
-    PermissionDetails, COMMAND, CREATE_NO_WINDOW_FLAG, GET_PATH_PERMISSIONS_PS1_EXPRESSION, HIDDEN,
-    NO_SENTANCE_CASE, WINDOW_STYLE, YES_SENTANCE_CASE,
+    COMMAND, CREATE_NO_WINDOW_FLAG, GET_PATH_PERMISSIONS_PS1_EXPRESSION, HIDDEN, WINDOW_STYLE,
 };
 
 const WIDTH: f64 = 600.0;
@@ -71,7 +71,14 @@ pub async fn get_directory_from_file_explorer(
     app: AppHandle,
 ) -> Result<Option<std::path::PathBuf>, String> {
     // TODO set to open Desktop always.
-    let directory_path_option = app.dialog().file().blocking_pick_folder();
+    // The native picker blocks its thread until the user answers, so it runs
+    // on the blocking pool instead of stalling the async runtime.
+    let directory_path_option =
+        match tokio::task::spawn_blocking(move || app.dialog().file().blocking_pick_folder()).await
+        {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed get directory from file explorer: {:?}", e)),
+        };
     let directory_path_string = match directory_path_option {
         Some(v) => v.to_string(),
         None => return Err(format!("Failed get directory from file explorer")),
@@ -130,19 +137,27 @@ pub fn open_in_file_explorer(file_path: std::path::PathBuf) -> Result<(), String
 
 /// Absolute path to Windows PowerShell, so a `powershell.exe` planted in the
 /// working directory or on PATH can never be picked up instead.
+#[cfg(windows)]
 pub fn powershell_executable() -> std::path::PathBuf {
     let system_root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
     std::path::PathBuf::from(system_root).join("System32\\WindowsPowerShell\\v1.0\\powershell.exe")
 }
 
+#[cfg(windows)]
 pub fn run_ps1_expression_as_string(args: Vec<&str>) -> Result<String, String> {
     run_ps1_expression_with_env(args, &[])
+}
+
+#[cfg(not(windows))]
+pub fn run_ps1_expression_as_string(_args: Vec<&str>) -> Result<String, String> {
+    Err(String::from("PowerShell is only available on Windows"))
 }
 
 /// Runs PowerShell with extra environment variables. Any value that comes
 /// from a user or the webview must travel this way and be read as `$env:NAME`
 /// inside the script. Splicing it into the script text would let a quote in
 /// the value end the string literal and run the rest as a command.
+#[cfg(windows)]
 pub fn run_ps1_expression_with_env(
     args: Vec<&str>,
     envs: &[(&str, &str)],
@@ -165,6 +180,26 @@ pub fn run_ps1_expression_with_env(
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
+#[cfg(not(windows))]
+pub fn run_ps1_expression_with_env(
+    _args: Vec<&str>,
+    _envs: &[(&str, &str)],
+) -> Result<String, String> {
+    Err(String::from("PowerShell is only available on Windows"))
+}
+
+/// Without ACL probing on other platforms the location is assumed usable;
+/// any real permission problem surfaces on the first write.
+#[cfg(not(windows))]
+pub fn get_permission_details(_path: &str) -> Result<PermissionDetails, String> {
+    Ok(PermissionDetails {
+        read: true,
+        write: true,
+        ..Default::default()
+    })
+}
+
+#[cfg(windows)]
 pub fn get_permission_details(path: &str) -> Result<PermissionDetails, String> {
     // The path is handed over as an environment variable and never written
     // into the script: a directory name containing `'` or `;` would otherwise
@@ -186,6 +221,52 @@ $Path = $env:BLENDERBASE_PATH
         Err(e) => return Err(format!("Failed get permission detail: {:?}", e)),
     };
     return Ok(result);
+}
+
+/// Resolves the executable of an installed Blender version and refuses anything
+/// that is not `blender-launcher.exe` / `blender.exe` located inside that
+/// version's installation directory. Both values come from the database, but
+/// the rows were once accepted from the webview, so they are re-checked here
+/// before anything is spawned.
+pub fn validate_blender_executable(
+    installation_directory_path: &str,
+    executable_file_path: &str,
+) -> Result<std::path::PathBuf, String> {
+    let executable = std::path::PathBuf::from(executable_file_path);
+    let file_name = executable
+        .file_name()
+        .map(|n| n.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    if file_name != "blender-launcher.exe" && file_name != "blender.exe" {
+        return Err(format!(
+            "Refusing to launch {}: not a Blender executable",
+            executable.display()
+        ));
+    }
+    if installation_directory_path.trim().is_empty() {
+        return Err(format!(
+            "Refusing to launch {}: the version has no installation directory",
+            executable.display()
+        ));
+    }
+    let install_dir = std::path::PathBuf::from(installation_directory_path);
+    let canonical_exe = executable
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve {}: {}", executable.display(), e))?;
+    let canonical_dir = install_dir
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve {}: {}", install_dir.display(), e))?;
+    if !canonical_exe.starts_with(&canonical_dir) {
+        return Err(format!(
+            "Refusing to launch {}: it is outside the installation directory {}",
+            executable.display(),
+            install_dir.display()
+        ));
+    }
+    if !canonical_exe.is_file() {
+        return Err(format!("Refusing to launch {}: not a file", executable.display()));
+    }
+    Ok(executable)
 }
 
 pub fn launch_executable(
@@ -220,7 +301,8 @@ pub fn launch_executable(
 ///    consent prompt while the app keeps running. Declining the prompt, or
 ///    any other failure, is reported as an error.
 ///
-/// The elevated step is Windows-only; the surrounding module already is.
+/// The elevated step is Windows-only; other platforms create the link directly.
+#[cfg(windows)]
 pub fn symlink_directory(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
     if !src.is_dir() {
         return Err(format!(
@@ -244,8 +326,10 @@ pub fn symlink_directory(src: &std::path::Path, dst: &std::path::Path) -> Result
         Err(e) => return Err(format!("Failed symlink directory: {:?}", e)),
     }
 
-    // Elevated fallback. The link command is written to a temporary script so
-    // that no path ever has to be quoted through two shell layers; inside the
+    // Elevated fallback. The link command is handed to the elevated shell as
+    // an `-EncodedCommand` (base64 of UTF-16LE) so that no helper file exists
+    // on disk for anything else to swap out before the elevated process reads
+    // it, and no path has to be quoted through two shell layers. Inside the
     // script, single quotes are the only character that needs escaping.
     let ps_quote = |p: &std::path::Path| p.to_string_lossy().replace('\'', "''");
     let script = format!(
@@ -253,26 +337,16 @@ pub fn symlink_directory(src: &std::path::Path, dst: &std::path::Path) -> Result
         ps_quote(dst),
         ps_quote(src)
     );
-    let script_path = std::env::temp_dir().join(format!(
-        "blenderbase_symlink_{}.ps1",
-        uuid::Uuid::new_v4()
-    ));
-    if let Err(e) = std::fs::write(&script_path, script) {
-        return Err(format!(
-            "Failed symlink directory: could not write helper script: {:?}",
-            e
-        ));
-    }
+    let encoded = encode_powershell_command(&script);
     // `-Verb RunAs` is what raises the UAC prompt. `-Wait -PassThru` lets us
     // read the elevated process's exit code once the user has answered it.
     let expr = format!(
-        "$p = Start-Process -FilePath '{}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','{}'\r\nexit $p.ExitCode",
+        "$p = Start-Process -FilePath '{}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-EncodedCommand','{}'\r\nexit $p.ExitCode",
         ps_quote(&powershell_executable()),
-        ps_quote(&script_path)
+        encoded
     );
     let args = vec![WINDOW_STYLE, HIDDEN, COMMAND, expr.as_str()];
     let result = run_ps1_expression_as_string(args);
-    let _ = std::fs::remove_file(&script_path);
 
     // The link's presence on disk is the authoritative outcome. A declined
     // UAC prompt makes Start-Process throw, which surfaces as a non-zero exit.
@@ -287,6 +361,35 @@ pub fn symlink_directory(src: &std::path::Path, dst: &std::path::Path) -> Result
             ),
         }),
     }
+}
+
+#[cfg(not(windows))]
+pub fn symlink_directory(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
+    if !src.is_dir() {
+        return Err(format!(
+            "Failed symlink directory: source is not a directory: {}",
+            src.display()
+        ));
+    }
+    if dst.symlink_metadata().is_ok() {
+        return Err(format!(
+            "Failed symlink directory: destination already exists: {}",
+            dst.display()
+        ));
+    }
+    std::os::unix::fs::symlink(src, dst).map_err(|e| format!("Failed symlink directory: {:?}", e))
+}
+
+/// Encodes a script the way `powershell.exe -EncodedCommand` expects it:
+/// base64 over the UTF-16LE bytes of the text.
+#[cfg(windows)]
+fn encode_powershell_command(script: &str) -> String {
+    use base64::Engine;
+    let mut bytes = Vec::with_capacity(script.len() * 2);
+    for unit in script.encode_utf16() {
+        bytes.extend_from_slice(&unit.to_le_bytes());
+    }
+    base64::engine::general_purpose::STANDARD.encode(bytes)
 }
 
 /// SHA-256 of a file as lowercase hex. Hashing runs on the blocking pool so a
@@ -343,45 +446,67 @@ pub async fn delete_file(file_path: std::path::PathBuf) -> Result<(), String> {
     }
 }
 
+/// Removes a directory tree on the blocking pool: a Blender install is
+/// several thousand files and would otherwise stall the async runtime.
 pub async fn delete_directory(directory_path: std::path::PathBuf) -> Result<(), String> {
-    match std::fs::remove_dir_all(directory_path) {
-        Ok(_) => Ok(()),
-        Err(e) => return Err(format!("Failed delete directory: {:?}", e)),
+    let join = tokio::task::spawn_blocking(move || std::fs::remove_dir_all(directory_path));
+    match join.await {
+        Ok(Ok(_)) => Ok(()),
+        Ok(Err(e)) => Err(format!("Failed delete directory: {:?}", e)),
+        Err(e) => Err(format!("Failed delete directory: {:?}", e)),
     }
 }
 
-pub fn instance_native_ok_dialog_window(
+/// Native dialogs block their thread until dismissed, so both run on the
+/// blocking pool. `AppHandle` is `Send + Sync`, which makes the move cheap.
+pub async fn instance_native_ok_dialog_window(
     app: AppHandle,
     message: String,
     kind: tauri_plugin_dialog::MessageDialogKind,
 ) -> () {
-    app.dialog()
-        .message(message)
-        .kind(kind)
-        .buttons(MessageDialogButtons::Ok)
-        .blocking_show();
+    let _ = tokio::task::spawn_blocking(move || {
+        app.dialog()
+            .message(message)
+            .kind(kind)
+            .buttons(MessageDialogButtons::Ok)
+            .blocking_show();
+    })
+    .await;
     ()
 }
 
-pub fn instance_native_ask_dialog_window(
+pub async fn instance_native_ask_dialog_window(
     app: AppHandle,
     message: String,
     kind: tauri_plugin_dialog::MessageDialogKind,
 ) -> bool {
-    let answer = app
-        .dialog()
-        .message(message)
-        .kind(kind)
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            // B (2.a.) .buttons(
-            String::from(YES_SENTANCE_CASE),
-            String::from(NO_SENTANCE_CASE),
-        ))
-        .blocking_show();
-    return answer;
+    let join = tokio::task::spawn_blocking(move || {
+        app.dialog()
+            .message(message)
+            .kind(kind)
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                String::from(YES_SENTANCE_CASE),
+                String::from(NO_SENTANCE_CASE),
+            ))
+            .blocking_show()
+    });
+    // A failed join (panic inside the dialog) counts as "no".
+    join.await.unwrap_or(false)
 }
 
+/// Extracts `archive_file_path` next to itself. The work is synchronous zip
+/// I/O over hundreds of megabytes, so it runs on the blocking pool.
 pub async fn open_archive(
+    archive_file_path: std::path::PathBuf,
+) -> Result<std::path::PathBuf, String> {
+    let join = tokio::task::spawn_blocking(move || open_archive_blocking(archive_file_path));
+    match join.await {
+        Ok(v) => v,
+        Err(e) => Err(format!("Failed open archive: {:?}", e)),
+    }
+}
+
+fn open_archive_blocking(
     archive_file_path: std::path::PathBuf,
 ) -> Result<std::path::PathBuf, String> {
     let file = match std::fs::File::open(&archive_file_path) {
@@ -582,6 +707,7 @@ not-a-hash  blender-4.5.1-linux-x64.tar.xz
     /// The path used to be spliced into the script inside single quotes, so a
     /// directory name like this one closed the literal and ran the remainder.
     /// It now travels as an environment variable and must come back as data.
+    #[cfg(windows)]
     #[test]
     fn permission_probe_treats_quotes_and_semicolons_as_data() {
         let dir = temp_dir().join("bb 'quote'; Write-Output INJECTED; '");

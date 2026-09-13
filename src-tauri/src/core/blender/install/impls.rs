@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr, sync::LazyLock};
 
 use regex::Regex;
 use tauri::AppHandle;
@@ -7,7 +7,8 @@ use crate::{
     core::{
         delete_directory, delete_file, instance_native_ask_dialog_window, launch_executable,
         find_sha256_in_listing, http_get_as_string, is_sha256_hex, open_archive,
-        probe_blender_build_info, resolve_blender_console_executable, sha256_of_file, write_file,
+        probe_blender_build_info, resolve_blender_console_executable, sha256_of_file,
+        validate_blender_executable, write_file,
         DownloadStatusKind, DownloadableBlenderVersion, OrderKind,
         BLENDERBASE_DOWNLOAD_DATA, BLENDER_LAUNCHER_EXE, BLENDER_ORG_RELEASE_CHECKSUM_BASE,
         BLENDER_VERSION_VARIANT_REGEX,
@@ -127,7 +128,32 @@ pub trait TBlenderInstallService {
     ) -> Result<(), String>;
 }
 
+/// Compiled once; `insert_blender_version` runs once per installed build on every scan.
+static VERSION_VARIANT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(BLENDER_VERSION_VARIANT_REGEX).expect("valid version regex"));
+
 pub struct BlenderInstallServiceImpl;
+
+/// `blenderbase_download_data.json` lives in the version's own folder (the one
+/// holding `blender-launcher.exe`), which is also where the frontend writes it
+/// after a download. Every reader goes through here so they agree on the spot.
+fn download_data_path(version_dir: &std::path::Path) -> std::path::PathBuf {
+    version_dir.join(format!("{}{}", BLENDERBASE_DOWNLOAD_DATA, ".json"))
+}
+
+/// Reads the download data file for a version folder, if there is one.
+fn read_download_data(
+    version_dir: &std::path::Path,
+) -> Result<Option<DownloadableBlenderVersion>, String> {
+    let path = download_data_path(version_dir);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let file = std::fs::File::open(&path).map_err(|e| format!("{}: {:?}", path.display(), e))?;
+    serde_json::from_reader(file)
+        .map(Some)
+        .map_err(|e| format!("invalid download data file {}: {:?}", path.display(), e))
+}
 
 impl TBlenderInstallService for BlenderInstallServiceImpl {
     async fn refresh_blender_versions_init(
@@ -142,6 +168,10 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             Err(e) => {
                 return Err(format!("Failed refresh_blender_versions_init: {:?}", e));
             }
+        };
+        let mut known_by_executable = match Self::versions_by_executable(&state).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed refresh_blender_versions_init: {:?}", e)),
         };
         for blender_installation_location in blender_installation_locations {
             let directory_entries =
@@ -165,27 +195,14 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 if !executable_file_path.exists() {
                     continue;
                 }
-                let mut existing_entries = match bvr
-                    .fetch(
-                        None,
-                        None,
-                        None,
-                        Some(executable_file_path.to_string_lossy().to_string()),
-                        None,
-                    )
-                    .await
+                if let Some(existing) =
+                    known_by_executable.remove(&executable_file_path.to_string_lossy().to_string())
                 {
-                    Ok(val) => val,
-                    Err(e) => {
-                        return Err(format!("Failed refresh_blender_versions_init: {:?}", e));
-                    }
-                };
-                if !existing_entries.is_empty() {
                     match Self::refresh_blender_version(
                         &self,
                         app.clone(),
                         state.clone(),
-                        existing_entries.remove(0),
+                        existing,
                         blender_installation_location.id.clone(),
                     )
                     .await
@@ -244,6 +261,10 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 return Err(format!("Failed refresh_blender_versions:{:?}", e));
             }
         };
+        let mut known_by_executable = match Self::versions_by_executable(&state).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed refresh_blender_versions:{:?}", e)),
+        };
         for blender_installation_location in blender_installation_locations {
             let directory_entries =
                 match std::fs::read_dir(blender_installation_location.directory_path) {
@@ -266,27 +287,14 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 if !executable_file_path.exists() {
                     continue;
                 }
-                let mut existing_entries = match bvr
-                    .fetch(
-                        None,
-                        None,
-                        None,
-                        Some(executable_file_path.to_string_lossy().to_string()),
-                        None,
-                    )
-                    .await
+                if let Some(existing) =
+                    known_by_executable.remove(&executable_file_path.to_string_lossy().to_string())
                 {
-                    Ok(val) => val,
-                    Err(e) => {
-                        return Err(format!("Failed refresh_blender_versions:{:?}", e));
-                    }
-                };
-                if !existing_entries.is_empty() {
                     match Self::refresh_blender_version(
                         &self,
                         app.clone(),
                         state.clone(),
-                        existing_entries.remove(0),
+                        existing,
                         blender_installation_location.id.clone(),
                     )
                     .await
@@ -444,7 +452,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             match repository.fetch(id, None, None, None, None).await {
                 Ok(v) => v,
                 Err(e) => return Err(format!(
-                    "Failed install_blender_version: Failed to extract downloaded Blender versions files from archive file: {:?}",
+                    "Failed install_blender_version: Failed to fetch the Blender version to install: {:?}",
                     e
                 )),
             };
@@ -490,7 +498,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         }
         match repository.update(&blender_version).await {
             Ok(_) => Ok(()),
-            Err(e) => return Err(format!("Failed install_blender_version: Failed to delete downloaded archive file: {:?}", e)),
+            Err(e) => return Err(format!("Failed install_blender_version: Failed to update the Blender version record: {:?}", e)),
         }
     }
 
@@ -501,9 +509,11 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         downloadable_blender_version: DownloadableBlenderVersion,
         directory_path: std::path::PathBuf,
     ) -> Result<(), String> {
-        let file_path: std::path::PathBuf =
-            directory_path.join(format!("{}{}", BLENDERBASE_DOWNLOAD_DATA, ".json"));
-        let content = serde_json::to_string(&downloadable_blender_version).unwrap();
+        let file_path = download_data_path(&directory_path);
+        let content = match serde_json::to_string(&downloadable_blender_version) {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed write_blender_version_download_data: {:?}", e)),
+        };
         match write_file(file_path, content).await {
             Ok(_) => Ok(()),
             Err(e) => return Err(format!("Failed write_blender_version_download_data: {:?}", e)),
@@ -543,10 +553,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             Some(val) => val.to_string_lossy().to_string(),
             None => return Err(format!("Failed insert_blender_version: Failed to get file name")),
         };
-        let re = match Regex::new(BLENDER_VERSION_VARIANT_REGEX) {
-            Ok(val) => val,
-            Err(e) => return Err(format!("Failed insert_blender_version: {:?}", e)),
-        };
+        let re = &*VERSION_VARIANT_RE;
         let mut version = String::new();
         let mut variant = String::new();
         if let Some(caps) = re.captures(&dir_name) {
@@ -560,29 +567,11 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 .unwrap_or_default();
         }
 
-        let path = format!(
-            "{}/{}{}",
-            parent_dir.to_string_lossy(),
-            BLENDERBASE_DOWNLOAD_DATA,
-            ".json"
-        );
-        let download_data_file_path = std::path::Path::new(path.as_str());
-        let mut downloadable_blender_version = DownloadableBlenderVersion::default();
-        if download_data_file_path.exists() {
-            let download_data_file = match std::fs::File::open(download_data_file_path) {
-                Ok(v) => v,
-                Err(e) => return Err(format!("Failed insert_blender_version: {:?}", e)),
-            };
-            downloadable_blender_version = match serde_json::from_reader(download_data_file) {
-                Ok(v) => v,
-                Err(e) => {
-                    return Err(format!(
-                        "Failed insert_blender_version: invalid download data file {}: {:?}",
-                        path, e
-                    ))
-                }
-            };
-        }
+        let downloadable_blender_version = match read_download_data(parent_dir) {
+            Ok(Some(v)) => v,
+            Ok(None) => DownloadableBlenderVersion::default(),
+            Err(e) => return Err(format!("Failed insert_blender_version: {}", e)),
+        };
         // TODO add defaults for values, if download data does not exist.
         let b = BlenderVersion {
             id: uuid::Uuid::new_v4().to_string(),
@@ -640,43 +629,28 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         _app: AppHandle,
         state: tauri::State<'_, AppState>,
         mut blender_version: BlenderVersion,
-        blender_installation_location_id: String,
+        _blender_installation_location_id: String,
     ) -> Result<(), String> {
         let bvr = state.blender_version_repository();
-        let bilr = state.blender_installation_location_repository();
-        let mut blender_installation_locations = match bilr
-            .fetch(Some(blender_installation_location_id), None, None, None)
-            .await
-        {
-            Ok(v) => v,
-            Err(e) => return Err(format!("Failed refresh_blender_version: {:?}", e)),
+        // The data file sits in the version's own folder, the same place
+        // `insert_blender_version` reads it from.
+        let version_dir = if blender_version.installation_directory_path.trim().is_empty() {
+            match blender_version
+                .executable_file_path
+                .as_deref()
+                .and_then(|p| std::path::Path::new(p).parent())
+            {
+                Some(v) => v.to_path_buf(),
+                None => return Err(String::from("Failed refresh_blender_version: version has no folder")),
+            }
+        } else {
+            std::path::PathBuf::from(&blender_version.installation_directory_path)
         };
-        if blender_installation_locations.is_empty() {
-            return Err(format!(
-                "Failed refresh_blender_version"
-            ));
-        }
-        let blender_installation_location = blender_installation_locations.remove(0);
-        let path = format!(
-            "{}/{}{}",
-            blender_installation_location.directory_path, BLENDERBASE_DOWNLOAD_DATA, ".json"
-        );
-        let download_data_file_path = std::path::Path::new(path.as_str());
-        let downloadable_blender_version: DownloadableBlenderVersion;
-        if download_data_file_path.exists() {
-            let download_data_file = match std::fs::File::open(download_data_file_path) {
-                Ok(v) => v,
-                Err(e) => return Err(format!("Failed refresh_blender_version: {:?}", e)),
-            };
-            downloadable_blender_version = match serde_json::from_reader(download_data_file) {
-                Ok(v) => v,
-                Err(e) => {
-                    return Err(format!(
-                        "Failed refresh_blender_version: invalid download data file {}: {:?}",
-                        path, e
-                    ))
-                }
-            };
+        let download_data = match read_download_data(&version_dir) {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed refresh_blender_version: {}", e)),
+        };
+        if let Some(downloadable_blender_version) = download_data {
             blender_version = BlenderVersion {
                 url: Some(downloadable_blender_version.url),
                 app: Some(downloadable_blender_version.app),
@@ -755,6 +729,11 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 "No Blender versions installed. Can't set a default Blender version"
             ));
         }
+        // Clearing the old default and setting the new one is one atomic step.
+        let mut tx = match state.pool.begin().await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed set_blender_version_as_default: {:?}", e)),
+        };
         for mut bv in blender_versions {
             let new_default = match &id {
                 Some(v) => bv.id.eq(v),
@@ -762,13 +741,16 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             };
             if bv.is_default != new_default {
                 bv.is_default = new_default;
-                match r.update(&bv).await {
+                match r.update_with(&mut *tx, &bv).await {
                     Ok(_) => {}
                     Err(e) => return Err(format!("Failed set_blender_version_as_default: {:?}", e)),
                 }
             }
         }
-        Ok(())
+        match tx.commit().await {
+            Ok(_) => Ok(()),
+            Err(e) => Err(format!("Failed set_blender_version_as_default: {:?}", e)),
+        }
     }
 
     async fn set_default_blender_version(
@@ -843,11 +825,13 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                     .any(|status| status.id == x.download_status_type_id)
             });
         }
+        // Numeric ordering: as strings "4.10" would sort before "4.2".
+        let key = |v: &BlenderVersion| v.version.as_deref().map(Self::parse_version).unwrap_or((0, 0, 0));
         match order {
             // Sort ASC
-            OrderKind::Asc => results.sort_by(|a, b| a.version.cmp(&b.version)),
+            OrderKind::Asc => results.sort_by(|a, b| key(a).cmp(&key(b))),
             // Sort DESC
-            OrderKind::Desc => results.sort_by(|a, b| b.version.cmp(&a.version)),
+            OrderKind::Desc => results.sort_by(|a, b| key(b).cmp(&key(a))),
         }
         Ok(results)
     }
@@ -928,14 +912,6 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         id: String,
     ) -> Result<(), String> {
         let r = state.blender_version_repository();
-        let confirmation = instance_native_ask_dialog_window(
-            app.clone(),
-            format!("Are you sure you want to delete this installed Blender version?"),
-            tauri_plugin_dialog::MessageDialogKind::Warning,
-        );
-        if confirmation == false {
-            return Ok(());
-        }
         let mut a = match r.fetch(Some(id.clone()), None, None, None, None).await {
             Ok(v) => v,
             Err(err) => return Err(format!("Failed delete_blender_version: {:?}", err)),
@@ -947,7 +923,52 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             ));
         }
         let b = a.remove(0);
-        match delete_directory(std::path::PathBuf::from(b.installation_directory_path)).await {
+        // The directory that is about to be removed recursively must sit inside
+        // one of the confirmed installation locations. A stray or tampered row
+        // must never be able to point `remove_dir_all` at an arbitrary folder.
+        let version_dir = std::path::PathBuf::from(&b.installation_directory_path);
+        let canonical_version_dir = match version_dir.canonicalize() {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(format!(
+                    "Failed delete_blender_version: cannot resolve {}: {}",
+                    version_dir.display(),
+                    e
+                ))
+            }
+        };
+        let locations = match state
+            .blender_installation_location_repository()
+            .fetch(None, None, None, None)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed delete_blender_version: {:?}", e)),
+        };
+        let inside_location = locations
+            .iter()
+            .filter(|l| l.is_confirmed)
+            .filter_map(|l| std::path::PathBuf::from(&l.directory_path).canonicalize().ok())
+            .any(|root| canonical_version_dir != root && canonical_version_dir.starts_with(&root));
+        if !inside_location {
+            return Err(format!(
+                "Failed delete_blender_version: {} is not inside a confirmed Blender installation location, refusing to delete it",
+                version_dir.display()
+            ));
+        }
+        let confirmation = instance_native_ask_dialog_window(
+            app.clone(),
+            format!(
+                "Are you sure you want to delete this installed Blender version?\n\nThis removes the folder:\n{}",
+                version_dir.display()
+            ),
+            tauri_plugin_dialog::MessageDialogKind::Warning,
+        )
+        .await;
+        if confirmation == false {
+            return Ok(());
+        }
+        match delete_directory(version_dir).await {
             Ok(_) => {}
             Err(err) => return Err(format!("Failed delete_blender_version: {:?}", err)),
         }
@@ -1021,13 +1042,18 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         //     }
         //     None => {}
         // }
-        match launch_executable(
-            std::path::PathBuf::from(match blender_version.executable_file_path {
-                Some(v) => v,
-                None => return Err(format!("Failed launch_blender_version")),
-            }),
-            Some(launch_args),
+        let executable_file_path = match &blender_version.executable_file_path {
+            Some(v) => v,
+            None => return Err(format!("Failed launch_blender_version: the Blender version has no executable")),
+        };
+        let executable = match validate_blender_executable(
+            &blender_version.installation_directory_path,
+            executable_file_path,
         ) {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed launch_blender_version: {}", e)),
+        };
+        match launch_executable(executable, Some(launch_args)) {
             Ok(_) => Ok(()),
             Err(e) => return Err(format!("Failed launch_blender_version: {:?}", e)),
         }
@@ -1242,6 +1268,23 @@ impl BlenderInstallServiceImpl {
             return Ok(Some(v.to_owned()));
         }
         return Ok(None);
+    }
+    /// Every stored version keyed by its executable path, loaded in one query so
+    /// the directory scans above do not issue one lookup per folder.
+    async fn versions_by_executable(
+        state: &tauri::State<'_, AppState>,
+    ) -> Result<HashMap<String, BlenderVersion>, sqlx::Error> {
+        let all = state
+            .blender_version_repository()
+            .fetch(None, None, None, None, None)
+            .await?;
+        let mut map: HashMap<String, BlenderVersion> = HashMap::new();
+        for v in all {
+            if let Some(path) = &v.executable_file_path {
+                map.entry(path.clone()).or_insert(v);
+            }
+        }
+        Ok(map)
     }
     fn parse_version(v: &str) -> (u64, u64, u64) {
         let mut parts = v.split('.');

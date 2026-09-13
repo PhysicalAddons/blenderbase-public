@@ -20,6 +20,14 @@ impl<'a> AddonRepository<'a> {
     }
 
     pub async fn insert(&self, addon: &Addon) -> Result<(), sqlx::Error> {
+        self.insert_with(self.pool, addon).await
+    }
+
+    /// Same upsert, but on the given executor (a pool or an open transaction).
+    pub async fn insert_with<'e, E>(&self, executor: E, addon: &Addon) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
         sqlx::query(
             "INSERT INTO addon
             (
@@ -81,7 +89,7 @@ impl<'a> AddonRepository<'a> {
         .bind(&addon.support)
         .bind(&addon.category)
         .bind(&addon.parent_blender_version_id)
-        .execute(self.pool)
+        .execute(executor)
         .await?;
         Ok(())
     }
@@ -127,9 +135,16 @@ impl<'a> AddonRepository<'a> {
     }
 
     pub async fn delete(&self, id: &str) -> Result<(), sqlx::Error> {
+        self.delete_with(self.pool, id).await
+    }
+
+    pub async fn delete_with<'e, E>(&self, executor: E, id: &str) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
         sqlx::query("DELETE FROM addon WHERE id = ?")
             .bind(id)
-            .execute(self.pool)
+            .execute(executor)
             .await?;
         Ok(())
     }

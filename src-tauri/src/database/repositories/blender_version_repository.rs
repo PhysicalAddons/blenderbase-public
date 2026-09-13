@@ -161,6 +161,18 @@ impl<'a> BlenderVersionRepository<'a> {
     }
 
     pub async fn update(&self, blender_version: &BlenderVersion) -> Result<(), sqlx::Error> {
+        self.update_with(self.pool, blender_version).await
+    }
+
+    /// Same update, but on the given executor (a pool or an open transaction).
+    pub async fn update_with<'e, E>(
+        &self,
+        executor: E,
+        blender_version: &BlenderVersion,
+    ) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
         sqlx::query!(
             "UPDATE blender_version 
             SET 
@@ -218,7 +230,7 @@ impl<'a> BlenderVersionRepository<'a> {
             blender_version.download_status_type_id,
             blender_version.id
         )
-        .execute(self.pool)
+        .execute(executor)
         .await?;
         Ok(())
     }

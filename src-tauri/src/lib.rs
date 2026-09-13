@@ -1,5 +1,6 @@
-use std::sync::Mutex;
+use std::{str::FromStr, sync::Mutex};
 
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use tauri::Manager;
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 mod core;
@@ -27,17 +28,28 @@ async fn init_app_state() -> Result<AppState, String> {
         ));
     }
     base_dir.push(TEST_DB);
-    if !base_dir.exists() {
-        if let Err(e) = std::fs::File::create(&base_dir) {
+    let db_url = format!("{}{}", SQLITE_PREFIX, base_dir.to_string_lossy());
+    // WAL lets reads proceed while a write is in flight; the busy timeout
+    // covers the short lock handoffs between them instead of failing at once.
+    let options = match SqliteConnectOptions::from_str(&db_url) {
+        Ok(v) => v
+            .create_if_missing(true)
+            .journal_mode(SqliteJournalMode::Wal)
+            .foreign_keys(true)
+            .busy_timeout(std::time::Duration::from_secs(5)),
+        Err(e) => {
             return Err(format!(
-                "Could not create the database file {}: {}",
+                "Could not parse the database location {}: {}",
                 base_dir.display(),
                 e
-            ));
+            ))
         }
-    }
-    let db_url = format!("{}{}", SQLITE_PREFIX, base_dir.to_string_lossy());
-    let pool = match sqlx::SqlitePool::connect(&db_url).await {
+    };
+    let pool = match SqlitePoolOptions::new()
+        .max_connections(4)
+        .connect_with(options)
+        .await
+    {
         Ok(v) => v,
         Err(e) => {
             return Err(format!(
@@ -67,7 +79,6 @@ async fn init_app_state() -> Result<AppState, String> {
 pub async fn run() {
     let app_state = init_app_state().await;
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_sql::Builder::new().build()) // TODO use only defauilt sqlx or the tauri one.
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_upload::init())
@@ -116,6 +127,7 @@ pub async fn run() {
             cmd_update_blender_version_download_status_type,
             cmd_install_blender_version,
             cmd_fetch_blender_versions,
+            cmd_refresh_blender_versions,
             cmd_fetch_download_status_type,
             cmd_launch_blender_version,
             cmd_update_blender_series,

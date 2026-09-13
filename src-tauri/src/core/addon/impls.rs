@@ -25,6 +25,8 @@ const LIST_ADDONS_PY: &str = r#"
 import bpy, addon_utils, json, os
 
 def _v(t):
+    if isinstance(t, str):
+        return t
     try:
         return ".".join(str(x) for x in t) if t else ""
     except Exception:
@@ -101,9 +103,11 @@ const TOGGLE_ADDON_PY: &str = r#"
 import bpy
 module = __MODULE__
 if __ENABLE__:
-    bpy.ops.preferences.addon_enable(module=module)
+    result = bpy.ops.preferences.addon_enable(module=module)
 else:
-    bpy.ops.preferences.addon_disable(module=module)
+    result = bpy.ops.preferences.addon_disable(module=module)
+if 'FINISHED' not in result:
+    raise RuntimeError("Could not %s %s: %s" % ("enable" if __ENABLE__ else "disable", module, sorted(result)))
 bpy.ops.wm.save_userpref()
 print("__MARKER__" + '{"ok": true}')
 "#;
@@ -119,10 +123,16 @@ if path.lower().endswith(".zip"):
             is_extension = any(n.split("/")[-1] == "blender_manifest.toml" for n in z.namelist())
     except Exception:
         is_extension = False
-if is_extension and hasattr(bpy.ops, "extensions"):
-    bpy.ops.extensions.package_install_files(filepath=path, repo="user_default", enable_on_install=True)
+if is_extension:
+    if not hasattr(bpy.ops, "extensions"):
+        raise RuntimeError("Extensions require Blender 4.2 or newer")
+    result = bpy.ops.extensions.package_install_files(filepath=path, repo="user_default", enable_on_install=True)
+    if 'FINISHED' not in result:
+        raise RuntimeError("Extension install did not finish: %s" % sorted(result))
 else:
-    bpy.ops.preferences.addon_install(filepath=path, overwrite=True)
+    result = bpy.ops.preferences.addon_install(filepath=path, overwrite=True)
+    if 'FINISHED' not in result:
+        raise RuntimeError("Addon install did not finish: %s" % sorted(result))
     after = set(m.__name__ for m in addon_utils.modules(refresh=True))
     for name in sorted(after - before):
         try:
@@ -142,7 +152,9 @@ if module.startswith("bl_ext.") and hasattr(bpy.ops, "extensions"):
     except Exception as e:
         print("Blenderbase: repo refresh failed", e)
 addon_utils.modules(refresh=True)
-bpy.ops.preferences.addon_enable(module=module)
+result = bpy.ops.preferences.addon_enable(module=module)
+if 'FINISHED' not in result:
+    raise RuntimeError("Could not enable %s: %s" % (module, sorted(result)))
 bpy.ops.wm.save_userpref()
 print("__MARKER__" + '{"ok": true}')
 "#;
@@ -291,6 +303,13 @@ impl TAddonService for AddonServiceImpl {
             .await
             .map_err(|e| format!("Failed refresh_addons: {:?}", e))?;
 
+        // Upserts and deletes land together or not at all, so a failure half
+        // way through cannot leave the cached list in a mixed state.
+        let mut tx = state
+            .pool
+            .begin()
+            .await
+            .map_err(|e| format!("Failed refresh_addons: {:?}", e))?;
         let mut seen: HashSet<String> = HashSet::new();
         for item in scanned {
             if item.file.is_empty() || !seen.insert(item.file.clone()) {
@@ -325,7 +344,7 @@ impl TAddonService for AddonServiceImpl {
                 modified: String::new(),
             };
             repository
-                .insert(&addon)
+                .insert_with(&mut *tx, &addon)
                 .await
                 .map_err(|e| format!("Failed refresh_addons: {:?}", e))?;
         }
@@ -333,11 +352,14 @@ impl TAddonService for AddonServiceImpl {
         for previous in existing {
             if !seen.contains(&previous.main_python_file_path) {
                 repository
-                    .delete(&previous.id)
+                    .delete_with(&mut *tx, &previous.id)
                     .await
                     .map_err(|e| format!("Failed refresh_addons: {:?}", e))?;
             }
         }
+        tx.commit()
+            .await
+            .map_err(|e| format!("Failed refresh_addons: {:?}", e))?;
         repository
             .fetch_by_blender_version(&blender_version_id)
             .await
@@ -435,8 +457,16 @@ impl TAddonService for AddonServiceImpl {
                 destination.to_string_lossy()
             ));
         }
-        symlink_directory(&source, &destination)
-            .map_err(|e| format!("Failed symlink_addon: {}", e))?;
+        // May raise a UAC prompt and wait for the answer: run it on the blocking pool.
+        {
+            let source = source.clone();
+            let destination = destination.clone();
+            match tokio::task::spawn_blocking(move || symlink_directory(&source, &destination)).await {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => return Err(format!("Failed symlink_addon: {}", e)),
+                Err(e) => return Err(format!("Failed symlink_addon: {:?}", e)),
+            }
+        }
 
         let script = ENABLE_MODULE_PY
             .replace("__MARKER__", BLENDERBASE_JSON_MARKER)

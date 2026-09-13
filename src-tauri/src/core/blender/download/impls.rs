@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::LazyLock};
 
 use tauri::AppHandle;
 
@@ -41,6 +41,19 @@ pub trait TBlenderDownloadService {
         code: Option<Vec<String>>,
     ) -> Result<Vec<DownloadStatusType>, String>;
 }
+
+// The release listing is scraped line by line for every series; compiling
+// these once keeps the per-line work to the match itself.
+static B3D_LINK_RE: LazyLock<regex::bytes::Regex> =
+    LazyLock::new(|| regex::bytes::Regex::new(B3D_LINK_REGEX).expect("valid regex"));
+static BLENDER_LINK_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(BLENDER_DOWNLOAD_LINK_REGEX).expect("valid regex"));
+static TIMESTAMP_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(PUBLISH_TIMESTAMP_REGEX).expect("valid regex"));
+static VERSION_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(BLENDER_VERSION_REGEX).expect("valid regex"));
+static FILE_RELEASE_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(FILE_REGEX_RELEASE).expect("valid regex"));
 
 pub struct BlenderDownloadServiceImpl;
 
@@ -218,7 +231,7 @@ impl BlenderDownloadServiceImpl {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
         };
-        let b3d_link_regex = regex::bytes::Regex::new(B3D_LINK_REGEX).unwrap();
+        let b3d_link_regex = &*B3D_LINK_RE;
         let lines: Vec<&str> = body.lines().collect();
         let mut series_urls: Vec<String> = Vec::new();
         for line in lines {
@@ -276,10 +289,9 @@ impl BlenderDownloadServiceImpl {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed scrape_release_blender_series: {:?}", e)),
         };
-        // Define a regular expression
-        let blender_link_regex = regex::Regex::new(BLENDER_DOWNLOAD_LINK_REGEX).unwrap();
-        let timestamp_regex = regex::Regex::new(PUBLISH_TIMESTAMP_REGEX).unwrap();
-        let version_regex = regex::Regex::new(BLENDER_VERSION_REGEX).unwrap();
+        let blender_link_regex = &*BLENDER_LINK_RE;
+        let timestamp_regex = &*TIMESTAMP_RE;
+        let version_regex = &*VERSION_RE;
         let mut blender_version: String = String::new();
         let mut blender_variant: String = String::new();
         let mut blender_release_timestamp: i64 = 0;
@@ -291,7 +303,7 @@ impl BlenderDownloadServiceImpl {
         for line in lines {
             if let Some(captures) = timestamp_regex.captures(line) {
                 if let Some(filename) = captures.get(1) {
-                    let regex = regex::Regex::new(FILE_REGEX_RELEASE).unwrap();
+                    let regex = &*FILE_RELEASE_RE;
                     file_name = filename.as_str();
                     match file_name {
                         #[cfg(target_os = "windows")]

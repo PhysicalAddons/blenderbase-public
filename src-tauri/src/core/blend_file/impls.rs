@@ -1,10 +1,13 @@
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
 use tauri::AppHandle;
 
 use crate::{
-    core::{launch_executable, open_in_file_explorer, OrderKind, BLENDER, BLENDER_FOUNDATION},
-    database::{BlendFile, BlendFileBlenderSeries, BlenderSeries, BlenderVersion},
+    core::{
+        launch_executable, open_in_file_explorer, validate_blender_executable, OrderKind, BLENDER,
+        BLENDER_FOUNDATION,
+    },
+    database::{BlendFile, BlendFileBlenderSeries, BlenderSeries},
     AppState,
 };
 
@@ -43,8 +46,8 @@ pub trait TBlendFileService {
         &self,
         app: AppHandle,
         state: tauri::State<'_, AppState>,
-        blend_file: BlendFile,
-        blender_version: BlenderVersion,
+        blend_file_id: String,
+        blender_version_id: String,
     ) -> Result<(), String>;
     async fn reveal_in_file_explorer(
         &self,
@@ -90,7 +93,7 @@ impl TBlendFileService for BlendFileServiceImpl {
         }
         match Self::refresh_blend_files_inner(app.clone(), state.clone()).await {
             Ok(_) => {}
-            Err(e) => return Err(format!("Failed refresh_blender_series: {:?}", e)),
+            Err(e) => return Err(format!("Failed refresh_blend_files: {:?}", e)),
         }
         Ok(())
     }
@@ -137,7 +140,6 @@ impl TBlendFileService for BlendFileServiceImpl {
         order: &str,
     ) -> Result<Vec<BlenderSeries>, String> {
         let bsr = state.blender_series_repository();
-        let bvr = state.blender_version_repository();
         let order = match OrderKind::from_str(order) {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed fetch_blender_series: {:?}", e)),
@@ -149,20 +151,14 @@ impl TBlendFileService for BlendFileServiceImpl {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed fetch_blender_series: {}", e)),
         };
-        let mut results: Vec<BlenderSeries> = vec![];
-        for bs in blender_series {
-            let blender_versions = match bvr
-                .fetch(None, None, None, None, Some(bs.series.clone()))
-                .await
-            {
-                Ok(v) => v,
-                Err(e) => return Err(format!("Failed fetch_blender_series: {:?}", e)),
-            };
-            if blender_versions.is_empty() {
-                continue;
-            }
-            results.push(bs);
-        }
+        let series_with_versions = match Self::series_with_versions(&state).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed fetch_blender_series: {}", e)),
+        };
+        let mut results: Vec<BlenderSeries> = blender_series
+            .into_iter()
+            .filter(|bs| series_with_versions.contains(&bs.series))
+            .collect();
         match order {
             // Sort ASC
             OrderKind::Asc => results.sort_by(|a, b| a.series.cmp(&b.series)),
@@ -174,17 +170,53 @@ impl TBlendFileService for BlendFileServiceImpl {
     async fn open_blend_file(
         &self,
         _app: AppHandle,
-        _state: tauri::State<'_, AppState>,
-        blend_file: BlendFile,
-        blender_version: BlenderVersion,
+        state: tauri::State<'_, AppState>,
+        blend_file_id: String,
+        blender_version_id: String,
     ) -> Result<(), String> {
-        match launch_executable(
-            std::path::PathBuf::from(match blender_version.executable_file_path {
-                Some(v) => v,
-                None => return Err(format!("Failed open_blend_file")),
-            }),
-            Some(vec![blend_file.file_path]),
+        // Only ids cross the IPC boundary; the paths come from our own rows.
+        let mut blend_files = match state
+            .blend_file_repository()
+            .fetch(Some(blend_file_id.clone()), None, None, None)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed open_blend_file: {:?}", e)),
+        };
+        if blend_files.is_empty() {
+            return Err(format!(
+                "Failed open_blend_file: no blend file with id {}",
+                blend_file_id
+            ));
+        }
+        let blend_file = blend_files.remove(0);
+        let mut blender_versions = match state
+            .blender_version_repository()
+            .fetch(Some(blender_version_id.clone()), None, None, None, None)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed open_blend_file: {:?}", e)),
+        };
+        if blender_versions.is_empty() {
+            return Err(format!(
+                "Failed open_blend_file: no Blender version with id {}",
+                blender_version_id
+            ));
+        }
+        let blender_version = blender_versions.remove(0);
+        let executable_file_path = match &blender_version.executable_file_path {
+            Some(v) => v,
+            None => return Err(format!("Failed open_blend_file: the Blender version has no executable")),
+        };
+        let executable = match validate_blender_executable(
+            &blender_version.installation_directory_path,
+            executable_file_path,
         ) {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed open_blend_file: {}", e)),
+        };
+        match launch_executable(executable, Some(vec![blend_file.file_path])) {
             Ok(_) => Ok(()),
             Err(e) => return Err(format!("Failed open_blend_file: {:?}", e)),
         }
@@ -230,12 +262,26 @@ impl TBlendFileService for BlendFileServiceImpl {
 }
 
 impl BlendFileServiceImpl {
+    /// The distinct `series` values that have at least one installed Blender version.
+    async fn series_with_versions(
+        state: &tauri::State<'_, AppState>,
+    ) -> Result<HashSet<String>, String> {
+        let rows: Vec<String> = match sqlx::query_scalar::<_, String>(
+            "SELECT DISTINCT series FROM blender_version WHERE series IS NOT NULL",
+        )
+        .fetch_all(&state.pool)
+        .await
+        {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed series_with_versions: {:?}", e)),
+        };
+        Ok(rows.into_iter().collect())
+    }
     async fn refresh_blender_series_inner(
         app: AppHandle,
         state: tauri::State<'_, AppState>,
     ) -> Result<(), String> {
         let bsr = state.blender_series_repository();
-        let bvr = state.blender_version_repository();
         let existing_blender_series = match bsr.fetch(None, None, None, None).await {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed refresh_blender_series_inner: {}", e)),
@@ -259,25 +305,16 @@ impl BlendFileServiceImpl {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed refresh_blender_series_inner: {}", e)),
         };
+        let series_with_versions = match Self::series_with_versions(&state).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed refresh_blender_series_inner: {}", e)),
+        };
         for dir in directory_entries {
             let dir_entry = match dir {
                 Ok(v) => v,
                 Err(e) => return Err(format!("Failed refresh_blender_series_inner: {}", e)),
             };
-            let blender_versions = match bvr
-                .fetch(
-                    None,
-                    None,
-                    None,
-                    None,
-                    Some(dir_entry.file_name().to_string_lossy().to_string()),
-                )
-                .await
-            {
-                Ok(v) => v,
-                Err(e) => return Err(format!("Failed refresh_blender_series_inner: {:?}", e)),
-            };
-            if blender_versions.is_empty() {
+            if !series_with_versions.contains(&dir_entry.file_name().to_string_lossy().to_string()) {
                 continue;
             }
             // Create new series entries.

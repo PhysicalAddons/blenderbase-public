@@ -85,9 +85,12 @@ pub async fn run_blender_python(
 
 /// Extracts the JSON payload printed after [`BLENDERBASE_JSON_MARKER`].
 pub fn extract_json_payload(stdout: &str) -> Result<String, String> {
+    // The marker may be preceded by other output on the same line (an addon
+    // printing without a trailing newline), so it is searched for, not
+    // matched as a prefix.
     for line in stdout.lines() {
-        if let Some(rest) = line.trim().strip_prefix(BLENDERBASE_JSON_MARKER) {
-            return Ok(rest.to_string());
+        if let Some(index) = line.find(BLENDERBASE_JSON_MARKER) {
+            return Ok(line[index + BLENDERBASE_JSON_MARKER.len()..].to_string());
         }
     }
     Err(String::from("Blender did not report a result"))

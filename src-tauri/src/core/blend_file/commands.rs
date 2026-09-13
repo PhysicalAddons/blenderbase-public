@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use crate::{
     core::{format_command_error, BlendFileServiceImpl, TBlendFileService, COLON_SEPERATOR},
-    database::{BlendFile, BlenderSeries, BlenderVersion},
+    database::{BlendFile, BlenderSeries},
     AppState,
 };
 #[named]
@@ -28,13 +28,6 @@ pub async fn cmd_fetch_blend_files(
     blender_series_id: Option<String>,
     order: &str,
 ) -> Result<Vec<BlendFile>, String> {
-    match BlendFileServiceImpl
-        .refresh_blend_files(app.clone(), state.clone())
-        .await
-    {
-        Ok(_) => {}
-        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
-    }
     match BlendFileServiceImpl
         .fetch_blend_files(app, state, id, limit, file_path, blender_series_id, order)
         .await
@@ -82,11 +75,11 @@ pub async fn cmd_fetch_blender_series(
 pub async fn cmd_open_blend_file(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
-    blend_file: BlendFile,
-    blender_version: BlenderVersion,
+    blend_file_id: String,
+    blender_version_id: String,
 ) -> Result<(), String> {
     match BlendFileServiceImpl
-        .open_blend_file(app, state, blend_file, blender_version)
+        .open_blend_file(app, state, blend_file_id, blender_version_id)
         .await
     {
         Ok(_) => Ok(()),
