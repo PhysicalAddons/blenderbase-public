@@ -70,6 +70,10 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tauri 2 reads TAURI_SIGNING_PRIVATE_KEY; the repository may still
+          # carry the key under the Tauri 1 name, so accept either.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY || secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || secrets.TAURI_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: Blenderbase v__VERSION__
@@ -77,5 +81,8 @@ jobs:
             Release notes: tba.
           releaseDraft: true
           prerelease: false
-          includeUpdaterJson: false
+          # Publishes latest.json plus the signed updater bundles. The secrets
+          # must hold the ORIGINAL signing key (key id 873F332A2DC77E17) or
+          # installs older than 1.1.0 will reject the manifest.
+          includeUpdaterJson: true
           args: ${{ matrix.args }}

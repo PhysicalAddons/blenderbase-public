@@ -6,7 +6,8 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::{
     AppState, core::{
-        AppSettingActionKind, AppSettingCodeKind, BLENDERBASE_APPS, BLENDERBASE_LIBRARY, GITHUB_COM_PHYSICALADDONS_BLENDERBASE_PUBLIC, InputValueCodeKind, create_directory_path, get_main_storage_device_root_path
+        AppSettingActionKind, AppSettingCodeKind, BLENDERBASE_APPS, BLENDERBASE_LIBRARY, GITHUB_COM_PHYSICALADDONS_BLENDERBASE_PUBLIC, InputValueCodeKind, create_directory_path, get_main_storage_device_root_path,
+        instance_native_ask_dialog_window, instance_native_ok_dialog_window,
     }, database::{AppSetting, AppSettingType, InputValueType}
 };
 
@@ -72,12 +73,11 @@ impl TAppSettingsService for AppSettingsServiceImpl {
             };
             match code {
                 AppSettingCodeKind::CheckForUpdateOnLaunch => {
-                    match Self::check_for_update_on_launch().await {
-                        Ok(_v) => {},
-                        Err(e) => {
-                            return Err(format!("Failed app_settings_init: {:?}", e));
-                        }
-                    };
+                    // Being offline must not turn into a startup error; the
+                    // manual "Check for updates" button reports failures.
+                    if let Err(e) = Self::check_for_update(app.clone(), false).await {
+                        eprintln!("Update check on launch skipped: {}", e);
+                    }
                 }
                 AppSettingCodeKind::RefreshBlenderDownloadOnLaunch => {
                     match Self::refresh_blender_download_on_launch().await {
@@ -255,7 +255,7 @@ impl AppSettingsServiceImpl {
                 };
             }
             AppSettingCodeKind::CheckForUpdate => {
-                match Self::check_for_update().await {
+                match Self::check_for_update(app.clone(), true).await {
                     Ok(v) => return Ok(v),
                     Err(e) => {
                         return Err(format!("Failed input_button: {:?}", e));
@@ -443,16 +443,56 @@ impl AppSettingsServiceImpl {
     async fn reset_database() -> Result<(), String> {
         Ok(())
     }
-    async fn check_for_update() -> Result<(), String> {
-        Ok(())
+    /// Asks GitHub Releases for a newer signed build (see `plugins.updater`
+    /// in tauri.conf.json). When one exists the user is asked to confirm;
+    /// the update is then downloaded, verified against the embedded public
+    /// key, installed, and the app restarts. With `interactive` the user is
+    /// also told when nothing newer exists; the launch-time check stays quiet.
+    async fn check_for_update(app: AppHandle, interactive: bool) -> Result<(), String> {
+        use tauri_plugin_updater::UpdaterExt;
+        let updater = app
+            .updater()
+            .map_err(|e| format!("Failed check_for_update: {}", e))?;
+        let update = updater
+            .check()
+            .await
+            .map_err(|e| format!("Failed check_for_update: {}", e))?;
+        let Some(update) = update else {
+            if interactive {
+                instance_native_ok_dialog_window(
+                    app.clone(),
+                    format!(
+                        "Blenderbase {} is up to date.",
+                        app.package_info().version
+                    ),
+                    tauri_plugin_dialog::MessageDialogKind::Info,
+                )
+                .await;
+            }
+            return Ok(());
+        };
+        let confirmed = instance_native_ask_dialog_window(
+            app.clone(),
+            format!(
+                "Blenderbase {} is available (you have {}).\n\nDownload and install it now? Blenderbase will restart when the update is done.",
+                update.version, update.current_version
+            ),
+            tauri_plugin_dialog::MessageDialogKind::Info,
+        )
+        .await;
+        if !confirmed {
+            return Ok(());
+        }
+        update
+            .download_and_install(|_chunk, _total| {}, || {})
+            .await
+            .map_err(|e| format!("Failed check_for_update: {}", e))?;
+        app.restart();
     }
     async fn open_app_version_online_repository(app: AppHandle) -> Result<(), String> {
         app.opener()
             .open_url(GITHUB_COM_PHYSICALADDONS_BLENDERBASE_PUBLIC, None::<&str>)
             .map_err(|e| e.to_string())?;
-        Ok(())
-    }
-    async fn check_for_update_on_launch() -> Result<(), String> {
         Ok(())
     }
     async fn refresh_blender_download_on_launch() -> Result<(), String> {
