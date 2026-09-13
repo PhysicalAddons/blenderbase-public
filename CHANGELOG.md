@@ -7,10 +7,23 @@ copied into the GitHub release by the release workflow, so keep the
 ## Unreleased
 
 ### Added
-- A **Console** switch next to the Launch button. When on, Blender starts
-  with its console visible: Python output, script errors and warnings in a
+- A terminal segment on the Launch button. Click it to launch Blender with
+  its console visible: Python output, script errors and warnings in a
   console window on Windows, Terminal on macOS, or your terminal emulator
-  on Linux. The choice is remembered.
+  on Linux. The choice is remembered and shown as "· console" on the button.
+
+### Changed
+- Settings now open in the middle column like Install Blender, with
+  Locations, Launch, Updates and Appearance sections; the separate
+  settings page is gone.
+
+### Fixed
+- A damaged database (SQLite "disk image is malformed") no longer leaves the
+  app showing no versions with every action failing. At startup the file is
+  checked; a damaged one is moved into a dated `corrupt-…` folder next to it
+  and a fresh database is created. Installation locations then need to be
+  re-added (the Install Blender prompt or Settings → Locations); installed
+  versions are found again by rescanning.
 
 ## 1.2.5
 

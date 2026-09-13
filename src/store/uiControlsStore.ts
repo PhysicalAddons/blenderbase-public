@@ -5,6 +5,8 @@ interface IUiControlsStore {
     isSidebarExpanded: boolean,
     /** Whether the middle column shows the Install Blender (download) view instead of Addons. */
     isInstallBlenderOpen: boolean,
+    /** Whether the middle column shows the Settings panel. Never open together with Install Blender. */
+    isSettingsOpen: boolean,
     /** The Blender version highlighted in the left column. Falls back to the default version when null. */
     selectedBlenderVersionId: string | null,
     /** Versions that finished installing during this session and have not been selected or launched yet. */
@@ -14,6 +16,7 @@ interface IUiControlsStore {
     setLaunchWithConsole: (v: boolean) => void,
     setIsSidebarExpanded: (v: boolean) => void,
     setIsInstallBlenderOpen: (v: boolean) => void,
+    setIsSettingsOpen: (v: boolean) => void,
     setSelectedBlenderVersionId: (id: string | null) => void,
     addNewlyInstalledBlenderId: (id: string) => void,
     clearNewlyInstalledBlenderId: (id: string) => void,
@@ -32,6 +35,7 @@ const readLaunchWithConsole = (): boolean => {
 export const useUiControlsStore = create<IUiControlsStore>((set) => ({
     isSidebarExpanded: false,
     isInstallBlenderOpen: false,
+    isSettingsOpen: false,
     selectedBlenderVersionId: null,
     newlyInstalledBlenderIds: [],
     launchWithConsole: readLaunchWithConsole(),
@@ -44,7 +48,9 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         set({ launchWithConsole: v });
     },
     setIsSidebarExpanded: (v) => set({ isSidebarExpanded: v }),
-    setIsInstallBlenderOpen: (v) => set({ isInstallBlenderOpen: v }),
+    // The middle column shows one of the two; opening either closes the other.
+    setIsInstallBlenderOpen: (v) => set((state) => ({ isInstallBlenderOpen: v, isSettingsOpen: v ? false : state.isSettingsOpen })),
+    setIsSettingsOpen: (v) => set((state) => ({ isSettingsOpen: v, isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen })),
     setSelectedBlenderVersionId: (id) => set((state) => ({
         selectedBlenderVersionId: id,
         newlyInstalledBlenderIds: id === null

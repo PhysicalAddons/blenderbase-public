@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, InlineLoading, Modal, Search } from '@carbon/react';
-import { NavLink } from 'react-router-dom';
 import { open } from '@tauri-apps/plugin-dialog';
 import { join } from '@tauri-apps/api/path';
 import { ArrowLeft, Checkmark, Download, Renew } from '@carbon/react/icons';
@@ -54,8 +53,8 @@ const InstallBlenderPanel = () => {
 		}))
 	)
 	const hasInternetConnection = useNetworkInformationStore((s) => s.hasInternetConnection)
-	const { setIsInstallBlenderOpen, addNewlyInstalledBlenderId } = useUiControlsStore(
-		useShallow((s) => ({ setIsInstallBlenderOpen: s.setIsInstallBlenderOpen, addNewlyInstalledBlenderId: s.addNewlyInstalledBlenderId }))
+	const { setIsInstallBlenderOpen, setIsSettingsOpen, addNewlyInstalledBlenderId } = useUiControlsStore(
+		useShallow((s) => ({ setIsInstallBlenderOpen: s.setIsInstallBlenderOpen, setIsSettingsOpen: s.setIsSettingsOpen, addNewlyInstalledBlenderId: s.addNewlyInstalledBlenderId }))
 	)
 	const pendingDownloadRef = useRef<IDownloadFileRef | null>(null);
 
@@ -353,8 +352,8 @@ const InstallBlenderPanel = () => {
 					<span className='column_header__title'>Install Blender</span>
 					<span className='column_header__subtitle' title={downloadDirectory}>
 						{downloadDirectory
-							? <>Downloads go to {downloadDirectory} (<NavLink to="/settings">change in Settings</NavLink>)</>
-							: <>Set a download location in <NavLink to="/settings">Settings</NavLink></>}
+							? <>Downloads go to {downloadDirectory} (<button type="button" className='column_header__link' onClick={() => setIsSettingsOpen(true)}>change in Settings</button>)</>
+							: <>Set a download location in <button type="button" className='column_header__link' onClick={() => setIsSettingsOpen(true)}>Settings</button></>}
 					</span>
 				</div>
 				<Button

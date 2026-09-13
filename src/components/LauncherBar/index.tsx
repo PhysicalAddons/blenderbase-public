@@ -1,15 +1,31 @@
+import { useRef } from 'react';
 import { Button, InlineLoading } from '@carbon/react';
 import { Checkmark, Terminal, WarningAlt } from '@carbon/react/icons';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import BlenderLogo from '../BlenderLogo';
 import { postStatus, postStatusError, useStatusStore } from '../../store/statusStore';
 import { useDisplayInformationStore } from '../../store/displayInformationStore';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
 import { BlenderService } from '../../services/blenderService';
+import { SettingsService } from '../../services/settingsService';
+import { AppSettingCode } from '../../enums';
 import { blenderVersionLabel, resolveSelectedBlenderVersion } from '../../utility';
 import { useShallow } from 'zustand/react/shallow';
 
 const blenderService = new BlenderService();
+const settingsService = new SettingsService();
+
+/** Whether the "Minimise Blenderbase when launching Blender" setting is on; false when it cannot be read. */
+const shouldMinimizeOnLaunch = async (): Promise<boolean> => {
+    try {
+        const [setting] = await settingsService.fetchAppSetting(null, 1, AppSettingCode.MINIMIZE_BLENDERBASE_ON_LAUNCH, null, null);
+        return Boolean(setting?.int_value);
+    } catch (e) {
+        console.error(e);
+        return false;
+    }
+};
 
 const LauncherBar = () => {
     const appVersion = useDisplayInformationStore((s) => s.appVersion)
@@ -46,6 +62,40 @@ const LauncherBar = () => {
         }
         // Launching may change the row (last used); reload quietly, keep the launch status.
         setInstalledBuilds().catch((e) => console.error(e));
+        // Read the setting at launch time: the panel may have changed it since the app started.
+        if (await shouldMinimizeOnLaunch()) {
+            getCurrentWindow().minimize().catch((e) => console.error(e));
+        }
+    };
+
+    // The terminal segment explains itself in the status line instead of a
+    // tooltip bubble. What was shown before the hover is restored on leave,
+    // unless something else has posted a status meanwhile.
+    const statusBeforeHint = useRef<{ message: string, isBusy: boolean, isError: boolean } | null>(null);
+    const consoleHint = launchWithConsole
+        ? "Console on · Blender starts with its console window (Python output, errors). Click to turn off"
+        : "Launch with console · shows Python output and errors in a terminal window. Click to turn on";
+    const showConsoleHint = () => {
+        const s = useStatusStore.getState();
+        if (s.isBusy) {
+            return;
+        }
+        statusBeforeHint.current = { message: s.message, isBusy: s.isBusy, isError: s.isError };
+        postStatus(consoleHint);
+    };
+    const hideConsoleHint = () => {
+        const before = statusBeforeHint.current;
+        statusBeforeHint.current = null;
+        if (before && useStatusStore.getState().message === consoleHint) {
+            useStatusStore.getState().setStatus(before.message, before.isBusy, before.isError);
+        }
+    };
+    const toggleConsole = () => {
+        const next = !launchWithConsole;
+        setLaunchWithConsole(next);
+        // The new state is a real status, not a hover hint: it stays after the pointer leaves.
+        statusBeforeHint.current = null;
+        postStatus(next ? "Console on · Blender will start with its console window" : "Console off · Blender will start without a console window");
     };
 
     return (
@@ -104,18 +154,18 @@ const LauncherBar = () => {
                         : "Launch"}
                     {launchWithConsole && <span className='launcher_bar__launch_hint'>· console</span>}
                 </Button>
-                <Button
-                    className={`launcher_bar__console_segment ${launchWithConsole ? "launcher_bar__console_segment--on" : ""}`}
-                    kind="primary"
-                    size="lg"
-                    hasIconOnly
-                    renderIcon={Terminal}
-                    iconDescription={launchWithConsole ? "Launch with console: on" : "Launch with console: off"}
-                    tooltipPosition="top"
+                <button
+                    type="button"
+                    className={`cds--btn cds--btn--primary cds--btn--lg launcher_bar__console_segment ${launchWithConsole ? "launcher_bar__console_segment--on" : ""}`}
+                    aria-label={launchWithConsole ? "Launch with console: on" : "Launch with console: off"}
                     aria-pressed={launchWithConsole}
                     disabled={selectedVersion === undefined}
-                    onClick={() => setLaunchWithConsole(!launchWithConsole)}
-                />
+                    onMouseEnter={showConsoleHint}
+                    onMouseLeave={hideConsoleHint}
+                    onClick={toggleConsole}
+                >
+                    <Terminal size={20} className="cds--btn__icon" aria-hidden="true" />
+                </button>
             </div>
         </div>
     );

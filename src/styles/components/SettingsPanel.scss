@@ -1,0 +1,250 @@
+@use "../color" as *;
+@use "./Home" as *;
+
+// **Settings panel**
+// Takes over the middle column like Install Blender: shared column header, a toolbar row with
+// the section switch, a list header and 56px rows that scroll on the same grid as the other columns.
+.settings_panel {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+
+    .settings_panel__toolbar {
+        gap: 0;
+        // "Add location" sits at the right end of the band, filled like the other toolbar actions.
+        .settings_panel__toolbar_actions {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            flex-shrink: 0;
+            border-left: 1px solid var(--bb-divider);
+            .cds--btn.settings_panel__add {
+                height: 48px;
+                gap: 12px;
+                padding-right: 15px;
+                background: var(--bb-field);
+                color: var(--bb-text);
+                svg {
+                    flex-shrink: 0;
+                    fill: currentColor;
+                }
+                &:hover {
+                    background: var(--bb-field-hover);
+                    color: var(--bb-text);
+                }
+                &:focus:not(:focus-visible) {
+                    border-color: transparent;
+                    box-shadow: none;
+                }
+            }
+        }
+        @media screen and (max-width: 1056px) {
+            flex-wrap: wrap;
+        }
+    }
+
+    // Header and rows run edge to edge; the column inset becomes padding.
+    .settings_panel__list_header {
+        grid-template-columns: minmax(0, 1fr) auto;
+        margin-left: 0;
+        margin-right: 0;
+        padding: 0 $home-column-inset 0 calc(#{$home-column-inset} + 16px);
+        &.settings_panel__list_header--locations {
+            grid-template-columns: minmax(0, 1fr) 48px 48px;
+        }
+    }
+
+    .settings_panel__list {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0 0 24px 0;
+        &::-webkit-scrollbar {
+            display: none;
+        }
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .settings_panel__empty {
+        padding: 24px calc(#{$home-column-inset} + 16px);
+        color: var(--bb-text-muted);
+        font-size: 14px;
+    }
+
+    // One setting: label and muted description on the left, its control centred on the right.
+    .settings_row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 16px;
+        height: $home-row-height;
+        padding-left: calc(#{$home-column-inset} + 16px);
+        padding-right: $home-column-inset;
+        border-bottom: 1px solid var(--bb-border);
+        flex-shrink: 0;
+
+        .settings_row__main {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .settings_row__label {
+            font-size: 14px;
+            line-height: 18px;
+            color: var(--bb-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .settings_row__description {
+            font-size: 12px;
+            line-height: 14px;
+            color: var(--bb-text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .settings_row__control {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-shrink: 0;
+        }
+
+        // Toggle: the switch alone, no side label.
+        .cds--toggle__label {
+            margin: 0;
+        }
+        .cds--toggle__switch--checked {
+            background-color: $primary-color;
+        }
+
+        // Buttons: filled like the toolbar blocks instead of Carbon's outlined tertiary.
+        .cds--btn.settings_row__button {
+            min-width: 128px;
+            padding-right: 15px;
+            justify-content: center;
+            background: var(--bb-field);
+            border-color: transparent;
+            color: var(--bb-text);
+            &:hover {
+                background: var(--bb-field-hover);
+                color: var(--bb-text);
+            }
+            &:disabled,
+            &:disabled:hover {
+                background: var(--bb-field);
+                color: var(--bb-text-muted);
+            }
+            &:focus:not(:focus-visible) {
+                border-color: transparent;
+                box-shadow: none;
+            }
+        }
+
+        // Number field: a short box without steppers, no underline, same fill as the buttons.
+        .settings_row__number {
+            width: 96px;
+            .cds--number__input-wrapper input[type="number"] {
+                width: 96px;
+                min-width: 0;
+                padding-right: 16px;
+                background: var(--bb-field);
+                border-block-end: none;
+                text-align: right;
+            }
+            .cds--number__controls {
+                display: none;
+            }
+            .cds--form-requirement {
+                display: none;
+            }
+        }
+
+        // Theme dropdown: same look as the filters in the Addons toolbar.
+        .settings_row__dropdown {
+            width: 128px;
+            .cds--list-box {
+                background: var(--bb-field);
+                border-block-end: none;
+            }
+            .cds--list-box:hover {
+                background: var(--bb-field-hover);
+            }
+            .cds--list-box__menu {
+                background: var(--bb-field);
+            }
+        }
+        .cds--popover {
+            display: none;
+        }
+    }
+
+    // One installation location: path over a muted meta line, then star (default) and trash.
+    .settings_location_row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 48px 48px;
+        align-items: center;
+        height: $home-row-height;
+        padding-left: calc(#{$home-column-inset} + 16px);
+        padding-right: $home-column-inset;
+        border-bottom: 1px solid var(--bb-border);
+        flex-shrink: 0;
+        &:hover {
+            background: var(--bb-row-hover);
+        }
+
+        .settings_location_row__main {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .settings_location_row__path {
+            font-size: 14px;
+            line-height: 18px;
+            color: var(--bb-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .settings_location_row__meta {
+            font-size: 12px;
+            line-height: 14px;
+            color: var(--bb-text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cds--btn.settings_location_row__star {
+            color: var(--bb-text-faint);
+            &:hover {
+                color: var(--bb-text);
+            }
+            svg {
+                fill: currentColor;
+            }
+        }
+        .cds--btn.settings_location_row__star--default {
+            color: var(--bb-text);
+        }
+        .cds--btn.settings_location_row__delete {
+            color: var(--bb-text-faint);
+            &:hover {
+                color: var(--bb-danger);
+            }
+            svg {
+                fill: currentColor;
+            }
+        }
+        .cds--popover {
+            display: none;
+        }
+    }
+}

@@ -43,6 +43,12 @@
     .navigation_bar_tab {
         text-decoration: none;
         color: var(--bb-icon);
+        // The Settings tab is a button (it toggles a panel); make it look like the links.
+        padding: 0;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font: inherit;
     }
     .navigation_bar_tab:hover {
         text-decoration: none;

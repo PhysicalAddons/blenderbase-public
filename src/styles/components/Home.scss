@@ -24,14 +24,15 @@ $home-launcher-height: 56px;
         overflow: hidden;
     }
 
-    // While Install Blender is open the version list and Recent Files step back; the Blender
-    // header with its Install button and the footer stay live as the way out.
+    // While Install Blender or Settings is open the version list and Recent Files step back; the
+    // Blender header with its Install button, the title bar gear and the footer stay live as the way out.
     .blender_column__list_header,
     .blender_column__list,
     .recent_files_panel {
         transition: opacity motion.$duration-fast-02 cubic-bezier(0.2, 0, 0.38, 0.9);
     }
-    &.home--installing {
+    &.home--installing,
+    &.home--settings {
         .blender_column__list_header,
         .blender_column__list,
         .recent_files_panel {
@@ -110,6 +111,39 @@ $home-launcher-height: 56px;
     flex-shrink: 0;
     > .cds--btn:first-child {
         padding-left: $home-column-inset;
+    }
+}
+
+// Segmented switch in a toolbar row (Release / Daily / Patch, the Settings sections): plain
+// blocks in the toolbar band, the active one filled white.
+.column_actions .build_type_switch {
+    display: flex;
+    flex-shrink: 0;
+    .cds--btn.build_type_switch__option {
+        min-width: 96px;
+        height: 48px;
+        padding: 0 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bb-field);
+        color: var(--bb-text);
+        border: none;
+        border-radius: 0;
+        &:hover {
+            background: var(--bb-field-hover);
+        }
+        &:focus:not(:focus-visible) {
+            box-shadow: none;
+        }
+    }
+    .cds--btn.build_type_switch__option--selected,
+    .cds--btn.build_type_switch__option--selected:hover {
+        background: var(--bb-text);
+        color: var(--bb-on-emphasis);
+    }
+    .cds--btn + .cds--btn {
+        border-left: 1px solid var(--bb-divider);
     }
 }
 

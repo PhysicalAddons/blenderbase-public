@@ -9,12 +9,12 @@
 @use "./styles/layout";
 // Components (each module declares the tokens it reads itself)
 @use "./styles/navigation_bar/navbar";
-@use "./styles/components/Settings";
 @use "./styles/components/Home";
 @use "./styles/components/RecentFilesPanel";
 @use "./styles/components/BlenderColumn";
 @use "./styles/components/AddonPanel";
 @use "./styles/components/InstallBlenderPanel";
+@use "./styles/components/SettingsPanel";
 @use "./styles/components/LauncherBar";
 
 // Fonts (Sass hoists this plain CSS import to the top of the output)

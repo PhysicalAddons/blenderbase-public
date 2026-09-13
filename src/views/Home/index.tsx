@@ -6,6 +6,7 @@ import LauncherBar from '../../components/LauncherBar/index';
 import BlenderColumn from '../../components/BlenderColumn';
 import AddonPanel from '../../components/AddonPanel';
 import InstallBlenderPanel from '../../components/InstallBlenderPanel';
+import SettingsPanel from '../../components/SettingsPanel';
 import EmptyState from '../../components/EmptyState';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useEffect } from 'react';
@@ -14,12 +15,14 @@ import { useBlendFileStore } from '../../store/blendFileStore';
 import { postStatusError } from '../../store/statusStore';
 
 const Home = () => {
-    const { isSidebarExpanded, isInstallBlenderOpen, setIsSidebarExpanded, setIsInstallBlenderOpen } = useUiControlsStore(
+    const { isSidebarExpanded, isInstallBlenderOpen, isSettingsOpen, setIsSidebarExpanded, setIsInstallBlenderOpen, setIsSettingsOpen } = useUiControlsStore(
         useShallow((s) => ({
             isSidebarExpanded: s.isSidebarExpanded,
             isInstallBlenderOpen: s.isInstallBlenderOpen,
+            isSettingsOpen: s.isSettingsOpen,
             setIsSidebarExpanded: s.setIsSidebarExpanded,
             setIsInstallBlenderOpen: s.setIsInstallBlenderOpen,
+            setIsSettingsOpen: s.setIsSettingsOpen,
         }))
     )
     const setBlenderSeries = useBlendFileStore((s) => s.setBlenderSeries)
@@ -39,19 +42,20 @@ const Home = () => {
         });
     }, []);
 
-    // Escape leaves the Install Blender view, like closing a dialog.
+    // Escape leaves the Install Blender or Settings view, like closing a dialog.
     useEffect(() => {
-        if (!isInstallBlenderOpen) {
+        if (!isInstallBlenderOpen && !isSettingsOpen) {
             return;
         }
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 setIsInstallBlenderOpen(false);
+                setIsSettingsOpen(false);
             }
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
-    }, [isInstallBlenderOpen]);
+    }, [isInstallBlenderOpen, isSettingsOpen]);
 
     const openRecentFilesPanel = async () => {
         setIsSidebarExpanded(true)
@@ -60,7 +64,7 @@ const Home = () => {
 
     return (
         <>
-            <div className={`home ${isInstallBlenderOpen ? 'home--installing' : ''}`}>
+            <div className={`home ${isInstallBlenderOpen ? 'home--installing' : ''} ${isSettingsOpen ? 'home--settings' : ''}`}>
                 <BlenderColumn />
                 <div className='home__main'>
                     {!isSidebarExpanded && (
@@ -75,7 +79,7 @@ const Home = () => {
                             />
                         </div>
                     )}
-                    {isInstallBlenderOpen ? <InstallBlenderPanel /> : isEmpty ? <EmptyState /> : <AddonPanel />}
+                    {isSettingsOpen ? <SettingsPanel /> : isInstallBlenderOpen ? <InstallBlenderPanel /> : isEmpty ? <EmptyState /> : <AddonPanel />}
                 </div>
                 <RecentFiles />
             </div>

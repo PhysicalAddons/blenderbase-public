@@ -90,6 +90,15 @@ export enum InputValueKind {
     OBJECT = 18
 }
 
+/** `code` of the app settings the Settings panel shows (rows of the `app_setting` table). */
+export enum AppSettingCode {
+    MINIMIZE_BLENDERBASE_ON_LAUNCH = "MINIMIZE_BLENDERBASE_ON_LAUNCH",
+    CHECK_FOR_UPDATE_ON_LAUNCH = "CHECK_FOR_UPDATE_ON_LAUNCH",
+    CHECK_FOR_UPDATE = "CHECK_FOR_UPDATE",
+    OPEN_APP_VERSION_ONLINE_REPOSITORY = "OPEN_APP_VERSION_ONLINE_REPOSITORY",
+    SET_CHECK_INTERNET_CONNECTION_TIMEOUT = "SET_CHECK_INTERNET_CONNECTION_TIMEOUT",
+}
+
 
 
 

@@ -28,12 +28,11 @@ main {
 /* Hide scrollbar for Chrome, Safari and Opera */
 
 body::-webkit-scrollbar,
-.recent_files::-webkit-scrollbar,
-.settings_page::-webkit-scrollbar {
+.recent_files::-webkit-scrollbar {
     display: none;
 }
 /* Hide scrollbar for IE, Edge and Firefox */
-body, .recent_files, .settings_page {
+body, .recent_files {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }

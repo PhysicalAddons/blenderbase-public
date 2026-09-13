@@ -47,7 +47,7 @@ async fn init_app_state() -> Result<AppState, String> {
     };
     let pool = match SqlitePoolOptions::new()
         .max_connections(4)
-        .connect_with(options)
+        .connect_with(options.clone())
         .await
     {
         Ok(v) => v,
@@ -58,6 +58,12 @@ async fn init_app_state() -> Result<AppState, String> {
                 e
             ))
         }
+    };
+    // A damaged database must not stop the app: everything in it can be
+    // rebuilt (locations are re-added, versions rescanned, caches refilled).
+    let pool = match quarantine_if_damaged(pool, &base_dir).await? {
+        Some(fresh) => fresh,
+        None => pool_from(options, &base_dir).await?,
     };
     reconcile_migration_checksums(&pool).await?;
     if let Err(e) = sqlx::migrate!().run(&pool).await {
@@ -74,6 +80,72 @@ async fn init_app_state() -> Result<AppState, String> {
         http_client,
         action_timeouts: Mutex::new(action_timeouts),
     })
+}
+
+async fn pool_from(
+    options: SqliteConnectOptions,
+    db_path: &std::path::Path,
+) -> Result<sqlx::SqlitePool, String> {
+    SqlitePoolOptions::new()
+        .max_connections(4)
+        .connect_with(options)
+        .await
+        .map_err(|e| format!("Could not open the database {}: {}", db_path.display(), e))
+}
+
+/// Runs SQLite's quick integrity check. When the file is damaged, the pool is
+/// closed, the database and its WAL sidecars are moved into a dated
+/// `corrupt-<timestamp>` folder next to it, and `None` is returned so the
+/// caller opens a fresh database. Returns the pool unchanged when the file
+/// is sound. A damaged file is kept, never deleted, so nothing is lost that a
+/// recovery tool could still read.
+async fn quarantine_if_damaged(
+    pool: sqlx::SqlitePool,
+    db_path: &std::path::Path,
+) -> Result<Option<sqlx::SqlitePool>, String> {
+    let verdict: Result<String, sqlx::Error> = sqlx::query_scalar("PRAGMA quick_check")
+        .fetch_one(&pool)
+        .await;
+    let damaged = match verdict {
+        Ok(v) => v != "ok",
+        Err(sqlx::Error::Database(e)) => {
+            // SQLITE_CORRUPT (11) and SQLITE_NOTADB (26) both mean the file is
+            // not a usable database; anything else is a real failure.
+            matches!(e.code().as_deref(), Some("11") | Some("26"))
+                || e.message().contains("malformed")
+                || e.message().contains("not a database")
+        }
+        Err(e) => return Err(format!("Could not check the database: {}", e)),
+    };
+    if !damaged {
+        return Ok(Some(pool));
+    }
+    pool.close().await;
+    let dir = db_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
+    let quarantine = dir.join(format!("corrupt-{}", stamp));
+    std::fs::create_dir_all(&quarantine)
+        .map_err(|e| format!("Could not create {}: {}", quarantine.display(), e))?;
+    let name = db_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| String::from("test.db"));
+    for suffix in ["", "-wal", "-shm", "-journal"] {
+        let from = dir.join(format!("{}{}", name, suffix));
+        if from.exists() {
+            let to = quarantine.join(format!("{}{}", name, suffix));
+            std::fs::rename(&from, &to)
+                .map_err(|e| format!("Could not move {} aside: {}", from.display(), e))?;
+        }
+    }
+    eprintln!(
+        "The database was damaged and has been moved to {}; starting with a fresh one.",
+        quarantine.display()
+    );
+    Ok(None)
 }
 
 /// Brings stored migration checksums in line with the ones embedded in this
@@ -217,6 +289,34 @@ pub async fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A file that is not a database must be quarantined, not fatal: the app
+    /// continues on a fresh database and the damaged file is kept aside.
+    #[tokio::test]
+    async fn quarantines_a_damaged_database_and_starts_fresh() {
+        let dir = std::env::temp_dir().join(format!("blenderbase-corrupt-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("test.db");
+        std::fs::write(&db_path, b"this is definitely not a sqlite database, just bytes
+".repeat(40)).unwrap();
+        let url = format!("sqlite://{}", db_path.to_string_lossy());
+        let options = SqliteConnectOptions::from_str(&url).unwrap().create_if_missing(true);
+        let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options.clone()).await.unwrap();
+
+        let verdict = quarantine_if_damaged(pool, &db_path).await.unwrap();
+        assert!(verdict.is_none(), "a garbage file must be reported as damaged");
+        assert!(!db_path.exists(), "the damaged file must be moved out of the way");
+        let quarantined: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).filter(|e| e.file_name().to_string_lossy().starts_with("corrupt-")).collect();
+        assert_eq!(quarantined.len(), 1, "one dated quarantine folder");
+        assert!(quarantined[0].path().join("test.db").exists(), "the damaged file is kept inside it");
+
+        let fresh = pool_from(options, &db_path).await.unwrap();
+        sqlx::migrate!().run(&fresh).await.unwrap();
+        let ok: String = sqlx::query_scalar("PRAGMA quick_check").fetch_one(&fresh).await.unwrap();
+        assert_eq!(ok, "ok");
+        fresh.close().await;
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     /// A database whose stored checksum for an applied migration differs from
     /// this build's (line-ending drift) must start after reconciliation.
