@@ -4,7 +4,7 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
-## Unreleased
+## 1.2.3
 
 ### Fixed
 - **macOS:** the window buttons sit lower, centred in the title bar.
