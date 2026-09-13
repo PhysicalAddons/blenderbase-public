@@ -30,11 +30,17 @@
 
         // The toolbar band is filled edge to edge like the other columns' bands, with the hide
         // block at the right end; only the content box is painted, not the 24px gap above it.
+        // The whole band is the close button, the icon at its right end where the open block's
+        // icon was; hovering lights the full width.
         .recent_files__toolbar {
             justify-content: flex-end;
             background: var(--bb-field-outer);
             background-clip: content-box;
             .recent_files_toggle {
+                flex: 1 1 auto;
+                width: 100%;
+                justify-content: flex-end;
+                padding-right: 16px;
                 border-left: none;
                 background: var(--bb-field-outer);
                 &:hover {

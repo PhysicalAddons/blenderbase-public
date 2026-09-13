@@ -31,7 +31,9 @@
 
     // Header and rows run edge to edge; the column inset becomes padding.
     .addon_panel__list_header {
-        grid-template-columns: minmax(0, 1fr) 88px 96px 72px 48px;
+        // The four right-hand columns plus the inset span exactly the Recent Files width
+        // ($home-recent-files-width), so the Name column ends on that column's edge.
+        grid-template-columns: minmax(0, 1fr) 76px 80px 72px 48px;
         margin-left: 0;
         margin-right: 0;
         padding: 0 $home-column-inset 0 calc(#{$home-column-inset} + 16px);
@@ -57,7 +59,7 @@
 
     .addon_row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 88px 96px 72px 48px;
+        grid-template-columns: minmax(0, 1fr) 76px 80px 72px 48px;
         align-items: center;
         height: $home-row-height;
         padding-left: calc(#{$home-column-inset} + 16px);
