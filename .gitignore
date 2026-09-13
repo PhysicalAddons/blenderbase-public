@@ -37,3 +37,4 @@ node_modules/.vite/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+test-output.log

@@ -79,4 +79,18 @@ jobs:
 
       - name: cargo test
         working-directory: src-tauri
-        run: cargo test --lib
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --lib 2>&1 | tee test-output.log
+
+      # Logs need a sign-in to view; the job summary is public, so surface
+      # the failing test output there.
+      - name: Test output to job summary
+        if: failure()
+        shell: bash
+        run: |
+          echo "## cargo test output (${{ matrix.os }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "```" >> "$GITHUB_STEP_SUMMARY"
+          tail -n 150 src-tauri/test-output.log >> "$GITHUB_STEP_SUMMARY"
+          echo "```" >> "$GITHUB_STEP_SUMMARY"
