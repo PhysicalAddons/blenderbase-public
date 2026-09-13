@@ -9,6 +9,9 @@ interface IUiControlsStore {
     selectedBlenderVersionId: string | null,
     /** Versions that finished installing during this session and have not been selected or launched yet. */
     newlyInstalledBlenderIds: string[],
+    /** Launch Blender with its console/terminal visible (Python output). Remembered across sessions. */
+    launchWithConsole: boolean,
+    setLaunchWithConsole: (v: boolean) => void,
     setIsSidebarExpanded: (v: boolean) => void,
     setIsInstallBlenderOpen: (v: boolean) => void,
     setSelectedBlenderVersionId: (id: string | null) => void,
@@ -16,11 +19,30 @@ interface IUiControlsStore {
     clearNewlyInstalledBlenderId: (id: string) => void,
 }
 
+const LAUNCH_WITH_CONSOLE_KEY = "blenderbase.launchWithConsole";
+
+const readLaunchWithConsole = (): boolean => {
+    try {
+        return localStorage.getItem(LAUNCH_WITH_CONSOLE_KEY) === "true";
+    } catch {
+        return false;
+    }
+};
+
 export const useUiControlsStore = create<IUiControlsStore>((set) => ({
     isSidebarExpanded: false,
     isInstallBlenderOpen: false,
     selectedBlenderVersionId: null,
     newlyInstalledBlenderIds: [],
+    launchWithConsole: readLaunchWithConsole(),
+    setLaunchWithConsole: (v) => {
+        try {
+            localStorage.setItem(LAUNCH_WITH_CONSOLE_KEY, v ? "true" : "false");
+        } catch {
+            // Storage may be unavailable; the choice still applies for this session.
+        }
+        set({ launchWithConsole: v });
+    },
     setIsSidebarExpanded: (v) => set({ isSidebarExpanded: v }),
     setIsInstallBlenderOpen: (v) => set({ isInstallBlenderOpen: v }),
     setSelectedBlenderVersionId: (id) => set((state) => ({

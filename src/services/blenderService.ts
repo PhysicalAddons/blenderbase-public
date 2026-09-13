@@ -36,8 +36,9 @@ export class BlenderService {
         await invoke<void>("cmd_reveal_blender_version_in_file_explorer", { id });
     }
 
-    public async launchInstalledBlender(id: string): Promise<void> {
-        await invoke<void>("cmd_launch_blender_version", { id });
+    /** Launches a version; with `withConsole` its output is shown in a console or terminal window. */
+    public async launchInstalledBlender(id: string, withConsole: boolean = false): Promise<void> {
+        await invoke<void>("cmd_launch_blender_version", { id, withConsole });
     }
 
     /** Asks each build for its date, commit hash, branch and cycle; returns the updated rows. */

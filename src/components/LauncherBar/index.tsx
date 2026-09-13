@@ -1,5 +1,5 @@
 import { Button, InlineLoading } from '@carbon/react';
-import { Checkmark, WarningAlt } from '@carbon/react/icons';
+import { Checkmark, Terminal, WarningAlt } from '@carbon/react/icons';
 import BlenderLogo from '../BlenderLogo';
 import { postStatus, postStatusError, useStatusStore } from '../../store/statusStore';
 import { useDisplayInformationStore } from '../../store/displayInformationStore';
@@ -19,6 +19,9 @@ const LauncherBar = () => {
     const { selectedBlenderVersionId, clearNewlyInstalledBlenderId } = useUiControlsStore(
         useShallow((s) => ({ selectedBlenderVersionId: s.selectedBlenderVersionId, clearNewlyInstalledBlenderId: s.clearNewlyInstalledBlenderId }))
     )
+    const { launchWithConsole, setLaunchWithConsole } = useUiControlsStore(
+        useShallow((s) => ({ launchWithConsole: s.launchWithConsole, setLaunchWithConsole: s.setLaunchWithConsole }))
+    )
     const { message, isBusy, isError } = useStatusStore(
         useShallow((s) => ({ message: s.message, isBusy: s.isBusy, isError: s.isError }))
     )
@@ -34,8 +37,8 @@ const LauncherBar = () => {
         clearNewlyInstalledBlenderId(selectedVersion.id);
         postStatus(`Launching Blender ${label}…`, true);
         try {
-            await blenderService.launchInstalledBlender(selectedVersion.id)
-            postStatus(`Launched Blender ${label}`);
+            await blenderService.launchInstalledBlender(selectedVersion.id, launchWithConsole)
+            postStatus(launchWithConsole ? `Launched Blender ${label} with console` : `Launched Blender ${label}`);
         } catch (e) {
             console.error(e);
             postStatusError(`Could not launch Blender: ${e}`);
@@ -84,6 +87,7 @@ const LauncherBar = () => {
             </div>
             <div className='launcher_bar__button'>
                 <Button
+                    className='launcher_bar__launch_main'
                     title={
                         selectedVersion
                             ? `Launch Blender ${blenderVersionLabel(selectedVersion)}`
@@ -98,7 +102,20 @@ const LauncherBar = () => {
                     {selectedVersion
                         ? `Launch ${blenderVersionLabel(selectedVersion)}`
                         : "Launch"}
+                    {launchWithConsole && <span className='launcher_bar__launch_hint'>· console</span>}
                 </Button>
+                <Button
+                    className={`launcher_bar__console_segment ${launchWithConsole ? "launcher_bar__console_segment--on" : ""}`}
+                    kind="primary"
+                    size="lg"
+                    hasIconOnly
+                    renderIcon={Terminal}
+                    iconDescription={launchWithConsole ? "Launch with console: on" : "Launch with console: off"}
+                    tooltipPosition="top"
+                    aria-pressed={launchWithConsole}
+                    disabled={selectedVersion === undefined}
+                    onClick={() => setLaunchWithConsole(!launchWithConsole)}
+                />
             </div>
         </div>
     );

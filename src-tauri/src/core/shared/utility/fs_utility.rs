@@ -328,6 +328,69 @@ pub fn launch_executable(
     }
 }
 
+/// Launches an executable with its standard output visible, so Blender's
+/// Python console and script output land in a terminal window.
+pub fn launch_executable_with_console(
+    executable_file_path: std::path::PathBuf,
+    args: Option<Vec<String>>,
+) -> Result<(), String> {
+    let arguments = args.unwrap_or_default();
+    #[cfg(target_os = "windows")]
+    {
+        // The launcher stub hides the console; blender.exe beside it is a
+        // console program and is given a fresh console window of its own.
+        const CREATE_NEW_CONSOLE: u32 = 0x0000_0010;
+        let console_exe = crate::core::resolve_blender_console_executable(&executable_file_path);
+        let mut command = std::process::Command::new(console_exe);
+        command.args(arguments).creation_flags(CREATE_NEW_CONSOLE);
+        match command.spawn() {
+            Ok(child) => {
+                drop(child);
+                Ok(())
+            }
+            Err(e) => Err(format!("Failed launch executable with console: {:?}", e)),
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // Terminal runs an executable in a new window when asked to open it.
+        let _ = arguments;
+        match std::process::Command::new("open")
+            .arg("-a")
+            .arg("Terminal")
+            .arg(&executable_file_path)
+            .spawn()
+        {
+            Ok(child) => {
+                drop(child);
+                Ok(())
+            }
+            Err(e) => Err(format!("Failed launch executable with console: {:?}", e)),
+        }
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let candidates: [(&str, &[&str]); 5] = [
+            ("x-terminal-emulator", &["-e"]),
+            ("gnome-terminal", &["--"]),
+            ("konsole", &["-e"]),
+            ("xfce4-terminal", &["-e"]),
+            ("xterm", &["-e"]),
+        ];
+        for (terminal, flag) in candidates {
+            let mut command = std::process::Command::new(terminal);
+            command.args(flag).arg(&executable_file_path).args(&arguments);
+            if let Ok(child) = command.spawn() {
+                drop(child);
+                return Ok(());
+            }
+        }
+        Err(String::from(
+            "Failed launch executable with console: no terminal emulator found (tried x-terminal-emulator, gnome-terminal, konsole, xfce4-terminal, xterm)",
+        ))
+    }
+}
+
 /// Creates a directory symbolic link at `dst` pointing to `src` without
 /// requiring Blenderbase itself to run as administrator.
 ///

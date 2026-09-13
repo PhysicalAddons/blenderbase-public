@@ -4,6 +4,14 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## Unreleased
+
+### Added
+- A **Console** switch next to the Launch button. When on, Blender starts
+  with its console visible: Python output, script errors and warnings in a
+  console window on Windows, Terminal on macOS, or your terminal emulator
+  on Linux. The choice is remembered.
+
 ## 1.2.5
 
 ### Changed

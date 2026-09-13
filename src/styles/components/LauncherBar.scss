@@ -95,11 +95,35 @@
     .launcher_bar__button {
         width: 300px;
         flex-shrink: 0;
+        display: flex;
+        align-items: center;
         @media screen and (max-width: 672px) {
             width: 50%;
         }
+        // Split button: the wide part launches, the narrow segment on its right
+        // toggles "launch with console" and shows the state.
+        .launcher_bar__launch_main {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .launcher_bar__launch_hint {
+            opacity: 0.75;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+        .launcher_bar__console_segment {
+            flex: 0 0 48px;
+            width: 48px;
+            min-width: 48px;
+            padding: 0;
+            justify-content: center;
+            border-left: 1px solid rgba(255, 255, 255, 0.35);
+            &.launcher_bar__console_segment--on {
+                background: var(--cds-button-primary-active);
+            }
+        }
         .cds--btn {
-            width: 100%;
+            width: auto;
             max-width: none;
             height: $home-launcher-height;
             min-height: $home-launcher-height;

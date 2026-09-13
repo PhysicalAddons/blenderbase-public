@@ -6,7 +6,7 @@ use tauri::AppHandle;
 use crate::{
     core::{
         delete_directory, delete_file, instance_native_ask_dialog_window, launch_executable,
-        open_in_file_explorer,
+        launch_executable_with_console, open_in_file_explorer,
         find_sha256_in_listing, http_get_as_string, is_sha256_hex, open_archive,
         probe_blender_build_info, resolve_blender_console_executable, sha256_of_file,
         validate_blender_executable, write_file,
@@ -124,11 +124,14 @@ pub trait TBlenderInstallService {
         state: tauri::State<'_, AppState>,
         ids: Vec<String>,
     ) -> Result<Vec<BlenderVersion>, String>;
+    /// Launches a version; with `with_console` its output is shown in a
+    /// console or terminal window.
     async fn launch_blender_version(
         &self,
         app: AppHandle,
         state: tauri::State<'_, AppState>,
         id: String,
+        with_console: bool,
     ) -> Result<(), String>;
     /// Shows the version's installation folder in the system file browser.
     async fn reveal_blender_version_in_file_explorer(
@@ -1070,6 +1073,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         _app: AppHandle,
         state: tauri::State<'_, AppState>,
         id: String,
+        with_console: bool,
     ) -> Result<(), String> {
         let repository = state.blender_version_repository();
         let mut blender_version_list =
@@ -1119,7 +1123,12 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed launch_blender_version: {}", e)),
         };
-        match launch_executable(executable, Some(launch_args)) {
+        let launched = if with_console {
+            launch_executable_with_console(executable, Some(launch_args))
+        } else {
+            launch_executable(executable, Some(launch_args))
+        };
+        match launched {
             Ok(_) => Ok(()),
             Err(e) => return Err(format!("Failed launch_blender_version: {:?}", e)),
         }

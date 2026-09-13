@@ -204,9 +204,10 @@ pub async fn cmd_launch_blender_version(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
     id: String,
+    with_console: bool,
 ) -> Result<(), String> {
     match BlenderInstallServiceImpl
-        .launch_blender_version(app, state, id)
+        .launch_blender_version(app, state, id, with_console)
         .await
     {
         Ok(_) => Ok(()),
