@@ -3,10 +3,16 @@ import react from "@vitejs/plugin-react";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+// Optional override for Vite's dependency cache location. Useful when the
+// repository lives inside a synced folder (Dropbox, OneDrive), where the sync
+// client can lock the cache mid-write and break the dev server.
+// @ts-expect-error process is a nodejs global
+const cacheDir = process.env.VITE_CACHE_DIR;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+  ...(cacheDir ? { cacheDir } : {}),
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

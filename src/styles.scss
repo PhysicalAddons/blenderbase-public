@@ -1,4 +1,8 @@
-@use '@carbon/react';
+// Carbon defaults its Plex font path to the webpack-only '~@ibm/plex' prefix,
+// which Vite cannot resolve (it served index.html in place of each .woff2 and
+// the browser logged "Failed to decode downloaded font"). A bare package path
+// resolves correctly under Vite in both dev and build.
+@use '@carbon/react' with ($font-path: '@ibm/plex');
 @use '@carbon/colors';
 @use "@carbon/react/scss/spacing" as *;
 @use "@carbon/react/scss/type" as *;
