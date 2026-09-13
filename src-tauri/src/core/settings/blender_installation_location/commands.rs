@@ -3,7 +3,7 @@ use tauri::AppHandle;
 
 use crate::{
     core::{
-        format_command_error, BlenderInstallationLocationServiceImpl,
+        default_installation_directory, format_command_error, BlenderInstallationLocationServiceImpl,
         TBlenderInstallationLocationService, COLON_SEPERATOR,
     },
     database::BlenderInstallationLocation,
@@ -84,6 +84,27 @@ pub async fn cmd_confirm_blender_installation_location(
 ) -> Result<BlenderInstallationLocation, String> {
     match BlenderInstallationLocationServiceImpl
         .confirm_blender_installation_location(app, state, id, directory_path)
+        .await
+    {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
+#[named]
+#[tauri::command]
+pub async fn cmd_default_installation_directory() -> Result<String, String> {
+    let _ = function_name!();
+    Ok(default_installation_directory().to_string_lossy().to_string())
+}
+#[named]
+#[tauri::command]
+pub async fn cmd_register_blender_installation_location(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    directory_path: String,
+) -> Result<BlenderInstallationLocation, String> {
+    match BlenderInstallationLocationServiceImpl
+        .register_blender_installation_location(app, state, directory_path)
         .await
     {
         Ok(v) => Ok(v),

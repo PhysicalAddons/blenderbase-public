@@ -28,6 +28,16 @@ export class SettingsService {
         return await invoke<IBlenderInstallationLocation>("cmd_confirm_blender_installation_location", { id, directoryPath });
     }
 
+    /** The platform's default folder for Blender versions, offered on the first download. */
+    public async defaultInstallationDirectory(): Promise<string> {
+        return await invoke<string>("cmd_default_installation_directory");
+    }
+
+    /** Registers a folder as an installation location (created when missing, made default when none is). */
+    public async registerBlenderInstallationLocation(directoryPath: string): Promise<IBlenderInstallationLocation> {
+        return await invoke<IBlenderInstallationLocation>("cmd_register_blender_installation_location", { directoryPath });
+    }
+
     /** Opens the folder picker. Resolves to the registered location, or null when the picker was cancelled. */
     public async insertBlenderInstallationLocation(): Promise<IBlenderInstallationLocation | null> {
         return await invoke<IBlenderInstallationLocation | null>("cmd_insert_blender_installation_location");

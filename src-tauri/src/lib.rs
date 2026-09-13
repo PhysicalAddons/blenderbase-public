@@ -203,7 +203,9 @@ pub async fn run() {
             cmd_refresh_blender_version_details,
             cmd_confirm_blender_installation_location,
             cmd_reveal_in_file_explorer,
-            cmd_reveal_blender_version_in_file_explorer
+            cmd_reveal_blender_version_in_file_explorer,
+            cmd_default_installation_directory,
+            cmd_register_blender_installation_location
         ])
         .run(tauri::generate_context!());
     if let Err(e) = app {

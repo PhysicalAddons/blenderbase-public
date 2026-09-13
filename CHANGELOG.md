@@ -6,6 +6,12 @@ copied into the GitHub release by the release workflow, so keep the
 
 ## 1.2.5
 
+### Changed
+- The first download proposes a default folder for Blender versions,
+  with the option to pick another: `C:\blenderbaseapps` on Windows,
+  `~/Applications/Blenderbase` on macOS, `~/.local/share/blenderbase/apps`
+  on Linux. The folder picker no longer opens unprompted.
+
 ### Fixed
 - Deleting a Blender version inside an installation location registered
   before 1.2.1 was refused as "not inside a confirmed location". Every

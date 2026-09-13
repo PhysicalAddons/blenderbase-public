@@ -36,7 +36,9 @@ const InstallBlenderPanel = () => {
 	const [searchText, setSearchText] = useState<string>("")
 	const [downloadDirectory, setDownloadDirectory] = useState<string>("")
 	// First-download prompt: the location waiting for confirmation and the build that triggered it.
-	const [locationPrompt, setLocationPrompt] = useState<{ location: IBlenderInstallationLocation, path: string, build: IDownloadableBlenderVersion, buttonId: string } | null>(null)
+	// `location` is null on the very first download, when no folder is registered yet and
+	// the prompt offers the platform default.
+	const [locationPrompt, setLocationPrompt] = useState<{ location: IBlenderInstallationLocation | null, path: string, build: IDownloadableBlenderVersion, buttonId: string } | null>(null)
 	const [isConfirmingLocation, setIsConfirmingLocation] = useState<boolean>(false)
 	const [isFetching, setIsFetching] = useState<boolean>(false)
 	const listRef = useRef<HTMLDivElement>(null)
@@ -257,20 +259,9 @@ const InstallBlenderPanel = () => {
 			const locations: IBlenderInstallationLocation[] = await settingsService.fetchBlenderInstallationPaths(null, null, null, true);
 			let location = locations[0];
 			if (!location) {
-				const picked = await settingsService.insertBlenderInstallationLocation();
-				if (!picked) {
-					return;
-				}
-				if (!picked.is_default) {
-					// The toggle takes the current state; passing false makes this the default.
-					await settingsService.setBlenderInstallationLocationAsDefault(picked.id, picked.is_default);
-				}
-				const confirmed = picked.is_confirmed
-					? picked
-					: await settingsService.confirmBlenderInstallationLocation(picked.id, picked.directory_path);
-				setDownloadDirectory(confirmed.directory_path);
-				postStatus(`Blender versions will be installed in ${confirmed.directory_path}`);
-				await startDownload(build, buttonId, confirmed);
+				// First download: offer the platform default, with "Change…" for a custom folder.
+				const defaultPath = await settingsService.defaultInstallationDirectory();
+				setLocationPrompt({ location: null, path: defaultPath, build, buttonId });
 				return;
 			}
 			if (!location.is_confirmed) {
@@ -304,7 +295,9 @@ const InstallBlenderPanel = () => {
 		}
 		setIsConfirmingLocation(true);
 		try {
-			const confirmed = await settingsService.confirmBlenderInstallationLocation(locationPrompt.location.id, locationPrompt.path);
+			const confirmed = locationPrompt.location
+				? await settingsService.confirmBlenderInstallationLocation(locationPrompt.location.id, locationPrompt.path)
+				: await settingsService.registerBlenderInstallationLocation(locationPrompt.path);
 			setDownloadDirectory(confirmed.directory_path);
 			postStatus(`Blender versions will be installed in ${confirmed.directory_path}`);
 			const { build, buttonId } = locationPrompt;
@@ -339,7 +332,7 @@ const InstallBlenderPanel = () => {
 				size="sm"
 				modalHeading="Where should Blender versions be installed?"
 				modalLabel="First download"
-				primaryButtonText={isConfirmingLocation ? "Checking…" : "Continue"}
+				primaryButtonText={isConfirmingLocation ? "Checking…" : "Use this folder"}
 				secondaryButtonText="Cancel"
 				primaryButtonDisabled={isConfirmingLocation}
 				onRequestClose={() => !isConfirmingLocation && setLocationPrompt(null)}

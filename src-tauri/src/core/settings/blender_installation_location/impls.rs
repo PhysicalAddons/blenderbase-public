@@ -51,11 +51,110 @@ pub trait TBlenderInstallationLocationService {
         id: String,
         directory_path: String,
     ) -> Result<BlenderInstallationLocation, String>;
+    /// Registers `directory_path` as an installation location without a
+    /// picker: the folder is created when missing, checked for access, and
+    /// becomes the default when no other default exists. An already
+    /// registered folder is returned as is.
+    async fn register_blender_installation_location(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        directory_path: String,
+    ) -> Result<BlenderInstallationLocation, String>;
+}
+
+/// Where Blender versions go when the user has not chosen a folder. The
+/// first download offers it, with the option to pick another folder.
+pub fn default_installation_directory() -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        // Matches the layout existing installs already use.
+        let system_drive = std::env::var_os("SystemDrive").unwrap_or_else(|| "C:".into());
+        std::path::PathBuf::from(format!("{}\\", system_drive.to_string_lossy()))
+            .join(crate::core::BLENDERBASE_APPS)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("/"))
+            .join("Applications")
+            .join("Blenderbase")
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        dirs::data_local_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+            .join("blenderbase")
+            .join("apps")
+    }
 }
 
 pub struct BlenderInstallationLocationServiceImpl;
 
 impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceImpl {
+    async fn register_blender_installation_location(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        directory_path: String,
+    ) -> Result<BlenderInstallationLocation, String> {
+        let path = directory_path.trim().to_string();
+        if path.is_empty() {
+            return Err(String::from("Failed register blender installation location: no directory given"));
+        }
+        let blr = state.blender_installation_location_repository();
+        let mut existing = match blr.fetch(None, None, Some(path.clone()), None).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed register blender installation location: {:?}", e)),
+        };
+        if !existing.is_empty() {
+            let found = existing.remove(0);
+            if found.is_confirmed {
+                return Ok(found);
+            }
+            return self
+                .confirm_blender_installation_location(app, state, found.id, path)
+                .await;
+        }
+        if let Err(e) = std::fs::create_dir_all(&path) {
+            return Err(format!(
+                "Failed register blender installation location: could not create {}: {:?}",
+                path, e
+            ));
+        }
+        let all = match blr.fetch(None, None, None, None).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed register blender installation location: {:?}", e)),
+        };
+        let probe_path = path.clone();
+        let permission_details: PermissionDetails =
+            match tokio::task::spawn_blocking(move || get_permission_details(&probe_path)).await {
+                Ok(Ok(v)) => v,
+                Ok(Err(e)) => return Err(format!("Failed register blender installation location: {:?}", e)),
+                Err(e) => return Err(format!("Failed register blender installation location: {:?}", e)),
+            };
+        let entry = BlenderInstallationLocation {
+            id: uuid::Uuid::new_v4().to_string(),
+            is_default: !all.iter().any(|l| l.is_default),
+            full_control: permission_details.full_control,
+            modify: permission_details.modify,
+            read_and_execute: permission_details.read_and_execute,
+            list_folder_contents: permission_details.list_folder_contents,
+            read: permission_details.read,
+            write: permission_details.write,
+            special_permissions: permission_details.special_permissions,
+            is_confirmed: true,
+            directory_path: path,
+            created_by: whoami::username().ok(),
+            created: chrono::Utc::now().to_rfc3339(),
+            modified: chrono::Utc::now().to_rfc3339(),
+        };
+        match blr.insert(&entry).await {
+            Ok(_) => Ok(entry),
+            Err(e) => Err(format!("Failed register blender installation location: {:?}", e)),
+        }
+    }
+
     async fn confirm_blender_installation_location(
         &self,
         _app: AppHandle,
