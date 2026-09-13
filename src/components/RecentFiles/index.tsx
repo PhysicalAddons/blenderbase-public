@@ -3,28 +3,28 @@ import ButtonSideBarToggle from "./Actions/Button";
 import Sections from "./Sections";
 import { useBlendFileStore } from "../../store/blendFileStore";
 import { useEffect, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { usePagedScroll } from "../../utility/usePagedScroll";
 
 const RecentFiles = () => {
-    const { isSidebarExpanded, setIsSidebarExpanded } = useUiControlsStore()
-    const { setBlenderSeries } = useBlendFileStore()
+    const { isSidebarExpanded, setIsSidebarExpanded } = useUiControlsStore(
+        useShallow((s) => ({ isSidebarExpanded: s.isSidebarExpanded, setIsSidebarExpanded: s.setIsSidebarExpanded }))
+    )
+    const setBlenderSeries = useBlendFileStore((s) => s.setBlenderSeries)
     const listRef = useRef<HTMLDivElement>(null)
     usePagedScroll(listRef)
 
+    // First mount: import the recent files from disk, then load. Later mounts (and StrictMode's
+    // second run) only load. The store owns the state, so nothing is set after unmount.
     useEffect(() => {
-        async function init() {
-            setBlenderSeries();
-        }
-        init();
+        const { hasRefreshedBlendFiles, refreshBlendFiles, setBlenderSeries } = useBlendFileStore.getState();
+        const load = hasRefreshedBlendFiles ? setBlenderSeries : refreshBlendFiles;
+        load().catch((e) => console.error(e));
     }, [])
 
     const handleRecentFilesSidebarToggle = async (v: boolean) => {
-        try {
-            setIsSidebarExpanded(v)
-			await setBlenderSeries();
-        } catch (e) {
-            console.error(e);
-        }
+        setIsSidebarExpanded(v)
+        await setBlenderSeries();
     }
 
     return (
@@ -39,7 +39,7 @@ const RecentFiles = () => {
                     <div className="column_header__titles">
                         <span className="column_header__title">Recent Files</span>
                         {/* Empty on purpose: keeps the header the same height as the other columns. */}
-                        <span className="column_header__subtitle">{" "}</span>
+                        <span className="column_header__subtitle">{" "}</span>
                     </div>
                 </div>
                 <div className="recent_files__sections" ref={listRef}>

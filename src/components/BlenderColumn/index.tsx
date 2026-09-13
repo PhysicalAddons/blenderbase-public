@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button, InlineLoading } from '@carbon/react';
 import { Add, Renew, Star, StarFilled, TrashCan } from '@carbon/react/icons';
+import { useShallow } from 'zustand/react/shallow';
 import { IBlenderVersion } from '../../models';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
@@ -12,26 +13,44 @@ import { postStatus, postStatusError } from '../../store/statusStore';
 const blenderService = new BlenderService();
 
 const BlenderColumn = () => {
-	const { installedBuilds, setInstalledBuilds } = useBlenderManagerStore()
+	const { installedBuilds, setInstalledBuilds, refreshInstalledBuilds } = useBlenderManagerStore(
+		useShallow((s) => ({
+			installedBuilds: s.installedBuilds,
+			setInstalledBuilds: s.setInstalledBuilds,
+			refreshInstalledBuilds: s.refreshInstalledBuilds,
+		}))
+	)
 	const {
 		isInstallBlenderOpen,
 		selectedBlenderVersionId,
 		newlyInstalledBlenderIds,
 		setIsInstallBlenderOpen,
 		setSelectedBlenderVersionId,
-	} = useUiControlsStore()
+	} = useUiControlsStore(
+		useShallow((s) => ({
+			isInstallBlenderOpen: s.isInstallBlenderOpen,
+			selectedBlenderVersionId: s.selectedBlenderVersionId,
+			newlyInstalledBlenderIds: s.newlyInstalledBlenderIds,
+			setIsInstallBlenderOpen: s.setIsInstallBlenderOpen,
+			setSelectedBlenderVersionId: s.setSelectedBlenderVersionId,
+		}))
+	)
 
 	const listRef = useRef<HTMLDivElement>(null)
 	usePagedScroll(listRef)
 	const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
 
+	/** Rescans the installation locations on disk and reloads the list. */
 	const refreshInstalled = async () => {
 		setIsRefreshing(true);
 		const startedAt = Date.now();
 		postStatus("Refreshing installed Blender versions…", true);
 		try {
-			await setInstalledBuilds();
+			await refreshInstalledBuilds();
 			postStatus(`${useBlenderManagerStore.getState().installedBuilds.length} Blender versions installed`);
+		} catch (e) {
+			console.error(e);
+			postStatusError(`Refreshing installed versions failed: ${e}`);
 		} finally {
 			// Keep the spinner visible long enough to register as feedback.
 			const remaining = 500 - (Date.now() - startedAt);
@@ -39,12 +58,15 @@ const BlenderColumn = () => {
 		}
 	}
 
-	useEffect(() => {
-		async function init() {
+	/** Reloads the list after a change; reports a failure without hiding the caller's own status. */
+	const reloadInstalled = async () => {
+		try {
 			await setInstalledBuilds();
+		} catch (e) {
+			console.error(e);
+			postStatusError(`Loading installed versions failed: ${e}`);
 		}
-		init();
-	}, []);
+	}
 
 	const selectedVersion = resolveSelectedBlenderVersion(installedBuilds, selectedBlenderVersionId);
 
@@ -56,12 +78,11 @@ const BlenderColumn = () => {
 		const target = installedBuilds.find((x) => x.id === id);
 		try {
 			await blenderService.setBlenderVersionAsDefault(id)
+			await reloadInstalled();
 			postStatus(`Blender ${blenderVersionLabel(target)} is now the default`);
 		} catch (e) {
 			console.error(e);
 			postStatusError(`Could not set the default version: ${e}`);
-		} finally {
-			await setInstalledBuilds();
 		}
 	}
 
@@ -70,15 +91,14 @@ const BlenderColumn = () => {
 		postStatus(`Deleting Blender ${blenderVersionLabel(target)}…`, true);
 		try {
 			await blenderService.deleteInstalledBlender(id)
+			if (selectedBlenderVersionId === id) {
+				setSelectedBlenderVersionId(null);
+			}
+			await reloadInstalled();
 			postStatus(`Deleted Blender ${blenderVersionLabel(target)}`);
 		} catch (e) {
 			console.error(e);
 			postStatusError(`Deleting Blender failed: ${e}`);
-		} finally {
-			if (selectedBlenderVersionId === id) {
-				setSelectedBlenderVersionId(null);
-			}
-			await setInstalledBuilds();
 		}
 	}
 

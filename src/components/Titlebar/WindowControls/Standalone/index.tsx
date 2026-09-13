@@ -1,19 +1,21 @@
 import { Close } from '@carbon/react/icons'
+import { getCurrentWindow } from '@tauri-apps/api/window';
+
+const appWindow = getCurrentWindow();
 
 const StandaloneWindowControls = () => {
     return (
-        <>
-            <div
-                className="windows_app_window_control"
+        <div className="windows_app_window_control">
+            <button
+                type="button"
+                className="window_control_options close-win"
+                aria-label="Close"
+                title="Close"
+                onClick={() => appWindow.close().catch((e) => console.error(e))}
             >
-                <div
-                    id="close-win"
-                    className="window_control_options close-win"
-                >
-                    <Close />
-                </div>
-            </div>
-        </>
+                <Close />
+            </button>
+        </div>
     )
 }
 

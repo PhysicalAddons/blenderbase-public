@@ -1,3 +1,5 @@
+@use "./Home" as *;
+
 .install_blender_panel {
     display: flex;
     flex-direction: column;

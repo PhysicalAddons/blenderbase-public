@@ -1,5 +1,6 @@
-import { SidePanelClose } from '@carbon/icons-react';
+import { SidePanelClose } from '@carbon/react/icons';
 import { Button } from '@carbon/react';
+import { useShallow } from 'zustand/react/shallow';
 import RecentFiles from '../../components/RecentFiles';
 import LauncherBar from '../../components/LauncherBar/index';
 import BlenderColumn from '../../components/BlenderColumn';
@@ -10,12 +11,33 @@ import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useEffect } from 'react';
 import { useUiControlsStore } from '../../store/uiControlsStore';
 import { useBlendFileStore } from '../../store/blendFileStore';
+import { postStatusError } from '../../store/statusStore';
 
 const Home = () => {
-    const { isSidebarExpanded, isInstallBlenderOpen, setIsSidebarExpanded, setIsInstallBlenderOpen } = useUiControlsStore()
-    const { setBlenderSeries } = useBlendFileStore()
-    const { installedBuilds, hasLoadedInstalledBuilds } = useBlenderManagerStore()
+    const { isSidebarExpanded, isInstallBlenderOpen, setIsSidebarExpanded, setIsInstallBlenderOpen } = useUiControlsStore(
+        useShallow((s) => ({
+            isSidebarExpanded: s.isSidebarExpanded,
+            isInstallBlenderOpen: s.isInstallBlenderOpen,
+            setIsSidebarExpanded: s.setIsSidebarExpanded,
+            setIsInstallBlenderOpen: s.setIsInstallBlenderOpen,
+        }))
+    )
+    const setBlenderSeries = useBlendFileStore((s) => s.setBlenderSeries)
+    const { installedBuilds, hasLoadedInstalledBuilds } = useBlenderManagerStore(
+        useShallow((s) => ({ installedBuilds: s.installedBuilds, hasLoadedInstalledBuilds: s.hasLoadedInstalledBuilds }))
+    )
     const isEmpty = hasLoadedInstalledBuilds && installedBuilds.length === 0;
+
+    // First visit: scan the installation locations on disk, then load the list. Later visits
+    // (and StrictMode's second run) only reload; the refresh button rescans on demand.
+    useEffect(() => {
+        const { hasRefreshedInstalledBuilds, refreshInstalledBuilds, setInstalledBuilds } = useBlenderManagerStore.getState();
+        const load = hasRefreshedInstalledBuilds ? setInstalledBuilds : refreshInstalledBuilds;
+        load().catch((e) => {
+            console.error(e);
+            postStatusError(`Loading installed Blender versions failed: ${e}`);
+        });
+    }, []);
 
     // Escape leaves the Install Blender view, like closing a dialog.
     useEffect(() => {
@@ -32,12 +54,8 @@ const Home = () => {
     }, [isInstallBlenderOpen]);
 
     const openRecentFilesPanel = async () => {
-        try {
-            setIsSidebarExpanded(true)
-            await setBlenderSeries();
-        } catch (e) {
-            console.error(e);
-        }
+        setIsSidebarExpanded(true)
+        await setBlenderSeries();
     }
 
     return (

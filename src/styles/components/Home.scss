@@ -1,3 +1,6 @@
+@use "@carbon/motion";
+@use "../color" as *;
+
 // **Home layout**
 // Three columns (Blender versions | Addons or Install Blender | Recent Files) above the launcher bar.
 $home-column-inset: 24px;
@@ -278,7 +281,7 @@ $home-launcher-height: 56px;
         justify-content: center;
         min-width: 220px;
         &:hover {
-            background: #0353e9;
+            background: var(--cds-button-primary-hover);
             color: var(--bb-primary-text);
         }
     }

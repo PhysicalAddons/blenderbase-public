@@ -1,10 +1,26 @@
+@use "@carbon/react/scss/theme" as theme;
+@use "./size_consts" as *;
+
 .windows_app_window_control {
     display: flex;
     .window_control_options {
+        // The controls are real <button>s; drop the UA chrome so they look like the icon slots they were.
+        appearance: none;
+        border: 0;
+        background: none;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        color: inherit;
+        cursor: default;
+        &:focus:not(:focus-visible) {
+            outline: none;
+        }
+
         height: $navbar-height;
         width: $app_window-control-width;
-        
-        // Makes sure, that the icons are centered. 
+
+        // Makes sure, that the icons are centered.
         display: flex;
         align-items: center;
         justify-content: center;
@@ -15,48 +31,11 @@
     }
 
     .window_control_options:hover {
-        background-color: $background-hover;
-
+        background-color: theme.$background-hover;
     }
 
     .window_control_options.close-win:hover {
         background-color: rgb(255, 31, 31);
-    }
-
-    // #close-win:hover {
-    //     background-color:red;
-    //     outline: none;
-    //     // border-bottom: 1px solid ;
-    //     // Minus 1px, because the color bleeds outside of the button borders.
-    //     // height: ($navbar-height - 0.0625em); 
-    // }
-}
-
-.macos_app_window_controls {
-    display: flex;
-    .window_control_options {
-        height: $navbar-height;
-        width: $macos_app_window-control-width;
-
-        // Makes sure, that the icons are centered. 
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex: 1;
-
-        // Make it so that it is on top of the `navigation_bar_drag_region.`
-        z-index: 1;   
-    }
-
-    .window_control_options:hover {
-        background-color: $background-hover;
-    }
-}
-
-
-.windows_platform {
-    .macos_app_window_controls {
-        display: none;
     }
 }
 

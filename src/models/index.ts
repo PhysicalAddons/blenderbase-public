@@ -235,3 +235,6 @@ export interface IAddon {
     created: string,
     modified: string,
 }
+
+/** Applies a changed setting; resolves with an error message when the backend refuses it. */
+export type SettingHandler = (appSetting: IAppSetting) => Promise<string | undefined>;

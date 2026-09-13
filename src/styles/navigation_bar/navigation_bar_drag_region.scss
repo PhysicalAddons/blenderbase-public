@@ -1,7 +1,9 @@
+@use "../color" as *;
+@use "./size_consts" as *;
+
 // TODO rework this in a way, that allows modularity and fine tuning.
 // TODO the drag region cutoff-wdith should be smaller for the window control buttons (excluding utils).
 .navigation_bar_drag_region_title_bar {
-    // background: $background_color;
     background-color: $background;
     position: absolute;
     height: $navigation_bar_drag_region-height;
@@ -11,24 +13,7 @@
     right: $navigation_bar_drag_region-cutoff-width;
     bottom: 0;
     opacity: 1;
-    // TODO why do i need this?
-    // z-index: -1;
 }
-
-.navigation_bar_drag_region_window_controls {
-    // background: $background_color;
-    background-color: $background;
-    position: absolute;
-    height: $navigation_bar_drag_region-height;
-
-    top: $navigation_bar_drag_region-cutoff-width;
-    left: $navigation_bar_drag_region-cutoff-width;
-    right: $navigation_bar_drag_region-cutoff-width;
-    bottom: 0;
-    opacity: 1;
-    // border: 3px solid red;
-}
-
 
 .windows_platform {
     .navigation_bar_drag_region_title_bar {

@@ -1,9 +1,9 @@
-import { IAppSetting } from '../../../../models'
+import { IAppSetting, SettingHandler } from '../../../../models'
 
 interface Props {
     appSetting: IAppSetting,
     hideLabel: boolean,
-    handleSetting: any
+    handleSetting: SettingHandler
 }
 
 const InputButtonSettingControl = (props: Props) => {
@@ -43,33 +43,3 @@ const InputButtonSettingControl = (props: Props) => {
 }
 
 export default InputButtonSettingControl
-
-
-
-{/* 
-                 async () => {
-                            await loadingManagerStore.setIsCheckingForBlenderbaseVersionUpdate(true);
-                            await checkForVersionUpdate();
-                            await loadingManagerStore.setIsCheckingForBlenderbaseVersionUpdate(false);
-                        }
-                {loadingManagerStore.isCheckingForBlenderbaseVersionUpdate ? (
-                        <InlineLoading
-                            className='setting_button_inline_loading'
-                            status="active"
-                            iconDescription="Checking for Blenderbase version update"
-                        />
-                    ) : (
-                    <button
-                        id={"check_for_blenderbase_update_manually"}
-                        className='setting_button'
-                        onClick={
-                            async () => {
-                                await loadingManagerStore.setIsCheckingForBlenderbaseVersionUpdate(true);
-                                await checkForVersionUpdate();
-                                await loadingManagerStore.setIsCheckingForBlenderbaseVersionUpdate(false);
-                            }
-                        }
-                    >
-                        Check
-                    </button>
-                )} */}

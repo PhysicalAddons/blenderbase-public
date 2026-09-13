@@ -1,73 +1,72 @@
-import { useEffect, useState } from 'react';
-import { IBlenderSeries, IBlenderVersion, IBlendFile } from '../../../models'
+import { useEffect } from 'react';
+import { IBlenderVersion, IBlendFile } from '../../../models'
 import { ContainedList, ContainedListItem, OverflowMenu, OverflowMenuItem } from '@carbon/react';
+import { useShallow } from 'zustand/react/shallow';
 import { BlendFileService } from '../../../services/blendFileService';
 import { ChevronDown } from '@carbon/react/icons';
 import { useBlenderManagerStore } from '../../../store/blenderManagerStore';
 import EmptyRecentFilesBurgerMenu from '../EmptyRecentFilesBurgerMenu';
 import { parseVersion } from '../../../utility';
 import { useBlendFileStore } from '../../../store/blendFileStore';
+import { postStatus, postStatusError } from '../../../store/statusStore';
 
 type Props = {
-    blenderSeries: IBlenderSeries,
+    blenderSeriesId: string,
 }
 
 const blendFileService = new BlendFileService();
 
 const SeriesSection = (props: Props) => {
-    const [localBlenderSeries, setLocalBlenderSeries] = useState<IBlenderSeries>(props.blenderSeries);
-    const { installedBuilds } = useBlenderManagerStore()
-    const { blendFilesBySeries, setBlendFiles } = useBlendFileStore()
-    const blendFiles = blendFilesBySeries[props.blenderSeries.id] ?? []
+    const installedBuilds = useBlenderManagerStore((s) => s.installedBuilds)
+    const blenderSeries = useBlendFileStore((s) => s.blenderSeries.find((x) => x.id === props.blenderSeriesId))
+    const blendFiles = useBlendFileStore((s) => s.blendFilesBySeries[props.blenderSeriesId])
+    const { setBlendFiles, setSeriesCollapsed } = useBlendFileStore(
+        useShallow((s) => ({ setBlendFiles: s.setBlendFiles, setSeriesCollapsed: s.setSeriesCollapsed }))
+    )
+
     useEffect(() => {
-        async function init() {
-            setBlendFiles(props.blenderSeries.id);
-        }
-        init();
-    }, [])
-    const updateSeries = async (): Promise<void> => {
-        try {
-            const newBlenderSeries = {
-                ...localBlenderSeries,
-                is_collapsed: !localBlenderSeries.is_collapsed,
-            };
-            await blendFileService.updateBlenderSeries(newBlenderSeries);
-            setLocalBlenderSeries(newBlenderSeries);
-        } catch (e) {
-            console.error(e);
-        }
+        // The store owns the result, so nothing is set on this component after unmount.
+        setBlendFiles(props.blenderSeriesId).catch((e) => console.error(e));
+    }, [props.blenderSeriesId])
+
+    if (!blenderSeries) {
+        return null;
     }
+    const files: IBlendFile[] = blendFiles ?? [];
+
+    const toggleCollapsed = async (): Promise<void> => {
+        await setSeriesCollapsed(blenderSeries.id, !blenderSeries.is_collapsed);
+    }
+
     const openBlendFile = async (blendFile: IBlendFile, blenderVersion: IBlenderVersion | undefined): Promise<void> => {
+        if (!blenderVersion) {
+            postStatusError(`No Blender ${blenderSeries.series} version is installed to open ${blendFile.file_name}`);
+            return;
+        }
+        postStatus(`Opening ${blendFile.file_name} in Blender ${blenderVersion.version}…`, true);
         try {
-            if (blenderVersion) {
-                await blendFileService.openBlendFile(blendFile, blenderVersion);
-            }
+            await blendFileService.openBlendFile(blendFile.id, blenderVersion.id);
+            postStatus(`Opened ${blendFile.file_name} in Blender ${blenderVersion.version}`);
         } catch (e) {
             console.error(e);
-        } finally {
-            setBlendFiles(props.blenderSeries.id);
+            postStatusError(`Opening ${blendFile.file_name} failed: ${e}`);
         }
+        setBlendFiles(props.blenderSeriesId).catch((e) => console.error(e));
     }
+
+    /** Opens the file with the newest installed version of this file's own series. */
     const openBlendFileInSeriesBlender = async (blendFile: IBlendFile): Promise<void> => {
-        try {
-            const bv = installedBuilds
-                .filter(x => x.series === localBlenderSeries.series)
-                .reduce((best, current) => {
-                    if (!best) return current;
-                    return parseVersion(current.version!) > parseVersion(best.version!)
-                        ? current
-                        : best;
-                }, undefined as IBlenderVersion | undefined);
-            if (!bv) {
-                console.error(`No Blender version of series ${localBlenderSeries.series}`);
-            } 
-            await openBlendFile(blendFile, bv);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setBlendFiles(props.blenderSeries.id);
-        }
+        const bv = installedBuilds
+            .filter(x => x.series === blenderSeries.series)
+            .reduce((best, current) => {
+                if (!best) return current;
+                return parseVersion(current.version!) > parseVersion(best.version!)
+                    ? current
+                    : best;
+            }, undefined as IBlenderVersion | undefined);
+        await openBlendFile(blendFile, bv);
     }
+
     return (
         <div>
             <ContainedList
@@ -77,16 +76,16 @@ const SeriesSection = (props: Props) => {
                 label={
                     <div
                         className='blender_series_heading'
-                        onClick={async () => updateSeries()}
+                        onClick={toggleCollapsed}
                     >
                         <div className='recent_files__blender_series_number'>
                             <span className='blender_series_number'>
-                                {localBlenderSeries.series}
+                                {blenderSeries.series}
                             </span>
                             {/* One chevron, rotated: right when collapsed, down when expanded. */}
                             <span
-                                className={`expand_blend_file_list_icon ${localBlenderSeries.is_collapsed ? 'expand_blend_file_list_icon--collapsed' : ''}`}
-                                title={localBlenderSeries.is_collapsed ? "Show files" : "Hide files"}
+                                className={`expand_blend_file_list_icon ${blenderSeries.is_collapsed ? 'expand_blend_file_list_icon--collapsed' : ''}`}
+                                title={blenderSeries.is_collapsed ? "Show files" : "Hide files"}
                             >
                                 <ChevronDown />
                             </span>
@@ -94,14 +93,14 @@ const SeriesSection = (props: Props) => {
                     </div>
                 }
             >
-                {!localBlenderSeries.is_collapsed && (
+                {!blenderSeries.is_collapsed && (
                     <>
-                        {blendFiles.map((blendFile, index) => (
+                        {files.map((blendFile) => (
                             <ContainedListItem
                                 className="truncate blend_file_blender_version_menu"
-                                key={index}
+                                key={blendFile.id}
                                 disabled={false}
-                                onClick={async () => await openBlendFileInSeriesBlender(blendFile)} // * Ok
+                                onClick={() => openBlendFileInSeriesBlender(blendFile)}
                                 action={
                                     installedBuilds.length === 0 ?
                                         <EmptyRecentFilesBurgerMenu />
@@ -109,16 +108,15 @@ const SeriesSection = (props: Props) => {
                                         <OverflowMenu
                                             aria-label="overflow-menu"
                                             flipped={true}
-                                            // theme="g100" 
                                             size="sm"
                                         >
-                                            {installedBuilds.map((blenderVersion, id) => (
+                                            {installedBuilds.map((blenderVersion) => (
                                                 <OverflowMenuItem
-                                                    key={id}
+                                                    key={blenderVersion.id}
                                                     requireTitle={true}
                                                     title={`Open '${blendFile.file_name}' in Blender ${blenderVersion.version} ${blenderVersion.risk_id}`}
-                                                    itemText={`${blenderVersion.version} ${blenderVersion.risk_id}`} 
-                                                    onClick={async () => await openBlendFile(blendFile, blenderVersion)} // * Ok
+                                                    itemText={`${blenderVersion.version} ${blenderVersion.risk_id}`}
+                                                    onClick={() => openBlendFile(blendFile, blenderVersion)}
                                                 />
                                             ))}
                                         </OverflowMenu>
@@ -143,7 +141,7 @@ Date accessed: ${blendFile.accessed_datetime}
                 )}
             </ContainedList>
             {/* Keeps the next series header on the 56px row grid when a group has an odd number of files. */}
-            {!localBlenderSeries.is_collapsed && blendFiles.length % 2 === 1 && (
+            {!blenderSeries.is_collapsed && files.length % 2 === 1 && (
                 <div className="recent_files__spacer" />
             )}
         </div>

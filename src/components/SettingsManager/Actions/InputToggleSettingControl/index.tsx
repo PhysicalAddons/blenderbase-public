@@ -1,10 +1,10 @@
 import { Toggle } from '@carbon/react'
-import { IAppSetting } from '../../../../models'
+import { IAppSetting, SettingHandler } from '../../../../models'
 
 interface Props {
 	appSetting: IAppSetting,
 	hideLabel: boolean,
-	handleSetting: any
+	handleSetting: SettingHandler
 }
 
 const InputToggleSettingControl = (props: Props) => {

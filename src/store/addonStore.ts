@@ -7,6 +7,8 @@ interface IAddonStore {
     /** Addons of the Blender version they were last loaded for. */
     addons: IAddon[],
     loadedForBlenderVersionId: string | null,
+    /** The version most recently asked for; responses for any other version are discarded. */
+    requestedBlenderVersionId: string | null,
     /** True while Blender is being run headlessly to read or change addons. */
     isBusy: boolean,
     lastError: string | null,
@@ -22,41 +24,75 @@ interface IAddonStore {
 
 const addonService = new AddonService();
 
+/** Loads in flight, by Blender version id, so a repeated request shares the first one. */
+const inflightLoads = new Map<string, Promise<void>>();
+
 const errorText = (e: unknown): string => (typeof e === "string" ? e : (e as Error)?.message ?? String(e));
 
 export const useAddonStore = create<IAddonStore>((set, get) => ({
     addons: [],
     loadedForBlenderVersionId: null,
+    requestedBlenderVersionId: null,
     isBusy: false,
     lastError: null,
 
     /** Shows the cached list immediately, and scans with Blender when nothing is cached yet. */
     async loadAddons(blenderVersionId) {
-        try {
-            const cached = await addonService.fetchAddons(blenderVersionId);
-            set({ addons: cached, loadedForBlenderVersionId: blenderVersionId, lastError: null });
-            if (cached.length === 0) {
-                await get().refreshAddons(blenderVersionId);
+        // A newer request supersedes any earlier one: its response is discarded, and a busy
+        // flag it left behind no longer applies.
+        set({ requestedBlenderVersionId: blenderVersionId, isBusy: false });
+        const existing = inflightLoads.get(blenderVersionId);
+        if (existing) {
+            return existing; // Same version asked for twice (e.g. StrictMode): share the request.
+        }
+        const isCurrent = () => get().requestedBlenderVersionId === blenderVersionId;
+        const run = (async () => {
+            try {
+                const cached = await addonService.fetchAddons(blenderVersionId);
+                if (!isCurrent()) {
+                    return;
+                }
+                set({ addons: cached, loadedForBlenderVersionId: blenderVersionId, lastError: null });
+                if (cached.length === 0) {
+                    await get().refreshAddons(blenderVersionId);
+                }
+            } catch (e) {
+                console.error(e);
+                if (isCurrent()) {
+                    set({ addons: [], loadedForBlenderVersionId: blenderVersionId, lastError: errorText(e) });
+                }
             }
-        } catch (e) {
-            console.error(e);
-            set({ addons: [], loadedForBlenderVersionId: blenderVersionId, lastError: errorText(e) });
+        })();
+        inflightLoads.set(blenderVersionId, run);
+        try {
+            await run;
+        } finally {
+            inflightLoads.delete(blenderVersionId);
         }
     },
 
     async refreshAddons(blenderVersionId) {
-        set({ isBusy: true, lastError: null });
+        set({ requestedBlenderVersionId: blenderVersionId, isBusy: true, lastError: null });
+        const isCurrent = () => get().requestedBlenderVersionId === blenderVersionId;
         postStatus("Reading addons from Blender…", true);
         try {
             const addons = await addonService.refreshAddons(blenderVersionId);
+            if (!isCurrent()) {
+                return;
+            }
             set({ addons, loadedForBlenderVersionId: blenderVersionId });
             postStatus(`${addons.length} addons read from Blender`);
         } catch (e) {
             console.error(e);
-            set({ lastError: errorText(e) });
+            if (isCurrent()) {
+                // Counts as loaded (with nothing) so the panel leaves "Loading…".
+                set({ loadedForBlenderVersionId: blenderVersionId, lastError: errorText(e) });
+            }
             postStatusError(`Reading addons failed: ${errorText(e)}`);
         } finally {
-            set({ isBusy: false });
+            if (isCurrent()) {
+                set({ isBusy: false });
+            }
         }
     },
 
@@ -145,5 +181,5 @@ export const useAddonStore = create<IAddonStore>((set, get) => ({
         }
     },
 
-    clear: () => set({ addons: [], loadedForBlenderVersionId: null, lastError: null }),
+    clear: () => set({ addons: [], loadedForBlenderVersionId: null, requestedBlenderVersionId: null, isBusy: false, lastError: null }),
 }));

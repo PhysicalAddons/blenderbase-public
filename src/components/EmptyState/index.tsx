@@ -7,7 +7,7 @@ import { useUiControlsStore } from '../../store/uiControlsStore';
  * Shown in the middle column when no Blender version is installed yet.
  */
 const EmptyState = () => {
-    const { setIsInstallBlenderOpen } = useUiControlsStore()
+    const setIsInstallBlenderOpen = useUiControlsStore((s) => s.setIsInstallBlenderOpen)
 
     return (
         <div className='empty_state'>

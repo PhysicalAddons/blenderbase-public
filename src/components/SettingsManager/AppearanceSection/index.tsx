@@ -1,4 +1,5 @@
 import { RadioButton, RadioButtonGroup, Tile } from '@carbon/react'
+import { useShallow } from 'zustand/react/shallow'
 import { ThemePreference, useThemeStore } from '../../../store/themeStore'
 
 const OPTIONS: { value: ThemePreference, label: string, description: string }[] = [
@@ -8,7 +9,9 @@ const OPTIONS: { value: ThemePreference, label: string, description: string }[] 
 ]
 
 const AppearanceSection = () => {
-    const { preference, setPreference } = useThemeStore()
+    const { preference, setPreference } = useThemeStore(
+        useShallow((s) => ({ preference: s.preference, setPreference: s.setPreference }))
+    )
     const current = OPTIONS.find((o) => o.value === preference) ?? OPTIONS[0]
 
     return (

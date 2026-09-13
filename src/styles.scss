@@ -3,28 +3,19 @@
 // the browser logged "Failed to decode downloaded font"). A bare package path
 // resolves correctly under Vite in both dev and build.
 @use '@carbon/react' with ($font-path: '@ibm/plex');
-@use '@carbon/colors';
-@use "@carbon/react/scss/spacing" as *;
-@use "@carbon/react/scss/type" as *;
-@use "@carbon/react/scss/breakpoint" as *;
-@use "@carbon/react/scss/theme" as *;
-@use "@carbon/type";
-@use '@carbon/motion';
-@include type.reset();
-@include type.default-type();
-@include type.type-classes();
-// Fonts
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
 // Tokens
-@import "styles/color.scss";
-// Layout
-@import "styles/layout.scss";
-// Components
-@import "styles/navigation_bar/navbar.scss";
-@import "styles/components/Settings.scss";
-@import "styles/components/Home";
-@import "styles/components/RecentFilesPanel.scss";
-@import "styles/components/BlenderColumn";
-@import "styles/components/AddonPanel";
-@import "styles/components/InstallBlenderPanel";
-@import "styles/components/LauncherBar";
+@use "./styles/color";
+// Layout (includes Carbon's type reset, ahead of the app's own body font)
+@use "./styles/layout";
+// Components (each module declares the tokens it reads itself)
+@use "./styles/navigation_bar/navbar";
+@use "./styles/components/Settings";
+@use "./styles/components/Home";
+@use "./styles/components/RecentFilesPanel";
+@use "./styles/components/BlenderColumn";
+@use "./styles/components/AddonPanel";
+@use "./styles/components/InstallBlenderPanel";
+@use "./styles/components/LauncherBar";
+
+// Fonts (Sass hoists this plain CSS import to the top of the output)
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');

@@ -1,45 +1,39 @@
 import { Close, SubtractLarge, Scale } from '@carbon/react/icons';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect } from 'react';
 
 const appWindow = getCurrentWindow();
 
 const MainWindowControls = () => {
-    useEffect(() => {
-        document.getElementById('minimize-win')?.addEventListener('click', () => appWindow.minimize());
-        document.getElementById('maximize-win')?.addEventListener('click', () => appWindow.toggleMaximize());
-        document.getElementById('close-win')?.addEventListener('click', () => appWindow.close());
-        return () => {
-            document.getElementById('minimize-win')?.removeEventListener('click', () => appWindow.minimize());
-            document.getElementById('maximize-win')?.removeEventListener('click', () => appWindow.toggleMaximize());
-            document.getElementById('close-win')?.removeEventListener('click', () => appWindow.close());
-        }
-    }, []);
     return (
-        <>
-            <div
-                className="windows_app_window_control"
+        <div className="windows_app_window_control">
+            <button
+                type="button"
+                className="window_control_options"
+                aria-label="Minimize"
+                title="Minimize"
+                onClick={() => appWindow.minimize().catch((e) => console.error(e))}
             >
-                <div
-                    id="minimize-win"
-                    className="window_control_options"
-                >
-                    <SubtractLarge />
-                </div>
-                <div
-                    id="maximize-win"
-                    className="window_control_options"
-                >
-                    <Scale />
-                </div>
-                <div
-                    id="close-win"
-                    className="window_control_options close-win"
-                >
-                    <Close />
-                </div>
-            </div>
-        </>
+                <SubtractLarge />
+            </button>
+            <button
+                type="button"
+                className="window_control_options"
+                aria-label="Maximize"
+                title="Maximize"
+                onClick={() => appWindow.toggleMaximize().catch((e) => console.error(e))}
+            >
+                <Scale />
+            </button>
+            <button
+                type="button"
+                className="window_control_options close-win"
+                aria-label="Close"
+                title="Close"
+                onClick={() => appWindow.close().catch((e) => console.error(e))}
+            >
+                <Close />
+            </button>
+        </div>
     )
 }
 

@@ -1,3 +1,11 @@
+@use "@carbon/type";
+@use "./color" as *;
+
+// Carbon's type reset first, so the app's body font below wins.
+@include type.reset();
+@include type.default-type();
+@include type.type-classes();
+
 html {
     overscroll-behavior: none;
     height: 100%;
@@ -17,95 +25,15 @@ main {
     height: calc(100vh);
 }
 
-.container {
-    padding: 0px 80px;
-    @media screen and (max-width: 1056px) {
-        padding: 0px 0px;
-    }
-}
-
-// overriding header tooltip bg color
-// because the navigation is dark themed while the content is white
-// which means the dark theme tooltip bg blends into the white content bg
-
-.cds--header__global .cds--popover-content {
-    background-color: colors.$gray-20;
-}
-
-.cds--tab--list {
-    // border: 1px solid blue;
-    justify-content: flex-end;
-    padding-right: 1rem;
-}
-
-.cds--subgrid--wide {
-    //fix needed to keep the subgrid from scrolling horizontally
-    margin-right: 1rem;
-}
-
-.tabs-group-content {
-    padding: $spacing-10 $spacing-05;
-}
-
-.tabs-group {
-    box-shadow: 0px -2px 0px 0px rgba(57, 57, 57, 1) inset;
-    -webkit-box-shadow: 0px -2px 0px 0px rgba(57, 57, 57, 1) inset;
-    -moz-box-shadow: 0px -2px 0px 0px rgba(57, 57, 57, 1) inset;
-    button {
-        box-shadow: 2px 0px 0px 0px #111111;
-        -webkit-box-shadow: 2px 0px 0px 0px #111111;
-        -moz-box-shadow: 2px 0px 0px 0px #111111;
-        margin-top: 0px;
-        margin-right: 1px;
-    }
-}
-
-// For index.scss page
-
-.cds--content {
-    margin-top: 40px;
-    padding: 0;
-    background: var(--cds-background);
-}
-
-.cds--content .cds--css-grid {
-    max-width: 100%;
-    @include breakpoint(md) {
-        padding-left: 16px;
-        padding-right: 16px;
-    }
-}
-
-.cds--tab--overflow-nav-button {
-    border: 1px solid red;
-}
-
-/*
-For the recent files up to v1.0.25.
-
-When opening the recent files tab and resizing the window to minimum width, a ">"
-with these classes will randomly appear. This display none takes care of it for now.
-*/
-.cds--tab--overflow-nav-button.cds--tab--overflow-nav-button--next {
-    display: none;
-}
-
 /* Hide scrollbar for Chrome, Safari and Opera */
 
-.hide_scrollbar::-webkit-scrollbar, 
 body::-webkit-scrollbar,
 .recent_files::-webkit-scrollbar,
 .settings_page::-webkit-scrollbar {
     display: none;
 }
 /* Hide scrollbar for IE, Edge and Firefox */
-.hide_scrollbar, body, .recent_files, .settings_page {
+body, .recent_files, .settings_page {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
-}
-
-.cds--tabs .cds--tabs__nav-link:focus, 
-.cds--tabs .cds--tabs__nav-link:active {
-    outline: none;
-    outline-offset: -2px;
 }

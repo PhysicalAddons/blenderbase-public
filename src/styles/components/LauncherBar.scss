@@ -1,3 +1,6 @@
+@use "../color" as *;
+@use "./Home" as *;
+
 // Footer: one 56px row on the column grid. Logo block = Blender column, status line in the
 // middle, Launch block = Recent Files column.
 .launcher_bar {
@@ -33,8 +36,14 @@
 
         .launcher_bar__logo_text {
             display: flex;
+            align-items: center;
+            gap: 8px;
             text-decoration: none;
             color: var(--bb-text);
+        }
+        .launcher_bar__mark {
+            width: 22px;
+            height: 22px;
         }
         .library_logo {
             fill: var(--bb-text);

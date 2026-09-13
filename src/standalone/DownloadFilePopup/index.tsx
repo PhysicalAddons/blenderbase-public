@@ -11,7 +11,7 @@ const DownloadFilePopup = () => {
     // };
     const [blenderInstallationLocations, setBlenderInstallationLocations] = useState<IBlenderInstallationLocation[]>([])
     const defaultInstallationLocation = useMemo(() => {
-        const defaultEntry: IBlenderInstallationLocation | undefined = blenderInstallationLocations.find((e) => e.is_default = true)
+        const defaultEntry: IBlenderInstallationLocation | undefined = blenderInstallationLocations.find((e) => e.is_default === true)
         return defaultEntry !== undefined
             ? defaultEntry
             : blenderInstallationLocations.length > 0
@@ -20,23 +20,28 @@ const DownloadFilePopup = () => {
     }, [blenderInstallationLocations])
 
     useEffect(() => {
-        fetchBlenderInstallationPaths();
-    }, []);
-
-    const fetchBlenderInstallationPaths = async () => {
-        try {
-            const paths: IBlenderInstallationLocation[] = await invoke("cmd_fetch_blender_installation_locations", {
-                id: null,
-                limit: null,
-                directoryPath: null,
-                isDefault: null
+        let cancelled = false;
+        invoke<IBlenderInstallationLocation[]>("cmd_fetch_blender_installation_locations", {
+            id: null,
+            limit: null,
+            directoryPath: null,
+            isDefault: null
+        })
+            .then((paths) => {
+                if (!cancelled) {
+                    setBlenderInstallationLocations(paths);
+                }
+            })
+            .catch((e) => {
+                console.error(e);
+                if (!cancelled) {
+                    setBlenderInstallationLocations([]);
+                }
             });
-            setBlenderInstallationLocations(paths);
-        } catch (e) {
-            setBlenderInstallationLocations([]);
-            console.error(e);
-        }
-    };
+        return () => {
+            cancelled = true;
+        };
+    }, []);
     return (
         <>
                 <Dropdown

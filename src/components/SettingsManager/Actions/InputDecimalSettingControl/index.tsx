@@ -1,43 +1,55 @@
-import { useState } from 'react';
-import { IAppSetting } from '../../../../models';
+import { useEffect, useState } from 'react';
+import { IAppSetting, SettingHandler } from '../../../../models';
 import { MeasurementUnitKindName } from '../../../../enums/helpers';
 import { MeasurementUnitKind } from '../../../../enums';
 
 interface Props {
     appSetting: IAppSetting;
     hideLabel: boolean;
-    handleSetting: any;
+    handleSetting: SettingHandler;
 }
 
+/**
+ * A number setting. Typing edits a local draft; the value is saved on blur or Enter.
+ */
 const InputDecimalSettingControl = (props: Props) => {
     const [validationError, setValidationError] = useState<string | null>(null);
-    const innerHandleSetting = async (rawValue?: number) => {
+    const [draft, setDraft] = useState<string>(String(props.appSetting.int_value ?? 0));
+
+    // Follow the stored value when it changes elsewhere (e.g. after a refetch).
+    useEffect(() => {
+        setDraft(String(props.appSetting.int_value ?? 0));
+    }, [props.appSetting.int_value]);
+
+    const commit = async () => {
+        const value = Number(draft);
+        if (draft.trim() === "" || Number.isNaN(value)) {
+            setValidationError("Enter a number");
+            return;
+        }
+        if (value === (props.appSetting.int_value ?? 0)) {
+            setValidationError(null);
+            return;
+        }
+        const min = props.appSetting.min_int_value;
+        const max = props.appSetting.max_int_value;
+        if (min !== null && value < min) {
+            setValidationError(`Min allowed value is ${min}`);
+            return;
+        }
+        if (max !== null && value > max) {
+            setValidationError(`Max allowed value is ${max}`);
+            return;
+        }
         try {
-            let newAppSetting = { ...props.appSetting };
-            const value = rawValue ?? newAppSetting.int_value ?? 0;
-            const min = newAppSetting.min_int_value;
-            const max = newAppSetting.max_int_value;
-            if (min !== null && value < min) {
-                const err = `Min allowed value is ${min}`;
-                setValidationError(err);
-                return err;
-            }
-            if (max !== null && value > max) {
-                const err = `Max allowed value is ${max}`;
-                setValidationError(err);
-                return err;
-            }
-            newAppSetting.int_value = value;
-            const err = await props.handleSetting(newAppSetting);
+            const err = await props.handleSetting({ ...props.appSetting, int_value: value });
             setValidationError(err ?? null);
-            return err ?? null;
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
-            const msg = e?.message || String(e);
-            setValidationError(msg);
-            return msg;
+            setValidationError(e instanceof Error ? e.message : String(e));
         }
     };
+
     return (
         <div
             className={`settings_subsection_row ${props.appSetting.is_enabled ? 'enabled' : 'disabled'}`}
@@ -58,10 +70,13 @@ const InputDecimalSettingControl = (props: Props) => {
                         max={props.appSetting.max_int_value!}
                         placeholder="From"
                         disabled={!props.appSetting.is_enabled}
-                        value={props.appSetting.int_value ?? 0}
-                        onChange={(e) => {
-                            const value = Number(e.target.value);
-                            innerHandleSetting(value);
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onBlur={commit}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                e.currentTarget.blur();
+                            }
                         }}
                     />
                 </div>

@@ -1,22 +1,6 @@
 import { download } from "@tauri-apps/plugin-upload";
 import { IBlenderVersion, IDownloadableBlenderVersion } from "../models";
 
-export const generateTitle = (data: any) => {
-    try {
-        let title = "";
-        Object.entries(data).forEach(([k, v]) => {
-            if (v !== null && v !== "") {
-                let formattedKey = k.replace(/_/g, ' ');
-                let capitalizedKey = formattedKey.charAt(0).toUpperCase() + formattedKey.slice(1);
-                title += `${capitalizedKey}: ${v} \n`;
-            }
-        })    
-    } catch (e) {
-        console.error(e);
-        return "";
-    }
-}
-
 export async function downloadFile(url: string, filePath: string, buttonId: string, onProgress?: (percent: number) => void) : Promise<boolean> {
     let isSuccess = true;
     const button = document.getElementById(buttonId) as HTMLButtonElement;
@@ -25,6 +9,7 @@ export async function downloadFile(url: string, filePath: string, buttonId: stri
         return isSuccess;
     }
     let accumulated = 0;
+    let lastPercent = -1;
     const originalText = button.textContent;
 
     button.disabled = true;
@@ -34,6 +19,10 @@ export async function downloadFile(url: string, filePath: string, buttonId: stri
         await download(url, filePath, ({ progress, total }) => {
             accumulated += progress;
             const percent = Math.floor((accumulated / total) * 100);
+            if (percent === lastPercent) {
+                return; // Only repaint when the whole-number percentage moves.
+            }
+            lastPercent = percent;
             const button = document.getElementById(buttonId) as HTMLButtonElement;
             if (button) {
                 button.textContent = `${percent}%`;

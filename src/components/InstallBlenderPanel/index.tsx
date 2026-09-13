@@ -5,7 +5,6 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { ArrowLeft, Checkmark, Download, Renew } from '@carbon/react/icons';
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
-import { useLoadingManagerStore } from '../../store/loadingManagerStore'
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useNetworkInformationStore } from '../../store/networkInformationStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
@@ -18,6 +17,7 @@ import { usePagedScroll } from '../../utility/usePagedScroll';
 import { postStatus, postStatusError } from '../../store/statusStore';
 import { BlenderService } from '../../services/blenderService';
 import { SettingsService } from '../../services/settingsService';
+import { useShallow } from 'zustand/react/shallow';
 
 const blenderService = new BlenderService();
 const settingsService = new SettingsService();
@@ -40,58 +40,79 @@ const InstallBlenderPanel = () => {
 	const [isFetching, setIsFetching] = useState<boolean>(false)
 	const listRef = useRef<HTMLDivElement>(null)
 	usePagedScroll(listRef)
-	const loadingManagerStore = useLoadingManagerStore();
-	const { installedBuilds, downloadableBuilds, activeDownloadBuildType, setActiveDownloadBuildType, setDownloadableBuilds, setInstalledBuilds } = useBlenderManagerStore()
-	const { hasInternetConnection } = useNetworkInformationStore()
-	const { setIsInstallBlenderOpen, addNewlyInstalledBlenderId } = useUiControlsStore()
+	const { installedBuilds, downloadableBuilds, activeDownloadBuildType, setActiveDownloadBuildType, setDownloadableBuilds, setInstalledBuilds } = useBlenderManagerStore(
+		useShallow((s) => ({
+			installedBuilds: s.installedBuilds,
+			downloadableBuilds: s.downloadableBuilds,
+			activeDownloadBuildType: s.activeDownloadBuildType,
+			setActiveDownloadBuildType: s.setActiveDownloadBuildType,
+			setDownloadableBuilds: s.setDownloadableBuilds,
+			setInstalledBuilds: s.setInstalledBuilds,
+		}))
+	)
+	const hasInternetConnection = useNetworkInformationStore((s) => s.hasInternetConnection)
+	const { setIsInstallBlenderOpen, addNewlyInstalledBlenderId } = useUiControlsStore(
+		useShallow((s) => ({ setIsInstallBlenderOpen: s.setIsInstallBlenderOpen, addNewlyInstalledBlenderId: s.addNewlyInstalledBlenderId }))
+	)
 	const pendingDownloadRef = useRef<IDownloadFileRef | null>(null);
 
 	useEffect(() => {
-		async function init() {
-			if (hasInternetConnection === true && buildsForList.length === 0) {
-				await fetchBlenderVersionBuilds();
-			}
+		let cancelled = false;
+		if (hasInternetConnection === true && buildsForList.length === 0) {
+			// Results land in the store; only the local fetching flag needs the mounted guard.
+			fetchBlenderVersionBuilds(() => cancelled);
 		}
-		init();
+		return () => {
+			cancelled = true;
+		};
 	}, [hasInternetConnection])
 
 	useEffect(() => {
-		async function init() {
-			await fetchBlenderVersionBuildTypes();
-			await fetchDownloadDirectory();
-		}
-		init();
+		let cancelled = false;
+		const ifMounted = <T,>(setter: (v: T) => void) => (v: T) => {
+			if (!cancelled) {
+				setter(v);
+			}
+		};
+		fetchBlenderVersionBuildTypes(ifMounted(setBuildTypes));
+		fetchDownloadDirectory(ifMounted(setDownloadDirectory));
 
 		const unlisten = listen("download-data-selected", async (event) => {
 			const payload = event.payload as IDownloadDataSelectedEvent;
 			const selectedPath = payload?.blenderInstallationLocation.directory_path;
 			const pending = pendingDownloadRef.current;
-			if (selectedPath && pending) {
-				const { build, url, fileName, buttonId } = pending;
-				pendingDownloadRef.current = null;
-				const label = `Blender ${build.version} ${build.risk_id ?? ""}`.trim();
+			if (!selectedPath || !pending) {
+				return;
+			}
+			const { build, url, fileName, buttonId } = pending;
+			pendingDownloadRef.current = null;
+			const label = `Blender ${build.version} ${build.risk_id ?? ""}`.trim();
+			const archiveFilePath = `${selectedPath}\\${fileName}`;
+			try {
 				postStatus(`Downloading ${label}…`, true);
-				await blenderService.updateBlenderVersionDownloadStatusType(payload?.blenderVersion, DOWNLOADING_LOWERCASE);
-				let archiveFilePath = `${selectedPath}\\${fileName}`;
-				let resultStatus = await downloadFile(url, archiveFilePath, buttonId, (percent) => postStatus(`Downloading ${label} · ${percent}%`, true));
-				if (resultStatus === true) {
-					await blenderService.updateBlenderVersionDownloadStatusType(payload?.blenderVersion, COMPLETED_LOWERCASE);
-				} else {
-					await blenderService.updateBlenderVersionDownloadStatusType(payload?.blenderVersion, FAILED_LOWERCASE);
+				await blenderService.updateBlenderVersionDownloadStatusType(payload.blenderVersion, DOWNLOADING_LOWERCASE);
+				const downloaded = await downloadFile(url, archiveFilePath, buttonId, (percent) => postStatus(`Downloading ${label} · ${percent}%`, true));
+				if (!downloaded) {
+					await blenderService.updateBlenderVersionDownloadStatusType(payload.blenderVersion, FAILED_LOWERCASE);
 					postStatusError(`Download of ${label} failed`);
 					return;
 				}
+				await blenderService.updateBlenderVersionDownloadStatusType(payload.blenderVersion, COMPLETED_LOWERCASE);
 				postStatus(`Installing ${label}…`, true);
-				await blenderService.installBlenderVersion(payload?.blenderVersion.id, archiveFilePath);
+				await blenderService.installBlenderVersion(payload.blenderVersion.id, archiveFilePath);
 				await blenderService.writeBlenderVersionDownloadData(build, archiveFilePath.replace(".zip", ""));
 				// Show the freshly installed version in the left column with its "New" tag.
-				addNewlyInstalledBlenderId(payload?.blenderVersion.id);
+				addNewlyInstalledBlenderId(payload.blenderVersion.id);
 				await setInstalledBuilds();
 				postStatus(`Installed ${label}`);
+			} catch (e) {
+				console.error(e);
+				postStatusError(`Installing ${label} failed: ${e}`);
 			}
 		});
 
 		return () => {
+			cancelled = true;
 			unlisten.then((off) => off());
 		};
 	}, []);
@@ -127,7 +148,8 @@ const InstallBlenderPanel = () => {
 		return `${d.releaseBuilds.length} release, ${d.dailyBuilds.length} daily, ${d.patchBuilds.length} patch`;
 	}
 
-	const fetchBlenderVersionBuilds = async () => {
+	/** @param isCancelled tells whether the component has unmounted since the call started. */
+	const fetchBlenderVersionBuilds = async (isCancelled: () => boolean = () => false) => {
 		setIsFetching(true);
 		postStatus("Fetching release builds from download.blender.org and daily and patch builds from builder.blender.org…", true);
 		try {
@@ -144,29 +166,33 @@ const InstallBlenderPanel = () => {
 			console.error(e);
 			postStatusError(`Fetching Blender versions failed: ${e}`);
 		} finally {
-			setIsFetching(false);
+			if (!isCancelled()) {
+				setIsFetching(false);
+			}
 		}
 	}
 
-	const fetchBlenderVersionBuildTypes = async () => {
+	const fetchBlenderVersionBuildTypes = async (apply: (types: IBlenderVersionBuildType[]) => void) => {
 		try {
 			const types: IBlenderVersionBuildType[] = await blenderService.fetchBlenderVersionBuildTypes(null, null, null);
-			const defaultBuildType = types.filter(x => x.is_default == true)[0];
-			setActiveDownloadBuildType({ id: defaultBuildType.id, text: defaultBuildType.text } as IBlenderVersionDownloadBuildTypeFilter);
-			setBuildTypes(types);
+			const defaultBuildType = types.find((x) => x.is_default) ?? types[0];
+			setActiveDownloadBuildType(defaultBuildType ? { id: defaultBuildType.id, text: defaultBuildType.text } as IBlenderVersionDownloadBuildTypeFilter : null);
+			apply(types);
 		} catch (e) {
 			setActiveDownloadBuildType(null);
-			setBuildTypes([]);
+			apply([]);
 			console.error(e);
+			postStatusError(`Loading build types failed: ${e}`);
 		}
 	}
 
-	const fetchDownloadDirectory = async () => {
+	const fetchDownloadDirectory = async (apply: (directoryPath: string) => void) => {
 		try {
 			const locations: IBlenderInstallationLocation[] = await settingsService.fetchBlenderInstallationPaths(null, null, null, true);
-			setDownloadDirectory(locations[0]?.directory_path ?? "");
+			apply(locations[0]?.directory_path ?? "");
 		} catch (e) {
 			console.error(e);
+			postStatusError(`Loading the download location failed: ${e}`);
 		}
 	}
 
@@ -176,6 +202,7 @@ const InstallBlenderPanel = () => {
 			setActiveDownloadBuildType({ id: selectedItem.id, text: selectedItem.text })
 		} catch (e) {
 			console.error(e);
+			postStatusError(`Switching build type failed: ${e}`);
 		}
 	}
 
@@ -350,7 +377,7 @@ const InstallBlenderPanel = () => {
 						labelText="Search versions"
 						placeholder="Search versions"
 						value={searchText}
-						onChange={(e: any) => setSearchText(e.target.value ?? "")}
+						onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value ?? "")}
 					/>
 					{isFetching ? (
 						<InlineLoading className='install_blender_panel__fetching' iconDescription="Fetching" />
@@ -361,7 +388,7 @@ const InstallBlenderPanel = () => {
 							iconDescription="Retrieve downloadable Blender data"
 							title="Retrieve downloadable Blender data"
 							hasIconOnly
-							disabled={!hasInternetConnection || loadingManagerStore.isRegisteringDownloadableBlenderData === true}
+							disabled={!hasInternetConnection}
 							onClick={() => refresh()}
 						/>
 					)}

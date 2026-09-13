@@ -1,38 +1,49 @@
 import { Button, InlineLoading } from '@carbon/react';
 import { Checkmark, WarningAlt } from '@carbon/react/icons';
 import BlenderLogo from '../BlenderLogo';
+import blenderbaseIcon from '../../assets/images/icons/blenderbase-icon.png';
 import { postStatus, postStatusError, useStatusStore } from '../../store/statusStore';
 import { useDisplayInformationStore } from '../../store/displayInformationStore';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
 import { BlenderService } from '../../services/blenderService';
 import { blenderVersionLabel, resolveSelectedBlenderVersion } from '../../utility';
+import { useShallow } from 'zustand/react/shallow';
 
 const blenderService = new BlenderService();
 
 const LauncherBar = () => {
-    const { appVersion } = useDisplayInformationStore()
-    const { installedBuilds, setInstalledBuilds } = useBlenderManagerStore()
-    const { selectedBlenderVersionId, clearNewlyInstalledBlenderId } = useUiControlsStore()
-    const { message, isBusy, isError } = useStatusStore()
+    const appVersion = useDisplayInformationStore((s) => s.appVersion)
+    const { installedBuilds, setInstalledBuilds } = useBlenderManagerStore(
+        useShallow((s) => ({ installedBuilds: s.installedBuilds, setInstalledBuilds: s.setInstalledBuilds }))
+    )
+    const { selectedBlenderVersionId, clearNewlyInstalledBlenderId } = useUiControlsStore(
+        useShallow((s) => ({ selectedBlenderVersionId: s.selectedBlenderVersionId, clearNewlyInstalledBlenderId: s.clearNewlyInstalledBlenderId }))
+    )
+    const { message, isBusy, isError } = useStatusStore(
+        useShallow((s) => ({ message: s.message, isBusy: s.isBusy, isError: s.isError }))
+    )
 
     const selectedVersion = resolveSelectedBlenderVersion(installedBuilds, selectedBlenderVersionId);
 
     const launchSelectedBlender = async () => {
+        if (selectedVersion === undefined) {
+            postStatusError("No Blender version selected");
+            return;
+        }
+        const label = blenderVersionLabel(selectedVersion);
+        clearNewlyInstalledBlenderId(selectedVersion.id);
+        postStatus(`Launching Blender ${label}…`, true);
         try {
-            if (selectedVersion === undefined) {
-                throw new Error("No Blender version selected");
-            }
-            clearNewlyInstalledBlenderId(selectedVersion.id);
-            postStatus(`Launching Blender ${blenderVersionLabel(selectedVersion)}…`, true);
             await blenderService.launchInstalledBlender(selectedVersion.id)
-            postStatus(`Launched Blender ${blenderVersionLabel(selectedVersion)}`);
+            postStatus(`Launched Blender ${label}`);
         } catch (e) {
             console.error(e);
             postStatusError(`Could not launch Blender: ${e}`);
-        } finally {
-            setInstalledBuilds();
+            return;
         }
+        // Launching may change the row (last used); reload quietly, keep the launch status.
+        setInstalledBuilds().catch((e) => console.error(e));
     };
 
     return (
@@ -46,6 +57,7 @@ const LauncherBar = () => {
                     title='Physical Addons: https://www.physicaladdons.com'
                     href="https://www.physicaladdons.com"
                 >
+                    <img className='launcher_bar__mark' src={blenderbaseIcon} alt='' />
                     <svg
                         className="library_logo"
                         id="Layer_1"

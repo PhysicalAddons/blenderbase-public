@@ -3,7 +3,7 @@ import { SidePanelOpen } from '@carbon/react/icons'
 
 type Props = {
     isSidebarExpanded: boolean, 
-    setIsSidebarExpanded: any
+    setIsSidebarExpanded: (isExpanded: boolean) => void | Promise<void>
 }
 
 const ButtonSideBarToggle = (props: Props) => {

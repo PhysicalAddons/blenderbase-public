@@ -1,3 +1,7 @@
+@use "@carbon/react/scss/theme" as theme;
+@use "../color" as *;
+@use "./size_consts" as *;
+
 .navigation_bar_utilities {
     display: flex;
     // The tab group spans the width of the right column (300px) minus the window controls, so
@@ -13,19 +17,19 @@
     .navigation_bar_utilities_option {
         height: $navbar-height;
         width: $navigation_bar_utils-control-width;
-        
-        // Makes sure, that the icons are centered. 
-        display: flex; 
+
+        // Makes sure, that the icons are centered.
+        display: flex;
         align-items: center;
         justify-content: center;
         flex: 1;
 
         // Make it so that it is on top of the `navigation_bar_drag_region.`
-        z-index: 1; 
+        z-index: 1;
     }
-    
+
     .navigation_bar_utilities_option:hover {
-        background-color: $background-hover;
+        background-color: theme.$background-hover;
     }
 
     .get_help_navbar {
@@ -48,21 +52,5 @@
         color: var(--bb-text);
         background: $layer-01;
         border-bottom: 1px solid $border-subtle-01;
-    }
-    .internet_connection_positive_navbar {
-        text-decoration: none;
-        color: var(--bb-icon);
-    }
-    .internet_connection_positive_navbar:hover {
-        text-decoration: none;
-        color: var(--bb-icon-hover);
-    }
-    .internet_connection_negative_navbar {
-        text-decoration: none;
-        color: #e99898;
-    }
-    .internet_connection_negative_navbar:hover {
-        text-decoration: none;
-        color: #f34747;
     }
 }

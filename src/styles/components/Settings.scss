@@ -1,3 +1,5 @@
+@use "../color" as *;
+
 .settings_page {
     display: flex;
     justify-content: center;
@@ -15,12 +17,6 @@
     @media screen and (max-width: 672px) {
         padding: 8px 16px 120px 16px;
     }
-
-    // .section_searchbar {
-    // }
-
-    // .sidebar_container {
-    // }
 
     .content_container {
         max-width: 900px;
@@ -40,28 +36,12 @@
             margin-top: 16px;
             margin-bottom: 1em;
 
-            .blender_installation_directory_heading {
-            }
-
             .blender_installation_directory_settings {
                 .cds--popover {
                     opacity: 0;
                 }
                 .cds--popover {
                     display: none;
-                }
-                .cds--inline-loading {
-                    width: 48px;
-                    padding: 16px;
-                }
-                .cds--dropdown {
-                    min-width: 150px;
-                    border: none; 
-                    border-left: 2px solid rgba(211, 211, 211, 0.20);
-                }
-                .cds--list-box__menu {
-                    // z-index: 2;
-                    color: red;
                 }
                 .cds--toggle__switch--checked {
                     background-color: $primary-color;
@@ -70,23 +50,9 @@
                     border: none;
                     color: var(--bb-text);
                     background: none;
-                    // z-index: 0;
                 }
             }
 
-            .input_group {
-                display: flex;
-
-                button {
-                    height: 40px;
-                    margin-top: 24px;
-                    margin-left: 8px;
-                }
-
-                .blender_installation_directory_text_input {
-                    // background: blue;
-                }
-            }
         }
 
         .settings_subsection {
@@ -213,10 +179,6 @@
                 background-color: var(--bb-settings-button-active);
             }
 
-            .setting_button_inline_loading {
-                padding-right: 12px;
-            }
-
             .setting_description {
                 margin-top: 1em;
                 font-size: 1em;
@@ -226,42 +188,7 @@
             .setting_validation_error {
                 margin-top: 1em;
                 font-size: 1em;
-                color: rgba($color: #f34747, $alpha: 0.7);
-            }
-
-            .setting_disclaimer_text {
-                color: #ffb300;
-            }
-
-            // SCSS for sub-toggle
-            .sub_toggle_row {
-                margin-left: 1em;
-                margin-top: 1em;
-
-                .sub_setting_row {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-
-                .sub_setting_title {
-                    font-size: 1em;
-                    flex: 1;
-                }
-
-                .sub_setting_toggle {
-                    flex: 0;
-                }
-
-                .sub_setting_decimal {
-                    flex: 0;
-                }
-
-                .sub_setting_description {
-                    margin-top: 0.5em;
-                    font-size: 0.9em;
-                    color: var(--bb-settings-description);
-                }
+                color: var(--bb-danger);
             }
 
             .divider {
@@ -291,13 +218,6 @@
             .setting_description_content {
                 justify-content: center;
             }
-        }
-
-        .description {
-            font-size: 14px;
-            letter-spacing: 0.32px;
-            opacity: 0.8;
-            margin-top: 8px;
         }
     }
 }

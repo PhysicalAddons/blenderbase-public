@@ -1,3 +1,7 @@
+@use "@carbon/motion";
+@use "../color" as *;
+@use "./Home" as *;
+
 .recent_files_panel {
     -webkit-user-select: none; /* Chrome, Safari, and Opera */
     -moz-user-select: none;    /* Firefox */
@@ -66,12 +70,6 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-        }
-        .recent_files__overflow_menu {
-            opacity: 0;
-        }
-        .recent_files__empty_blender {
-            opacity: 0.5;
         }
         .recent_files__empty_all_blenders {
             color: var(--bb-text-muted);

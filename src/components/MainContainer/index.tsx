@@ -9,7 +9,7 @@ type Props = {
 }
 
 const MainContainer: React.FC<Props> = ({ children }) => {
-	const { resolved } = useThemeStore()
+	const resolved = useThemeStore((s) => s.resolved)
 	return (
 		<Theme theme={resolved === 'light' ? 'white' : 'g100'} className={OS_OBJECT.win}>
 			<TitleBar />

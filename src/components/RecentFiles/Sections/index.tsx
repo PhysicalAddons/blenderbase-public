@@ -1,18 +1,11 @@
-import { useEffect } from 'react';
 import { IBlenderSeries } from '../../../models';
 import SeriesSection from '../SeriesSection';
 import { useBlendFileStore } from '../../../store/blendFileStore';
 import { Folder } from '@carbon/react/icons';
 
+/** The series list is loaded by the panel (RecentFiles); this only renders it. */
 const Sections = () => {
-    const { blenderSeries, setBlenderSeries } = useBlendFileStore()
-
-    useEffect(() => {
-        async function init() {
-            setBlenderSeries();
-        }
-        init();
-    }, [])
+    const blenderSeries = useBlendFileStore((s) => s.blenderSeries)
 
     return (
         <>
@@ -27,7 +20,7 @@ const Sections = () => {
                 :
                 <div>
                     {blenderSeries.map((entry: IBlenderSeries) => (
-                        <SeriesSection key={entry.id} blenderSeries={entry} />
+                        <SeriesSection key={entry.id} blenderSeriesId={entry.id} />
                     ))}
                 </div>
             }

@@ -8,6 +8,7 @@ import { SettingsService } from '../../../services/settingsService'
 import NotImplementedSettingControl from '../Actions/NotImplementedSettingControl'
 import InputRangeSettingControl from '../Actions/InputRangeSettingControl'
 import InputDecimalSettingControl from '../Actions/InputDecimalSettingControl'
+import { postStatusError } from '../../../store/statusStore'
 
 type Props = {
     appSettingType: IAppSettingType,
@@ -15,101 +16,76 @@ type Props = {
 
 const settingsService = new SettingsService();
 
+const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
 const AppSettingTypeSection = (props: Props) => {
     const [appSettings, setAppSettings] = useState<IAppSetting[]>([])
+
     useEffect(() => {
-        async function init() {
-            setAppSettings(await settingsService.fetchAppSetting(null, null, null, null, props.appSettingType.id));
-        }
-        init();
-    }, []);
+        let cancelled = false;
+        settingsService.fetchAppSetting(null, null, null, null, props.appSettingType.id)
+            .then((settings) => {
+                if (!cancelled) {
+                    setAppSettings(settings);
+                }
+            })
+            .catch((e) => {
+                console.error(e);
+                postStatusError(`Loading settings failed: ${errorText(e)}`);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [props.appSettingType.id]);
+
+    /** Applies a setting and reloads the section; resolves with the error message if it was refused. */
     const handleSetting = async (appSetting: IAppSetting): Promise<string | undefined> => {
-        let err = undefined;
+        let err: string | undefined;
         try {
-            err = await settingsService.handleSetting(appSetting)
-        } catch (e: any) {
+            await settingsService.handleSetting(appSetting);
+        } catch (e) {
             console.error(e);
-            return err + " " + e?.message || String(e);
-        } finally {
+            err = errorText(e);
+        }
+        try {
             setAppSettings(await settingsService.fetchAppSetting(null, null, null, null, props.appSettingType.id));
-            return err;
+        } catch (e) {
+            console.error(e);
+            postStatusError(`Reloading settings failed: ${errorText(e)}`);
+        }
+        return err;
+    };
+
+    const controlFor = (entry: IAppSetting) => {
+        switch (entry.app_setting_action_type_id) {
+            case AppSettingActionKind.INPUT_BUTTON:
+                return <InputButtonSettingControl appSetting={entry} hideLabel={true} handleSetting={handleSetting} />;
+            case AppSettingActionKind.INPUT_TOGGLE:
+                return <InputToggleSettingControl appSetting={entry} hideLabel={true} handleSetting={handleSetting} />;
+            case AppSettingActionKind.INPUT_DECIMAL:
+                return <InputDecimalSettingControl appSetting={entry} hideLabel={true} handleSetting={handleSetting} />;
+            case AppSettingActionKind.INPUT_RANGE:
+                return <InputRangeSettingControl appSetting={entry} hideLabel={true} handleSetting={handleSetting} />;
+            default:
+                return <NotImplementedSettingControl appSetting={entry} />;
         }
     };
+
+    if (appSettings.length === 0) {
+        return null;
+    }
     return (
-        <>
-            {appSettings.length > 0 ? (
-                <Tile
-                    key={""}
-                    className="settings_section settings_subsection"
-                >
-                    <h4
-                        className='settings_subsection_heading'
-                    >
-                        {props.appSettingType.name}
-                    </h4>
-                    {appSettings.map((entry: IAppSetting, index: number) => (
-                        <div key={entry.id}>
-                            {entry.app_setting_action_type_id === AppSettingActionKind.INPUT_BUTTON ? (
-                                <>
-                                    <InputButtonSettingControl appSetting={entry} hideLabel={true} handleSetting={handleSetting} />
-                                    {index === appSettings.length - 1 ? (
-                                        <></>
-                                    ) : (
-                                        <hr className="divider" />
-                                    )}
-                                </>
-                            ) : entry.app_setting_action_type_id === AppSettingActionKind.INPUT_TOGGLE ? (
-                                <>
-                                    <InputToggleSettingControl appSetting={entry} hideLabel={true} handleSetting={handleSetting} />
-                                    {index === appSettings.length - 1 ? (
-                                        <></>
-                                    ) : (
-                                        <hr className="divider" />
-                                    )}
-                                </>
-                            ) : entry.app_setting_action_type_id === AppSettingActionKind.INPUT_DECIMAL ? (
-                                <>
-                                    <InputDecimalSettingControl 
-                                        appSetting={entry} 
-                                        hideLabel={true} 
-                                        handleSetting={handleSetting}
-                                    />
-                                    {index === appSettings.length - 1 ? (
-                                        <></>
-                                    ) : (
-                                        <hr className="divider" />
-                                    )}
-                                </>
-                            ) : entry.app_setting_action_type_id === AppSettingActionKind.INPUT_RANGE ? (
-                                <>
-                                    <InputRangeSettingControl 
-                                        appSetting={entry} 
-                                        hideLabel={true} 
-                                        handleSetting={handleSetting}
-                                    />
-                                    {index === appSettings.length - 1 ? (
-                                        <></>
-                                    ) : (
-                                        <hr className="divider" />
-                                    )}
-                                </>
-                            ) : (
-                                <>
-                                    <NotImplementedSettingControl appSetting={entry} />
-                                    {index === appSettings.length - 1 ? (
-                                        <></>
-                                    ) : (
-                                        <hr className="divider" />
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    ))}
-                </Tile>
-            ) : (
-                <></>
-            )}
-        </>
+        <Tile className="settings_section settings_subsection">
+            <h4 className='settings_subsection_heading'>
+                {props.appSettingType.name}
+            </h4>
+            {appSettings.map((entry: IAppSetting, index: number) => (
+                <div key={entry.id}>
+                    {controlFor(entry)}
+                    {index < appSettings.length - 1 && <hr className="divider" />}
+                </div>
+            ))}
+        </Tile>
     )
 }
 

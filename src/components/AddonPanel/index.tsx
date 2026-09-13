@@ -8,6 +8,7 @@ import { useUiControlsStore } from '../../store/uiControlsStore';
 import { useAddonStore } from '../../store/addonStore';
 import { resolveSelectedBlenderVersion } from '../../utility';
 import { usePagedScroll } from '../../utility/usePagedScroll';
+import { useShallow } from 'zustand/react/shallow';
 
 interface ITypeFilter {
 	id: string,
@@ -33,9 +34,22 @@ const kindLabel = (a: IAddon): string => {
 }
 
 const AddonPanel = () => {
-	const { installedBuilds } = useBlenderManagerStore()
-	const { selectedBlenderVersionId } = useUiControlsStore()
-	const { addons, isBusy, loadedForBlenderVersionId, loadAddons, refreshAddons, toggleAddon, installAddon, symlinkAddon, deleteAddon, clear } = useAddonStore()
+	const installedBuilds = useBlenderManagerStore((s) => s.installedBuilds)
+	const selectedBlenderVersionId = useUiControlsStore((s) => s.selectedBlenderVersionId)
+	const { addons, isBusy, loadedForBlenderVersionId, loadAddons, refreshAddons, toggleAddon, installAddon, symlinkAddon, deleteAddon, clear } = useAddonStore(
+		useShallow((s) => ({
+			addons: s.addons,
+			isBusy: s.isBusy,
+			loadedForBlenderVersionId: s.loadedForBlenderVersionId,
+			loadAddons: s.loadAddons,
+			refreshAddons: s.refreshAddons,
+			toggleAddon: s.toggleAddon,
+			installAddon: s.installAddon,
+			symlinkAddon: s.symlinkAddon,
+			deleteAddon: s.deleteAddon,
+			clear: s.clear,
+		}))
+	)
 	const [searchText, setSearchText] = useState<string>("")
 	const [typeFilter, setTypeFilter] = useState<ITypeFilter>(TYPE_FILTERS[0])
 	const listRef = useRef<HTMLDivElement>(null)
@@ -172,7 +186,7 @@ const AddonPanel = () => {
 					labelText="Search addons"
 					placeholder="Search addons"
 					value={searchText}
-					onChange={(e: any) => setSearchText(e.target.value ?? "")}
+					onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value ?? "")}
 				/>
 				<Dropdown
 					size="lg"
@@ -182,7 +196,7 @@ const AddonPanel = () => {
 					items={TYPE_FILTERS}
 					itemToString={(item: ITypeFilter | null) => item ? item.text : ''}
 					selectedItem={typeFilter}
-					onChange={(e: any) => setTypeFilter(e.selectedItem ?? TYPE_FILTERS[0])}
+					onChange={({ selectedItem }: { selectedItem: ITypeFilter | null }) => setTypeFilter(selectedItem ?? TYPE_FILTERS[0])}
 				/>
 			</div>
 			<div className='list_header addon_panel__list_header'>

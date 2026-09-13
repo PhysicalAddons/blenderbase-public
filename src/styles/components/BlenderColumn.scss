@@ -1,3 +1,6 @@
+@use "../color" as *;
+@use "./Home" as *;
+
 .blender_column {
     width: 320px;
     flex-shrink: 0;

@@ -4,48 +4,71 @@ import { Button, DataTable, Table, TableBody, TableCell, TableContainer, TableHe
 import { FolderAdd, TrashCan } from '@carbon/react/icons'
 import { SettingsService } from '../../../services/settingsService'
 import { useBlenderManagerStore } from '../../../store/blenderManagerStore'
+import { postStatus, postStatusError } from '../../../store/statusStore'
 
 const settingsService = new SettingsService();
 
 const BlenderInstallationLocationTable = () => {
 	const [blenderInstallationLocations, setBlenderInstallationLocations] = useState<IBlenderInstallationLocation[]>([])
-	const { setInstalledBuilds } = useBlenderManagerStore()
+	const refreshInstalledBuilds = useBlenderManagerStore((s) => s.refreshInstalledBuilds)
 
 	useEffect(() => {
-		async function init() {
-			setBlenderInstallationLocations(await settingsService.fetchBlenderInstallationPaths(null, null, null, null));
-		}
-		init();
+		let cancelled = false;
+		settingsService.fetchBlenderInstallationPaths(null, null, null, null)
+			.then((locations) => {
+				if (!cancelled) {
+					setBlenderInstallationLocations(locations);
+				}
+			})
+			.catch((e) => {
+				console.error(e);
+				postStatusError(`Loading installation locations failed: ${e}`);
+			});
+		return () => {
+			cancelled = true;
+		};
 	}, []);
+
+	const reloadLocations = async () => {
+		try {
+			setBlenderInstallationLocations(await settingsService.fetchBlenderInstallationPaths(null, null, null, null));
+		} catch (e) {
+			console.error(e);
+			postStatusError(`Loading installation locations failed: ${e}`);
+		}
+	};
 
 	const handleAddBlenderInstallationPath = async () => {
 		try {
 			await settingsService.insertBlenderInstallationLocation();
+			await reloadLocations();
+			// A new location may already hold Blender versions: rescan the disk.
+			await refreshInstalledBuilds();
+			postStatus("Installation location added");
 		} catch (e) {
 			console.error(e);
-		} finally {
-			setBlenderInstallationLocations(await settingsService.fetchBlenderInstallationPaths(null, null, null, null));
-			await setInstalledBuilds();
+			postStatusError(`Adding the installation location failed: ${e}`);
 		}
 	};
 
 	const handleSetBlenderInstallationLocationAsDefault = async (id: string, is_default: boolean) => {
 		try {
 			await settingsService.setBlenderInstallationLocationAsDefault(id, is_default);
+			await reloadLocations();
 		} catch (e) {
 			console.error(e);
-		} finally {
-			setBlenderInstallationLocations(await settingsService.fetchBlenderInstallationPaths(null, null, null, null));
+			postStatusError(`Changing the default installation location failed: ${e}`);
 		}
 	};
 
 	const handleDeleteBlenderVersionInstallationPath = async (id: string) => {
 		try {
 			await settingsService.deleteBlenderInstallationLocation(id);
+			await reloadLocations();
+			postStatus("Installation location removed");
 		} catch (e) {
 			console.error(e);
-		} finally {
-			setBlenderInstallationLocations(await settingsService.fetchBlenderInstallationPaths(null, null, null, null));
+			postStatusError(`Removing the installation location failed: ${e}`);
 		}
 	};
 

@@ -15,8 +15,8 @@ const settingsService = new SettingsService();
 const databaseService = new DatabaseService();
 
 const AppContent = () => {
-    const { setAppVersion } = useDisplayInformationStore()
-    const { setHasInternetConnection } = useNetworkInformationStore()
+    const setAppVersion = useDisplayInformationStore((s) => s.setAppVersion)
+    const setHasInternetConnection = useNetworkInformationStore((s) => s.setHasInternetConnection)
     const initTheme = useThemeStore((t) => t.init)
     // const location = useLocation();
     // Show title bar if we're not in a popup route.
