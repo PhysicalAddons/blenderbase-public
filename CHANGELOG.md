@@ -4,6 +4,14 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## 1.2.5
+
+### Fixed
+- **macOS and Linux:** installing a Blender build failed after unpacking
+  with "No such file or directory". The download path was built with a
+  Windows separator and the version folder was guessed from a `.zip`
+  name; the backend now reports the folder it actually created.
+
 ## 1.2.4
 
 ### Fixed

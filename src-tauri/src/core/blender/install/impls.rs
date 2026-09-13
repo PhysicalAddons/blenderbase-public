@@ -39,13 +39,15 @@ pub trait TBlenderInstallService {
         downloadable_blender_version: DownloadableBlenderVersion,
         blender_installation_location: BlenderInstallationLocation,
     ) -> Result<BlenderVersion, String>;
+    /// Verifies and unpacks a downloaded archive; returns the folder the
+    /// version was installed into.
     async fn install_blender_version(
         &self,
         app: AppHandle,
         state: tauri::State<'_, AppState>,
         id: Option<String>,
         archive_file_path: std::path::PathBuf,
-    ) -> Result<(), String>;
+    ) -> Result<String, String>;
     async fn write_blender_version_download_data(
         &self,
         app: AppHandle,
@@ -455,7 +457,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         state: tauri::State<'_, AppState>,
         id: Option<String>,
         archive_file_path: std::path::PathBuf,
-    ) -> Result<(), String> {
+    ) -> Result<String, String> {
         let repository = state.blender_version_repository();
         let mut blender_versions =
             match repository.fetch(id, None, None, None, None).await {
@@ -505,7 +507,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             Err(e) => return Err(format!("Failed install_blender_version: Failed to delete downloaded archive file: {:?}", e)),
         }
         match repository.update(&blender_version).await {
-            Ok(_) => Ok(()),
+            Ok(_) => Ok(blender_version.installation_directory_path.clone()),
             Err(e) => return Err(format!("Failed install_blender_version: Failed to update the Blender version record: {:?}", e)),
         }
     }

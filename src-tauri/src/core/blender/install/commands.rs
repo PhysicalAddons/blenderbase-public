@@ -40,12 +40,12 @@ pub async fn cmd_install_blender_version(
     state: tauri::State<'_, AppState>,
     id: Option<String>,
     archive_file_path: std::path::PathBuf,
-) -> Result<(), String> {
+) -> Result<String, String> {
     match BlenderInstallServiceImpl
         .install_blender_version(app, state, id, archive_file_path)
         .await
     {
-        Ok(_) => Ok(()),
+        Ok(v) => Ok(v),
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "Blenderbase"
-version = "1.2.4"
+version = "1.2.5"
 # description = "Cross-platform external GUI for Blender, addon and blend project file management."
 description = "External GUI for Blender and blend project file management."
 authors = ["Physical Addons"]

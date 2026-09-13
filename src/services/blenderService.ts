@@ -72,8 +72,9 @@ export class BlenderService {
         return await invoke<IDownloadableBlenderVersion[]>("cmd_get_downloadable_blender_version_data", { build, order });
     }
 
-    public async installBlenderVersion(id: string, archiveFilePath: string): Promise<void> {
-        await invoke<void>("cmd_install_blender_version", { id, archiveFilePath });
+    /** Verifies and unpacks the archive; resolves to the folder the version was installed into. */
+    public async installBlenderVersion(id: string, archiveFilePath: string): Promise<string> {
+        return await invoke<string>("cmd_install_blender_version", { id, archiveFilePath });
     }
 
     public async writeBlenderVersionDownloadData(downloadableBlenderVersion: IDownloadableBlenderVersion, directoryPath: string): Promise<void> {

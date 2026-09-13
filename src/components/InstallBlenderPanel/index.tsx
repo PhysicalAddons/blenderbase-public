@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, InlineLoading, Modal, Search } from '@carbon/react';
 import { NavLink } from 'react-router-dom';
 import { open } from '@tauri-apps/plugin-dialog';
+import { join } from '@tauri-apps/api/path';
 import { ArrowLeft, Checkmark, Download, Renew } from '@carbon/react/icons';
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen } from '@tauri-apps/api/event';
@@ -87,7 +88,9 @@ const InstallBlenderPanel = () => {
 			const { build, url, fileName, buttonId } = pending;
 			pendingDownloadRef.current = null;
 			const label = `Blender ${build.version} ${build.risk_id ?? ""}`.trim();
-			const archiveFilePath = `${selectedPath}\\${fileName}`;
+			// Platform separator: a hard-coded backslash put the download in the
+			// wrong place on macOS and Linux.
+			const archiveFilePath = await join(selectedPath, fileName);
 			try {
 				postStatus(`Downloading ${label}…`, true);
 				await blenderService.updateBlenderVersionDownloadStatusType(payload.blenderVersion, DOWNLOADING_LOWERCASE);
@@ -99,8 +102,10 @@ const InstallBlenderPanel = () => {
 				}
 				await blenderService.updateBlenderVersionDownloadStatusType(payload.blenderVersion, COMPLETED_LOWERCASE);
 				postStatus(`Installing ${label}…`, true);
-				await blenderService.installBlenderVersion(payload.blenderVersion.id, archiveFilePath);
-				await blenderService.writeBlenderVersionDownloadData(build, archiveFilePath.replace(".zip", ""));
+				// The backend reports where it unpacked the version (the archive's
+				// top-level folder, or the folder holding Blender.app on macOS).
+				const installedDirectory = await blenderService.installBlenderVersion(payload.blenderVersion.id, archiveFilePath);
+				await blenderService.writeBlenderVersionDownloadData(build, installedDirectory);
 				// Show the freshly installed version in the left column with its "New" tag.
 				addNewlyInstalledBlenderId(payload.blenderVersion.id);
 				await setInstalledBuilds();
