@@ -32,10 +32,14 @@
         // block at the right end; only the content box is painted, not the 24px gap above it.
         .recent_files__toolbar {
             justify-content: flex-end;
-            background: var(--bb-field);
+            background: var(--bb-field-outer);
             background-clip: content-box;
             .recent_files_toggle {
                 border-left: none;
+                background: var(--bb-field-outer);
+                &:hover {
+                    background: var(--bb-field-outer-hover);
+                }
             }
         }
 

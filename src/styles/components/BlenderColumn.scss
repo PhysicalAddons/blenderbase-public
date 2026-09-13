@@ -15,10 +15,15 @@
         width: 280px;
     }
 
-    .column_actions .install_button {
+    // The outer columns are darker than the middle one, so their bands are a step darker too.
+    .column_actions .cds--btn.install_button {
         width: 100%;
         max-width: none;
         padding-left: $home-column-inset;
+        background: var(--bb-field-outer);
+        &:hover {
+            background: var(--bb-field-outer-hover);
+        }
     }
     .cds--btn.install_button--active {
         background: var(--bb-field-active);
