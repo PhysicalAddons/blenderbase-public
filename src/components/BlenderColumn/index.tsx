@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Button, InlineLoading } from '@carbon/react';
-import { Add, Renew, Star, StarFilled, TrashCan } from '@carbon/react/icons';
+import { Add, Star, StarFilled, TrashCan } from '@carbon/react/icons';
 import { useShallow } from 'zustand/react/shallow';
 import { IBlenderVersion } from '../../models';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
@@ -128,18 +128,7 @@ const BlenderColumn = () => {
 							: `${installedBuilds.length} installed`}
 					</span>
 				</div>
-				{isRefreshing ? (
-					<InlineLoading className="column_header__loading" iconDescription="Refreshing" />
-				) : (
-					<Button
-						kind="ghost"
-						renderIcon={Renew}
-						iconDescription="Refresh installed versions"
-						title="Refresh installed versions"
-						hasIconOnly
-						onClick={refreshInstalled}
-					/>
-				)}
+				{isRefreshing && <InlineLoading className="column_header__loading" iconDescription="Refreshing" />}
 			</div>
 			<div className='column_actions'>
 				<Button
@@ -157,7 +146,16 @@ const BlenderColumn = () => {
 				<span className='centered'>Default</span>
 				<span></span>
 			</div>
-			<div className='blender_column__list' ref={listRef}>
+			<div
+				className='blender_column__list'
+				ref={listRef}
+				// Right-click on the empty part of the list (rows have their own menu).
+				onContextMenu={(e) => {
+					if (!(e.target as HTMLElement).closest('.blender_row')) {
+						void showContextMenu(e, [{ text: 'Rescan installed versions', action: () => { void refreshInstalled(); } }]);
+					}
+				}}
+			>
 				{installedBuilds.length === 0 ? (
 					<div className='blender_column__empty'>
 						Nothing installed yet.
@@ -174,6 +172,7 @@ const BlenderColumn = () => {
 							onClick={() => selectVersion(x.id)}
 							onContextMenu={(e) => showContextMenu(e, [
 								{ text: 'Open file location', action: () => { void revealBlenderVersion(x.id); } },
+								{ text: 'Rescan installed versions', action: () => { void refreshInstalled(); } },
 							])}
 						>
 							<div className='blender_row__main'>

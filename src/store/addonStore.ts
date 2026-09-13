@@ -12,6 +12,14 @@ interface IAddonStore {
     /** True while Blender is being run headlessly to read or change addons. */
     isBusy: boolean,
     lastError: string | null,
+    /**
+     * Blender versions launched since their addons were last read. Addons installed or removed
+     * inside Blender's Preferences only show up after a re-read, so these are read again
+     * instead of served from the cache: on the next window focus for the selected version,
+     * or when the version is selected later.
+     */
+    launchedSinceReadIds: string[],
+    noteBlenderLaunched: (blenderVersionId: string) => void,
     loadAddons: (blenderVersionId: string) => Promise<void>,
     refreshAddons: (blenderVersionId: string) => Promise<void>,
     toggleAddon: (id: string, isEnabled: boolean) => Promise<void>,
@@ -35,8 +43,16 @@ export const useAddonStore = create<IAddonStore>((set, get) => ({
     requestedBlenderVersionId: null,
     isBusy: false,
     lastError: null,
+    launchedSinceReadIds: [],
 
-    /** Shows the cached list immediately, and scans with Blender when nothing is cached yet. */
+    noteBlenderLaunched: (blenderVersionId) => set((state) => ({
+        launchedSinceReadIds: state.launchedSinceReadIds.includes(blenderVersionId)
+            ? state.launchedSinceReadIds
+            : [...state.launchedSinceReadIds, blenderVersionId],
+    })),
+
+    /** Shows the cached list immediately, and scans with Blender when nothing is cached yet
+     *  or the version has been launched since the last read. */
     async loadAddons(blenderVersionId) {
         // A newer request supersedes any earlier one: its response is discarded, and a busy
         // flag it left behind no longer applies.
@@ -53,7 +69,7 @@ export const useAddonStore = create<IAddonStore>((set, get) => ({
                     return;
                 }
                 set({ addons: cached, loadedForBlenderVersionId: blenderVersionId, lastError: null });
-                if (cached.length === 0) {
+                if (cached.length === 0 || get().launchedSinceReadIds.includes(blenderVersionId)) {
                     await get().refreshAddons(blenderVersionId);
                 }
             } catch (e) {
@@ -72,7 +88,12 @@ export const useAddonStore = create<IAddonStore>((set, get) => ({
     },
 
     async refreshAddons(blenderVersionId) {
-        set({ requestedBlenderVersionId: blenderVersionId, isBusy: true, lastError: null });
+        set((state) => ({
+            requestedBlenderVersionId: blenderVersionId,
+            isBusy: true,
+            lastError: null,
+            launchedSinceReadIds: state.launchedSinceReadIds.filter((id) => id !== blenderVersionId),
+        }));
         const isCurrent = () => get().requestedBlenderVersionId === blenderVersionId;
         postStatus("Reading addons from Blender…", true);
         try {

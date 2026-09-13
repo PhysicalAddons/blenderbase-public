@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Dropdown, InlineLoading, Search, Toggle } from '@carbon/react';
-import { Add, Link, Renew, TrashCan } from '@carbon/react/icons';
+import { Add, Link, TrashCan } from '@carbon/react/icons';
 import { ask, open } from '@tauri-apps/plugin-dialog';
 import { IAddon } from '../../models';
 import { showContextMenu } from '../../utility/contextMenu';
@@ -54,10 +54,12 @@ const AddonPanel = () => {
 		}))
 	)
 
+	const rereadItem = () => ({ text: 'Re-read addons from Blender', action: () => { if (selectedId !== null) { void refreshAddons(selectedId); } } });
 	/** Native right-click menu for an addon row. */
 	const showRowMenu = (e: React.MouseEvent, a: IAddon) =>
 		showContextMenu(e, [
 			{ text: 'Open file location', action: () => { void revealAddon(a.id); } },
+			rereadItem(),
 		]);
 	const [searchText, setSearchText] = useState<string>("")
 	const [typeFilter, setTypeFilter] = useState<ITypeFilter>(TYPE_FILTERS[0])
@@ -155,19 +157,7 @@ const AddonPanel = () => {
 					<span className='column_header__title'>Addons</span>
 					<span className='column_header__subtitle'>{subtitle}</span>
 				</div>
-				{isBusy ? (
-					<InlineLoading className="column_header__loading" iconDescription="Working" />
-				) : (
-					<Button
-						kind="ghost"
-						renderIcon={Renew}
-						iconDescription="Re-read addons from Blender"
-						title="Re-read addons from Blender"
-						hasIconOnly
-						disabled={selectedId === null}
-						onClick={() => selectedId !== null && refreshAddons(selectedId)}
-					/>
-				)}
+				{isBusy && <InlineLoading className="column_header__loading" iconDescription="Working" />}
 			</div>
 			<div className='column_actions addon_panel__toolbar'>
 				<Button
@@ -216,7 +206,16 @@ const AddonPanel = () => {
 				<span>Enabled</span>
 				<span></span>
 			</div>
-			<div className='addon_panel__list' ref={listRef}>
+			<div
+				className='addon_panel__list'
+				ref={listRef}
+				// Right-click on the empty part of the list (rows have their own menu).
+				onContextMenu={(e) => {
+					if (selectedId !== null && !(e.target as HTMLElement).closest('.addon_row')) {
+						void showContextMenu(e, [rereadItem()]);
+					}
+				}}
+			>
 				{selectedId === null ? (
 					<div className='addon_panel__empty'>Install or select a Blender version first.</div>
 				) : !isCurrent ? (

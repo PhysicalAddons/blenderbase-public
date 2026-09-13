@@ -1,6 +1,9 @@
 @use "../color" as *;
 @use "./Home" as *;
 
+// Every control in the settings column is one block of this width, a full row tall.
+$settings-control-width: 176px;
+
 // **Settings panel**
 // Takes over the middle column like Install Blender: shared column header, a toolbar row with
 // the section switch, a list header and 56px rows that scroll on the same grid as the other columns.
@@ -134,13 +137,20 @@
             background-color: $primary-color;
         }
 
-        // Buttons: filled like the toolbar blocks instead of Carbon's outlined tertiary.
+        // Buttons: blocks the full height of the row, one width for every control in the
+        // column, flush with the row's top and bottom like the toolbar blocks.
         .cds--btn.settings_row__button {
-            min-width: 128px;
+            width: $settings-control-width;
+            min-width: $settings-control-width;
+            height: $home-row-height;
+            min-height: $home-row-height;
             padding-right: 15px;
             justify-content: center;
             background: var(--bb-field);
-            border-color: transparent;
+            border: none;
+            // The row's hairline runs on through the block, so stacked blocks stay separate rows.
+            border-bottom: 1px solid var(--bb-border);
+            border-radius: 0;
             color: var(--bb-text);
             &:hover {
                 background: var(--bb-field-hover);
@@ -157,15 +167,17 @@
             }
         }
 
-        // Number field: a short box without steppers, no underline, same fill as the buttons.
+        // Number field: the same block as the buttons, without steppers or underline.
         .settings_row__number {
-            width: 96px;
+            width: $settings-control-width;
             .cds--number__input-wrapper input[type="number"] {
-                width: 96px;
+                width: $settings-control-width;
                 min-width: 0;
+                height: $home-row-height;
                 padding-right: 16px;
                 background: var(--bb-field);
-                border-block-end: none;
+                border-block-end: 1px solid var(--bb-border);
+                border-radius: 0;
                 text-align: right;
             }
             .cds--number__controls {
@@ -176,12 +188,23 @@
             }
         }
 
-        // Theme dropdown: same look as the filters in the Addons toolbar.
+        // Theme dropdown: the same block, same look as the filters in the Addons toolbar.
         .settings_row__dropdown {
-            width: 128px;
-            .cds--list-box {
+            width: $settings-control-width;
+            // Carbon sizes the box with block-size per size variant; override both boxes.
+            .cds--list-box,
+            .cds--list-box.cds--list-box--sm {
+                height: $home-row-height;
+                block-size: $home-row-height;
+                // The size variant also caps the box; lift the cap.
+                max-block-size: $home-row-height;
                 background: var(--bb-field);
-                border-block-end: none;
+                border-block-end: 1px solid var(--bb-border);
+                border-radius: 0;
+            }
+            .cds--list-box__field {
+                height: $home-row-height;
+                block-size: $home-row-height;
             }
             .cds--list-box:hover {
                 background: var(--bb-field-hover);

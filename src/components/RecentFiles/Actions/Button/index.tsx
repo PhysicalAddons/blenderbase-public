@@ -33,15 +33,19 @@ const RecentFilesToggle = ({ placement }: Props) => {
     }
     const label = isSidebarExpanded ? "Hide recent files" : "Show recent files";
     const Icon = isSidebarExpanded ? SidePanelOpen : SidePanelClose;
+    // In the middle column the block names what it opens, like the filter block next to it;
+    // in the Recent Files band the column title already says it, so the icon is enough.
+    const labelled = placement === 'middle';
     return (
         <button
             type="button"
-            className='recent_files_toggle'
+            className={`recent_files_toggle ${labelled ? "recent_files_toggle--labelled" : ""}`}
             title={label}
             aria-label={label}
             aria-pressed={isSidebarExpanded}
             onClick={() => void toggle()}
         >
+            {labelled && <span className='recent_files_toggle__text'>Recent Files</span>}
             <Icon size={16} aria-hidden="true" />
         </button>
     )

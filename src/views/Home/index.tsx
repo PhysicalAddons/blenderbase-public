@@ -10,6 +10,7 @@ import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useEffect } from 'react';
 import { useUiControlsStore } from '../../store/uiControlsStore';
 import { postStatusError } from '../../store/statusStore';
+import { useRescanOnFocus } from '../../utility/useRescanOnFocus';
 
 const Home = () => {
     const { isInstallBlenderOpen, isSettingsOpen, setIsInstallBlenderOpen, setIsSettingsOpen } = useUiControlsStore(
@@ -24,9 +25,10 @@ const Home = () => {
         useShallow((s) => ({ installedBuilds: s.installedBuilds, hasLoadedInstalledBuilds: s.hasLoadedInstalledBuilds }))
     )
     const isEmpty = hasLoadedInstalledBuilds && installedBuilds.length === 0;
+    useRescanOnFocus();
 
     // First visit: scan the installation locations on disk, then load the list. Later visits
-    // (and StrictMode's second run) only reload; the refresh button rescans on demand.
+    // (and StrictMode's second run) only reload; refocusing the window rescans later on.
     useEffect(() => {
         const { hasRefreshedInstalledBuilds, refreshInstalledBuilds, setInstalledBuilds } = useBlenderManagerStore.getState();
         const load = hasRefreshedInstalledBuilds ? setInstalledBuilds : refreshInstalledBuilds;

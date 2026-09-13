@@ -9,6 +9,7 @@ import EmptyRecentFilesBurgerMenu from '../EmptyRecentFilesBurgerMenu';
 import { parseVersion } from '../../../utility';
 import { showContextMenu } from '../../../utility/contextMenu';
 import { useBlendFileStore } from '../../../store/blendFileStore';
+import { useAddonStore } from '../../../store/addonStore';
 import { postStatus, postStatusError } from '../../../store/statusStore';
 
 type Props = {
@@ -47,6 +48,7 @@ const SeriesSection = (props: Props) => {
         postStatus(`Opening ${blendFile.file_name} in Blender ${blenderVersion.version}…`, true);
         try {
             await blendFileService.openBlendFile(blendFile.id, blenderVersion.id);
+            useAddonStore.getState().noteBlenderLaunched(blenderVersion.id);
             postStatus(`Opened ${blendFile.file_name} in Blender ${blenderVersion.version}`);
         } catch (e) {
             console.error(e);

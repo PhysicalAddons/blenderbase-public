@@ -313,6 +313,19 @@ $home-launcher-height: 56px;
         outline: 2px solid var(--bb-text);
         outline-offset: -2px;
     }
+    // With a label (middle column) the block is as wide as its text, like "All types".
+    &.recent_files_toggle--labelled {
+        flex-basis: auto;
+        width: auto;
+        padding: 0 16px;
+        gap: 16px;
+        color: var(--bb-text);
+        font-size: 14px;
+        white-space: nowrap;
+        .recent_files_toggle__text {
+            line-height: 1;
+        }
+    }
 }
 
 // Middle column when no Blender version is installed.

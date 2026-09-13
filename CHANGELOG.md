@@ -22,6 +22,14 @@ copied into the GitHub release by the release workflow, so keep the
   toolbar band instead of a floating icon in the header corner: in the
   middle column while the panel is hidden, in the Recent Files column while
   it is shown, so it always sits at the window's right edge on the same row.
+- The refresh icons in the Blender and Addons headers are gone. Installed
+  versions are rescanned when the window regains focus (at most every 15
+  seconds), and a version's addons are re-read when you come back after
+  launching it from Blenderbase, which is when Preferences changes happen.
+  **Rescan installed versions** and **Re-read addons from Blender** remain
+  in the right-click menus of the two lists.
+- Settings controls (buttons, number field, theme dropdown) are one width
+  and fill the full row height.
 
 ### Fixed
 - Recent files drifted off the row grid of the other columns once scrolled:

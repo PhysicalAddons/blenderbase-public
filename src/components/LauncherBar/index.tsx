@@ -7,6 +7,7 @@ import { postStatus, postStatusError, useStatusStore } from '../../store/statusS
 import { useDisplayInformationStore } from '../../store/displayInformationStore';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
+import { useAddonStore } from '../../store/addonStore';
 import { BlenderService } from '../../services/blenderService';
 import { SettingsService } from '../../services/settingsService';
 import { AppSettingCode } from '../../enums';
@@ -54,6 +55,7 @@ const LauncherBar = () => {
         postStatus(`Launching Blender ${label}…`, true);
         try {
             await blenderService.launchInstalledBlender(selectedVersion.id, launchWithConsole)
+            useAddonStore.getState().noteBlenderLaunched(selectedVersion.id);
             postStatus(launchWithConsole ? `Launched Blender ${label} with console` : `Launched Blender ${label}`);
         } catch (e) {
             console.error(e);
