@@ -81,8 +81,10 @@ jobs:
             Release notes: tba.
           releaseDraft: true
           prerelease: false
-          # Publishes latest.json plus the signed updater bundles. The secrets
-          # must hold the ORIGINAL signing key (key id 873F332A2DC77E17) or
-          # installs older than 1.1.0 will reject the manifest.
+          # Publishes latest.json plus the signed updater bundles. Signed with
+          # the key generated on 2026-09-13 (id 67037EBA3C3109B6); its private
+          # half must be in the TAURI_SIGNING_PRIVATE_KEY secret. Installs older
+          # than 1.2.0 were signed with a key that is no longer available and
+          # update by hand once.
           includeUpdaterJson: true
           args: ${{ matrix.args }}
