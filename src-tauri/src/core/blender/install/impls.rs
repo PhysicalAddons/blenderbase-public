@@ -546,8 +546,15 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 Ok(v) => v,
                 Err(e) => return Err(format!("Failed insert_blender_version: {:?}", e)),
             };
-            downloadable_blender_version =
-                serde_json::from_reader(download_data_file).expect("file should be proper JSON");
+            downloadable_blender_version = match serde_json::from_reader(download_data_file) {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(format!(
+                        "Failed insert_blender_version: invalid download data file {}: {:?}",
+                        path, e
+                    ))
+                }
+            };
         }
         // TODO add defaults for values, if download data does not exist.
         let b = BlenderVersion {
@@ -630,13 +637,19 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         let download_data_file_path = std::path::Path::new(path.as_str());
         let downloadable_blender_version: DownloadableBlenderVersion;
         if download_data_file_path.exists() {
-            let download_data_file =
-                match std::fs::File::open(format!("{}{}", BLENDERBASE_DOWNLOAD_DATA, ".json")) {
-                    Ok(v) => v,
-                    Err(e) => return Err(format!("Failed refresh_blender_version: {:?}", e)),
-                };
-            downloadable_blender_version =
-                serde_json::from_reader(download_data_file).expect("file should be proper JSON");
+            let download_data_file = match std::fs::File::open(download_data_file_path) {
+                Ok(v) => v,
+                Err(e) => return Err(format!("Failed refresh_blender_version: {:?}", e)),
+            };
+            downloadable_blender_version = match serde_json::from_reader(download_data_file) {
+                Ok(v) => v,
+                Err(e) => {
+                    return Err(format!(
+                        "Failed refresh_blender_version: invalid download data file {}: {:?}",
+                        path, e
+                    ))
+                }
+            };
             blender_version = BlenderVersion {
                 url: Some(downloadable_blender_version.url),
                 app: Some(downloadable_blender_version.app),

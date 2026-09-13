@@ -173,10 +173,94 @@ pub fn launch_executable(
         Some(v) => v,
         None => vec![],
     };
-    let output = command.args(arguments).output();
-    match output {
-        Ok(_) => Ok(()),
+    // `spawn` returns as soon as the process starts. `output` would block this
+    // thread until Blender exits, which stalled the UI for the whole session.
+    match command.args(arguments).spawn() {
+        Ok(child) => {
+            // Detach: Blender keeps running independently of Blenderbase.
+            drop(child);
+            Ok(())
+        }
         Err(e) => return Err(format!("Failed launch executable: {:?}", e)),
+    }
+}
+
+/// Creates a directory symbolic link at `dst` pointing to `src` without
+/// requiring Blenderbase itself to run as administrator.
+///
+/// 1. A plain symlink is attempted first. This succeeds when the process is
+///    already elevated, or when Windows Developer Mode is enabled (Windows
+///    then allows unprivileged symlink creation).
+/// 2. If Windows refuses for lack of privilege, only the link creation is
+///    re-run through an elevated PowerShell. That triggers the standard UAC
+///    consent prompt while the app keeps running. Declining the prompt, or
+///    any other failure, is reported as an error.
+///
+/// The elevated step is Windows-only; the surrounding module already is.
+pub fn symlink_directory(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
+    if !src.is_dir() {
+        return Err(format!(
+            "Failed symlink directory: source is not a directory: {}",
+            src.display()
+        ));
+    }
+    if dst.symlink_metadata().is_ok() {
+        return Err(format!(
+            "Failed symlink directory: destination already exists: {}",
+            dst.display()
+        ));
+    }
+    // ERROR_PRIVILEGE_NOT_HELD: the caller lacks SeCreateSymbolicLinkPrivilege.
+    const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
+    match std::os::windows::fs::symlink_dir(src, dst) {
+        Ok(()) => return Ok(()),
+        Err(e)
+            if e.raw_os_error() == Some(ERROR_PRIVILEGE_NOT_HELD)
+                || e.kind() == std::io::ErrorKind::PermissionDenied => {}
+        Err(e) => return Err(format!("Failed symlink directory: {:?}", e)),
+    }
+
+    // Elevated fallback. The link command is written to a temporary script so
+    // that no path ever has to be quoted through two shell layers; inside the
+    // script, single quotes are the only character that needs escaping.
+    let ps_quote = |p: &std::path::Path| p.to_string_lossy().replace('\'', "''");
+    let script = format!(
+        "$ErrorActionPreference = 'Stop'\r\ntry {{\r\n    New-Item -ItemType SymbolicLink -Path '{}' -Value '{}' | Out-Null\r\n    exit 0\r\n}} catch {{\r\n    exit 1\r\n}}\r\n",
+        ps_quote(dst),
+        ps_quote(src)
+    );
+    let script_path = std::env::temp_dir().join(format!(
+        "blenderbase_symlink_{}.ps1",
+        uuid::Uuid::new_v4()
+    ));
+    if let Err(e) = std::fs::write(&script_path, script) {
+        return Err(format!(
+            "Failed symlink directory: could not write helper script: {:?}",
+            e
+        ));
+    }
+    // `-Verb RunAs` is what raises the UAC prompt. `-Wait -PassThru` lets us
+    // read the elevated process's exit code once the user has answered it.
+    let expr = format!(
+        "$p = Start-Process -FilePath 'powershell' -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','{}'\r\nexit $p.ExitCode",
+        ps_quote(&script_path)
+    );
+    let args = vec![WINDOW_STYLE, HIDDEN, COMMAND, expr.as_str()];
+    let result = run_ps1_expression_as_string(args);
+    let _ = std::fs::remove_file(&script_path);
+
+    // The link's presence on disk is the authoritative outcome. A declined
+    // UAC prompt makes Start-Process throw, which surfaces as a non-zero exit.
+    match dst.symlink_metadata() {
+        Ok(meta) if meta.file_type().is_symlink() => Ok(()),
+        _ => Err(match result {
+            Ok(_) => String::from(
+                "Failed symlink directory: the elevated command finished but no link was created",
+            ),
+            Err(_) => String::from(
+                "Failed symlink directory: administrator approval was declined or the elevated command failed",
+            ),
+        }),
     }
 }
 

@@ -39,6 +39,6 @@ jobs:
           releaseName: Blenderbase v__VERSION__
           releaseBody: |
             Release notes: tba.
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
