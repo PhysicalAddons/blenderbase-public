@@ -100,27 +100,42 @@
         @media screen and (max-width: 672px) {
             width: 50%;
         }
-        // Split button: the wide part launches, the narrow segment on its right
-        // toggles "launch with console" and shows the state.
-        .launcher_bar__launch_main {
-            flex: 1 1 auto;
-            min-width: 0;
-        }
-        .launcher_bar__launch_hint {
-            opacity: 0.75;
-            font-size: 12px;
-            margin-left: 6px;
-        }
+        // Split button: the narrow segment on the left toggles "launch with
+        // console"; the wide part launches and names the state under its label.
         .launcher_bar__console_segment {
             flex: 0 0 48px;
             width: 48px;
             min-width: 48px;
             padding: 0;
             justify-content: center;
-            border-left: 1px solid rgba(255, 255, 255, 0.35);
+            border-right: 1px solid rgba(255, 255, 255, 0.35);
             &.launcher_bar__console_segment--on {
                 background: var(--cds-button-primary-active);
             }
+        }
+        .launcher_bar__launch_main {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .launcher_bar__launch_label {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            min-width: 0;
+            line-height: 1.2;
+        }
+        .launcher_bar__launch_title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .launcher_bar__launch_hint {
+            opacity: 0.75;
+            font-size: 11px;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
         }
         .cds--btn {
             width: auto;

@@ -7,10 +7,12 @@ copied into the GitHub release by the release workflow, so keep the
 ## Unreleased
 
 ### Added
-- A terminal segment on the Launch button. Click it to launch Blender with
-  its console visible: Python output, script errors and warnings in a
-  console window on Windows, Terminal on macOS, or your terminal emulator
-  on Linux. The choice is remembered and shown as "· console" on the button.
+- A terminal segment on the left of the Launch button. Click it to launch
+  Blender with its console visible: Python output, script errors and
+  warnings in a console window on Windows, Terminal on macOS, or your
+  terminal emulator on Linux. The choice is remembered and the button then
+  reads "with console" under the version. Hovering the segment explains it
+  in the status line.
 
 ### Changed
 - Settings now open in the middle column like Install Blender, with

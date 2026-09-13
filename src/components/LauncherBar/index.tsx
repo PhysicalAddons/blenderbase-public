@@ -136,6 +136,18 @@ const LauncherBar = () => {
                 <span className='launcher_bar__status_text'>{message || "Ready"}</span>
             </div>
             <div className='launcher_bar__button'>
+                <button
+                    type="button"
+                    className={`cds--btn cds--btn--primary cds--btn--lg launcher_bar__console_segment ${launchWithConsole ? "launcher_bar__console_segment--on" : ""}`}
+                    aria-label={launchWithConsole ? "Launch with console: on" : "Launch with console: off"}
+                    aria-pressed={launchWithConsole}
+                    disabled={selectedVersion === undefined}
+                    onMouseEnter={showConsoleHint}
+                    onMouseLeave={hideConsoleHint}
+                    onClick={toggleConsole}
+                >
+                    <Terminal size={20} className="cds--btn__icon" aria-hidden="true" />
+                </button>
                 <Button
                     className='launcher_bar__launch_main'
                     title={
@@ -149,23 +161,13 @@ const LauncherBar = () => {
                     disabled={selectedVersion === undefined}
                     onClick={launchSelectedBlender}
                 >
-                    {selectedVersion
-                        ? `Launch ${blenderVersionLabel(selectedVersion)}`
-                        : "Launch"}
-                    {launchWithConsole && <span className='launcher_bar__launch_hint'>· console</span>}
+                    <span className='launcher_bar__launch_label'>
+                        <span className='launcher_bar__launch_title'>
+                            {selectedVersion ? `Launch ${blenderVersionLabel(selectedVersion)}` : "Launch"}
+                        </span>
+                        {launchWithConsole && <span className='launcher_bar__launch_hint'>with console</span>}
+                    </span>
                 </Button>
-                <button
-                    type="button"
-                    className={`cds--btn cds--btn--primary cds--btn--lg launcher_bar__console_segment ${launchWithConsole ? "launcher_bar__console_segment--on" : ""}`}
-                    aria-label={launchWithConsole ? "Launch with console: on" : "Launch with console: off"}
-                    aria-pressed={launchWithConsole}
-                    disabled={selectedVersion === undefined}
-                    onMouseEnter={showConsoleHint}
-                    onMouseLeave={hideConsoleHint}
-                    onClick={toggleConsole}
-                >
-                    <Terminal size={20} className="cds--btn__icon" aria-hidden="true" />
-                </button>
             </div>
         </div>
     );
