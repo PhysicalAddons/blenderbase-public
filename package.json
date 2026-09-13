@@ -1,7 +1,7 @@
 {
   "name": "blenderbase",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "engines": {
     "node": ">=20.19"
@@ -22,7 +22,7 @@
     "@tauri-apps/plugin-upload": "^2.2.1",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "react-router-dom": "7.17.0",
+    "react-router-dom": "7.18.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
