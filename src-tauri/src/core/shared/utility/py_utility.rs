@@ -1,32 +1,21 @@
 use std::{process::Stdio, time::Duration};
 
-use crate::core::{BLENDER_EXE, BLENDER_LAUNCHER_EXE, CREATE_NO_WINDOW_FLAG};
+#[cfg(target_os = "windows")]
+use crate::core::CREATE_NO_WINDOW_FLAG;
 
 /// Marker a Blender-side script prints in front of its JSON result line.
 pub const BLENDERBASE_JSON_MARKER: &str = "BLENDERBASE_JSON:";
 
 /// Resolves the executable to use for background (headless) runs.
 ///
-/// Registered Blender versions point at `blender-launcher.exe`, which is the
-/// right thing to launch for the UI. It is a small GUI stub, though: it starts
-/// `blender.exe` and returns at once without forwarding stdout or the exit
-/// code, so a script run through it never reports anything back. For
-/// background scripts the real binary next to it is used instead.
+/// On Windows registered Blender versions point at `blender-launcher.exe`,
+/// which is the right thing to launch for the UI. It is a small GUI stub,
+/// though: it starts `blender.exe` and returns at once without forwarding
+/// stdout or the exit code, so a script run through it never reports anything
+/// back. For background scripts the real binary next to it is used instead.
+/// The other platforms have no launcher stub, so the path is used as is.
 fn background_executable(path: &std::path::Path) -> std::path::PathBuf {
-    let is_launcher = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .map(|n| n.eq_ignore_ascii_case(BLENDER_LAUNCHER_EXE))
-        .unwrap_or(false);
-    if is_launcher {
-        if let Some(parent) = path.parent() {
-            let real = parent.join(BLENDER_EXE);
-            if real.is_file() {
-                return real;
-            }
-        }
-    }
-    path.to_path_buf()
+    resolve_blender_console_executable(path)
 }
 
 /// Formats a Rust string as a Python string literal (JSON string syntax is valid Python).
@@ -96,9 +85,11 @@ pub fn extract_json_payload(stdout: &str) -> Result<String, String> {
     Err(String::from("Blender did not report a result"))
 }
 
-/// Installed versions are registered with `blender-launcher.exe`, which starts the real process
-/// and exits at once without forwarding its output. Scripts and probes use the sibling console
-/// executable whenever it exists.
+/// On Windows installed versions are registered with `blender-launcher.exe`, which starts the
+/// real process and exits at once without forwarding its output. Scripts and probes use the
+/// sibling `blender.exe` whenever it exists. macOS and Linux have no launcher stub, so the
+/// registered executable is returned unchanged there.
+#[cfg(target_os = "windows")]
 pub fn resolve_blender_console_executable(path: &std::path::Path) -> std::path::PathBuf {
     let is_launcher = path
         .file_name()
@@ -106,14 +97,17 @@ pub fn resolve_blender_console_executable(path: &std::path::Path) -> std::path::
         .unwrap_or(false);
     if is_launcher {
         if let Some(parent) = path.parent() {
-            for candidate in ["blender.exe", "blender"] {
-                let console = parent.join(candidate);
-                if console.is_file() {
-                    return console;
-                }
+            let console = parent.join(crate::core::BLENDER_EXE);
+            if console.is_file() {
+                return console;
             }
         }
     }
+    path.to_path_buf()
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn resolve_blender_console_executable(path: &std::path::Path) -> std::path::PathBuf {
     path.to_path_buf()
 }
 

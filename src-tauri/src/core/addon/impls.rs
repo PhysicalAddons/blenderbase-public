@@ -5,7 +5,7 @@ use tauri::AppHandle;
 
 use crate::{
     core::{
-        extract_json_payload, open_in_file_explorer, py_string_literal,
+        blender_config_root, extract_json_payload, open_in_file_explorer, py_string_literal,
         resolve_blender_console_executable, run_blender_python, symlink_directory,
         BLENDERBASE_JSON_MARKER,
     },
@@ -647,13 +647,7 @@ impl AddonServiceImpl {
         {
             return Ok(std::path::PathBuf::from(entry.config_directory_path));
         }
-        #[cfg(target_os = "windows")]
-        let base = dirs::config_dir().map(|d| d.join("Blender Foundation").join("Blender"));
-        #[cfg(target_os = "macos")]
-        let base = dirs::config_dir().map(|d| d.join("Blender"));
-        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-        let base = dirs::config_dir().map(|d| d.join("blender"));
-        match base {
+        match blender_config_root() {
             Some(b) => Ok(b.join(series)),
             None => Err(String::from("Could not determine the Blender config directory")),
         }

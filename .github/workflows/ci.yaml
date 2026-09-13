@@ -14,10 +14,27 @@ env:
 
 jobs:
   check:
-    runs-on: windows-latest
+    name: check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
+
+      # Tauri's Linux build needs WebKitGTK and friends at compile time.
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -29,6 +46,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: ${{ matrix.target }}
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
@@ -44,10 +62,10 @@ jobs:
       # tauri-build verifies that frontendDist (dist/) exists, so create a stub
       # before any cargo step compiles the crate.
       - name: Create frontend dist stub
-        shell: pwsh
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force dist
-          Set-Content dist/index.html "<!doctype html>"
+          mkdir -p dist
+          echo "<!doctype html>" > dist/index.html
 
       - name: cargo fmt
         working-directory: src-tauri

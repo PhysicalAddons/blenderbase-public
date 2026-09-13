@@ -223,21 +223,44 @@ $Path = $env:BLENDERBASE_PATH
     return Ok(result);
 }
 
+/// Whether `executable` is named like a Blender executable on this platform:
+/// `blender-launcher.exe` / `blender.exe` on Windows, `Blender` inside a
+/// `Blender.app/Contents/MacOS` bundle on macOS, `blender` on Linux.
+fn is_blender_executable_name(executable: &std::path::Path) -> bool {
+    let file_name: String = executable
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    #[cfg(target_os = "windows")]
+    {
+        let lower = file_name.to_ascii_lowercase();
+        lower == "blender-launcher.exe" || lower == "blender.exe"
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let in_bundle = executable
+            .parent()
+            .map(|p| p.ends_with("Blender.app/Contents/MacOS"))
+            .unwrap_or(false);
+        file_name == "Blender" && in_bundle
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        file_name == "blender"
+    }
+}
+
 /// Resolves the executable of an installed Blender version and refuses anything
-/// that is not `blender-launcher.exe` / `blender.exe` located inside that
-/// version's installation directory. Both values come from the database, but
-/// the rows were once accepted from the webview, so they are re-checked here
-/// before anything is spawned.
+/// that is not a Blender executable (see `is_blender_executable_name`) located
+/// inside that version's installation directory. Both values come from the
+/// database, but the rows were once accepted from the webview, so they are
+/// re-checked here before anything is spawned.
 pub fn validate_blender_executable(
     installation_directory_path: &str,
     executable_file_path: &str,
 ) -> Result<std::path::PathBuf, String> {
     let executable = std::path::PathBuf::from(executable_file_path);
-    let file_name = executable
-        .file_name()
-        .map(|n| n.to_string_lossy().to_ascii_lowercase())
-        .unwrap_or_default();
-    if file_name != "blender-launcher.exe" && file_name != "blender.exe" {
+    if !is_blender_executable_name(&executable) {
         return Err(format!(
             "Refusing to launch {}: not a Blender executable",
             executable.display()
@@ -494,8 +517,12 @@ pub async fn instance_native_ask_dialog_window(
     join.await.unwrap_or(false)
 }
 
-/// Extracts `archive_file_path` next to itself. The work is synchronous zip
-/// I/O over hundreds of megabytes, so it runs on the blocking pool.
+/// Extracts `archive_file_path` next to itself and returns the extracted
+/// version folder. The work is synchronous archive I/O over hundreds of
+/// megabytes, so it runs on the blocking pool.
+///
+/// Supported per platform: `.zip` everywhere, `.tar.xz` on Linux and macOS,
+/// `.dmg` on macOS.
 pub async fn open_archive(
     archive_file_path: std::path::PathBuf,
 ) -> Result<std::path::PathBuf, String> {
@@ -509,6 +536,272 @@ pub async fn open_archive(
 fn open_archive_blocking(
     archive_file_path: std::path::PathBuf,
 ) -> Result<std::path::PathBuf, String> {
+    let lower_name: String = archive_file_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    if lower_name.ends_with(".zip") {
+        return extract_zip(&archive_file_path);
+    }
+    #[cfg(not(windows))]
+    {
+        if lower_name.ends_with(".tar.xz") {
+            return extract_tar_xz(&archive_file_path);
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        if lower_name.ends_with(".dmg") {
+            return extract_dmg(&archive_file_path);
+        }
+    }
+    Err(format!(
+        "Failed open archive: unsupported archive type for this platform: {}",
+        archive_file_path.display()
+    ))
+}
+
+/// Rejects archive entry paths that are absolute or contain `..`, so an entry
+/// can never be written outside the extraction directory.
+#[cfg(not(windows))]
+fn is_enclosed_archive_path(relative: &std::path::Path) -> bool {
+    if relative.as_os_str().is_empty() || relative.is_absolute() {
+        return false;
+    }
+    relative.components().all(|c| match c {
+        std::path::Component::Normal(_) | std::path::Component::CurDir => true,
+        _ => false,
+    })
+}
+
+/// Unpacks a `.tar.xz` next to itself. Blender tarballs hold a single
+/// top-level folder (`blender-4.5.1-linux-x64/`), which is what is returned;
+/// if no single top-level folder can be determined the archive's stem is used.
+#[cfg(not(windows))]
+fn extract_tar_xz(archive_file_path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    let extract_dir: &std::path::Path = match archive_file_path.parent() {
+        Some(parent) => parent,
+        None => return Err(format!("Failed open archive")),
+    };
+    let file = match std::fs::File::open(archive_file_path) {
+        Ok(v) => v,
+        Err(e) => return Err(format!("Failed open archive: {:?}", e)),
+    };
+    let decoder = liblzma::read::XzDecoder::new(std::io::BufReader::new(file));
+    let mut archive = tar::Archive::new(decoder);
+    let entries = match archive.entries() {
+        Ok(v) => v,
+        Err(e) => return Err(format!("Failed open archive: {:?}", e)),
+    };
+    let mut top_level: Option<std::ffi::OsString> = None;
+    let mut single_top_level: bool = true;
+    for entry in entries {
+        let mut entry = match entry {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed open archive: {:?}", e)),
+        };
+        let relative: std::path::PathBuf = match entry.path() {
+            Ok(v) => v.to_path_buf(),
+            Err(e) => return Err(format!("Failed open archive: {:?}", e)),
+        };
+        // Entry names are attacker-controlled: absolute paths and `..` are
+        // rejected; the `starts_with` check is a second line of defence.
+        if !is_enclosed_archive_path(&relative) {
+            return Err(format!(
+                "Failed open archive: entry '{}' would escape the extraction directory",
+                relative.display()
+            ));
+        }
+        let outpath: std::path::PathBuf = extract_dir.join(&relative);
+        if !outpath.starts_with(extract_dir) {
+            return Err(format!(
+                "Failed open archive: entry '{}' would escape the extraction directory",
+                relative.display()
+            ));
+        }
+        let first_component: Option<&std::ffi::OsStr> = relative.components().find_map(|c| match c {
+            std::path::Component::Normal(name) => Some(name),
+            _ => None,
+        });
+        if let Some(first) = first_component {
+            match &top_level {
+                Some(existing) if existing.as_os_str() != first => single_top_level = false,
+                Some(_) => {}
+                None => top_level = Some(first.to_os_string()),
+            }
+        }
+        let entry_type = entry.header().entry_type();
+        // Links inside an archive are never materialised.
+        if entry_type.is_symlink() || entry_type.is_hard_link() {
+            continue;
+        }
+        if entry_type.is_dir() {
+            if let Err(e) = std::fs::create_dir_all(&outpath) {
+                return Err(format!("Failed open archive: {:?}", e));
+            }
+        } else if entry_type.is_file() {
+            if let Some(parent) = outpath.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            // `unpack` writes the file and applies its mode bits, which keeps
+            // the `blender` binary executable.
+            if let Err(e) = entry.unpack(&outpath) {
+                return Err(format!("Failed open archive: {:?}", e));
+            }
+        }
+    }
+    let result_dir: std::path::PathBuf = match (top_level, single_top_level) {
+        (Some(name), true) => extract_dir.join(name),
+        _ => {
+            let file_name: String = archive_file_path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let stem: &str = file_name
+                .strip_suffix(".tar.xz")
+                .or_else(|| file_name.strip_suffix(".TAR.XZ"))
+                .unwrap_or(file_name.as_str());
+            if stem.is_empty() {
+                return Err(format!("Failed open archive"));
+            }
+            extract_dir.join(stem)
+        }
+    };
+    Ok(result_dir)
+}
+
+/// Copies a directory tree. Symbolic links are recreated as links (relative
+/// targets kept as they are) instead of being followed: the `Frameworks`
+/// folders inside a `.app` bundle rely on `Versions/Current` style links.
+#[cfg(unix)]
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
+    if let Err(e) = std::fs::create_dir_all(dst) {
+        return Err(format!("Failed copy directory {}: {:?}", dst.display(), e));
+    }
+    let entries = match std::fs::read_dir(src) {
+        Ok(v) => v,
+        Err(e) => return Err(format!("Failed copy directory {}: {:?}", src.display(), e)),
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed copy directory {}: {:?}", src.display(), e)),
+        };
+        let src_path: std::path::PathBuf = entry.path();
+        let dst_path: std::path::PathBuf = dst.join(entry.file_name());
+        let file_type = match std::fs::symlink_metadata(&src_path) {
+            Ok(v) => v.file_type(),
+            Err(e) => return Err(format!("Failed copy directory {}: {:?}", src_path.display(), e)),
+        };
+        if file_type.is_symlink() {
+            let target: std::path::PathBuf = match std::fs::read_link(&src_path) {
+                Ok(v) => v,
+                Err(e) => return Err(format!("Failed copy directory {}: {:?}", src_path.display(), e)),
+            };
+            if let Err(e) = std::os::unix::fs::symlink(&target, &dst_path) {
+                return Err(format!("Failed copy directory {}: {:?}", dst_path.display(), e));
+            }
+        } else if file_type.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            // `fs::copy` carries the permission bits over, so binaries stay executable.
+            if let Err(e) = std::fs::copy(&src_path, &dst_path) {
+                return Err(format!("Failed copy directory {}: {:?}", src_path.display(), e));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Mounts a `.dmg` read-only on a private mount point, copies the `.app`
+/// inside it to `<extract_dir>/<archive stem>/Blender.app` and detaches the
+/// image again. Returns `<extract_dir>/<archive stem>`.
+#[cfg(target_os = "macos")]
+fn extract_dmg(archive_file_path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    let extract_dir: &std::path::Path = match archive_file_path.parent() {
+        Some(parent) => parent,
+        None => return Err(format!("Failed open archive")),
+    };
+    let stem: String = match archive_file_path.file_stem() {
+        Some(name) => name.to_string_lossy().to_string(),
+        None => return Err(format!("Failed open archive")),
+    };
+    let target_dir: std::path::PathBuf = extract_dir.join(&stem);
+    let mount_dir: std::path::PathBuf =
+        std::env::temp_dir().join(format!("blenderbase-dmg-{}", uuid::Uuid::new_v4()));
+    if let Err(e) = std::fs::create_dir_all(&mount_dir) {
+        return Err(format!("Failed open archive: {:?}", e));
+    }
+    let attach = std::process::Command::new("hdiutil")
+        .arg("attach")
+        .arg("-nobrowse")
+        .arg("-readonly")
+        .arg("-mountpoint")
+        .arg(&mount_dir)
+        .arg(archive_file_path)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .output();
+    match attach {
+        Ok(out) if out.status.success() => {}
+        Ok(out) => {
+            let _ = std::fs::remove_dir(&mount_dir);
+            return Err(format!(
+                "Failed open archive: hdiutil attach failed: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            ));
+        }
+        Err(e) => {
+            let _ = std::fs::remove_dir(&mount_dir);
+            return Err(format!("Failed open archive: hdiutil attach failed: {:?}", e));
+        }
+    }
+    let copied: Result<(), String> = (|| {
+        let mut app_path: Option<std::path::PathBuf> = None;
+        let preferred: std::path::PathBuf = mount_dir.join("Blender.app");
+        if preferred.is_dir() {
+            app_path = Some(preferred);
+        } else if let Ok(entries) = std::fs::read_dir(&mount_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let is_app = path
+                    .extension()
+                    .map(|e| e.eq_ignore_ascii_case("app"))
+                    .unwrap_or(false);
+                if is_app && path.is_dir() {
+                    app_path = Some(path);
+                    break;
+                }
+            }
+        }
+        let app_path: std::path::PathBuf = match app_path {
+            Some(v) => v,
+            None => return Err(String::from("Failed open archive: no .app found in the disk image")),
+        };
+        if let Err(e) = std::fs::create_dir_all(&target_dir) {
+            return Err(format!("Failed open archive: {:?}", e));
+        }
+        copy_dir_recursive(&app_path, &target_dir.join("Blender.app"))
+    })();
+    let _ = std::process::Command::new("hdiutil")
+        .arg("detach")
+        .arg(&mount_dir)
+        .arg("-force")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output();
+    let _ = std::fs::remove_dir(&mount_dir);
+    match copied {
+        Ok(()) => Ok(target_dir),
+        Err(e) => Err(e),
+    }
+}
+
+/// Unpacks a `.zip` next to itself and returns `<extract_dir>/<archive stem>`,
+/// the single top-level folder Blender release archives contain.
+fn extract_zip(archive_file_path: &std::path::Path) -> Result<std::path::PathBuf, String> {
     let file = match std::fs::File::open(&archive_file_path) {
         Ok(v) => v,
         Err(e) => return Err(format!("{:?}", e)),
@@ -624,6 +917,36 @@ pub async fn create_directory_path(path: std::path::PathBuf) -> Result<(), Strin
     }
 }
 
+/// The directory under which Blender keeps one configuration folder per
+/// series (`4.5/config`, `5.0/config`, ...):
+///
+/// - Windows: `%APPDATA%\Blender Foundation\Blender`
+/// - macOS: `~/Library/Application Support/Blender`
+/// - Linux: `~/.config/blender`
+///
+/// Every lookup of Blender's user configuration goes through here.
+pub fn blender_config_root() -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        dirs::data_dir().map(|d| {
+            d.join(crate::core::BLENDER_FOUNDATION)
+                .join(crate::core::BLENDER)
+        })
+    }
+    #[cfg(target_os = "macos")]
+    {
+        dirs::home_dir().map(|d| {
+            d.join("Library")
+                .join("Application Support")
+                .join(crate::core::BLENDER)
+        })
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        dirs::config_dir().map(|d| d.join("blender"))
+    }
+}
+
 /// Get the main storage device path, that is returned from the `dirs::home_dir` associated method.
 ///
 /// Note this function does not use sysinfo to retrieve the storage device data for the host machine,
@@ -640,6 +963,10 @@ pub async fn create_directory_path(path: std::path::PathBuf) -> Result<(), Strin
 ///
 /// OS: Win.
 pub async fn get_main_storage_device_root_path() -> Result<std::path::PathBuf, String> {
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        Ok(std::path::PathBuf::from("/"))
+    }
     #[cfg(target_os = "windows")]
     {
         match dirs::home_dir() {

@@ -4,9 +4,13 @@ use tauri::AppHandle;
 
 #[cfg(target_os = "windows")]
 use crate::core::{WINDOWS, X32, X64};
+#[cfg(target_os = "macos")]
+use crate::core::{ARM64, MACOS, X64};
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+use crate::core::{LINUX, X64, X86_64};
 use crate::{
     AppState, core::{
-        B3D_LINK_REGEX, BLENDER, BLENDER_DOWNLOAD_LINK_REGEX, BLENDER_VERSION_REGEX, BUILDER_BLENDER_ORG_DOWNLOAD_DAILY_FORMAT_JSON_V2, BUILDER_BLENDER_ORG_DOWNLOAD_PATCH_FORMAT_JSON_V2, BlenderBuildKind, BlenderVersionBuildTypeDTO, DOWNLOAD_BLENDER_ORG_RELEASE, DownloadableBlenderVersion, FILE_REGEX_RELEASE, INTEL, ISO_FORMAT, LTS, LTS_VERSION_ARR, OrderKind, PUB_GRAPHICS_BLENDER_RELEASE, PUBLISH_TIMESTAMP_REGEX, STABLE, http_get_as_json, http_get_as_string, http_get_as_string_with_client
+        B3D_LINK_REGEX, BLENDER, BLENDER_DOWNLOAD_LINK_REGEX, BLENDER_VERSION_REGEX, BUILDER_BLENDER_ORG_DOWNLOAD_DAILY_FORMAT_JSON_V2, BUILDER_BLENDER_ORG_DOWNLOAD_PATCH_FORMAT_JSON_V2, BlenderBuildKind, BlenderVersionBuildTypeDTO, DOWNLOAD_BLENDER_ORG_RELEASE, DownloadableBlenderVersion, FILE_REGEX_RELEASE, ISO_FORMAT, LTS, LTS_VERSION_ARR, OrderKind, PUB_GRAPHICS_BLENDER_RELEASE, PUBLISH_TIMESTAMP_REGEX, STABLE, http_get_as_json, http_get_as_string, http_get_as_string_with_client
     }, database::DownloadStatusType
 };
 
@@ -109,7 +113,7 @@ impl TBlenderDownloadService for BlenderDownloadServiceImpl {
             })
             .collect();
         #[cfg(target_os = "macos")]
-        let filtered_data = response_json
+        let mut filtered_data: Vec<DownloadableBlenderVersion> = response_json
             .into_iter()
             .filter(|p| {
                 p.bitness == 64
@@ -118,8 +122,8 @@ impl TBlenderDownloadService for BlenderDownloadServiceImpl {
                     && p.file_extension == "dmg"
             })
             .collect();
-        #[cfg(target_os = "linux")]
-        let filtered_data = response_json
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        let mut filtered_data: Vec<DownloadableBlenderVersion> = response_json
             .into_iter()
             .filter(|p| {
                 p.bitness == 64
@@ -314,6 +318,11 @@ impl BlenderDownloadServiceImpl {
                         link if link.ends_with(".dmg") && (regex.is_match(&file_name)) => {
                             blender_file_type = "dmg".to_string();
                         }
+                        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+                        link if link.ends_with(".tar.xz") && (regex.is_match(&file_name)) => {
+                            // builder.blender.org reports `.tar.xz` builds as extension "xz".
+                            blender_file_type = "xz".to_string();
+                        }
                         _ => {
                             continue;
                         }
@@ -357,29 +366,39 @@ impl BlenderDownloadServiceImpl {
                     let link_str = link.as_str();
                     // This is for the EU mirror to work correctly.
                     if link_str != PUB_GRAPHICS_BLENDER_RELEASE {
+                        let link_lower: String = link_str.to_ascii_lowercase();
                         #[cfg(target_os = "windows")]
-                        let architecture = match (
-                            link_str.contains(WINDOWS),
-                            link_str.contains("64"),
-                            link_str.contains("32"),
+                        let architecture: &str = match (
+                            link_lower.contains(WINDOWS),
+                            link_lower.contains("64"),
+                            link_lower.contains("32"),
                         ) {
                             (true, true, _) => X64,
                             (true, _, true) => X32,
                             _ => "unknown",
                         };
+                        // Only Apple Silicon builds are offered; Intel (`x64`) images are skipped.
                         #[cfg(target_os = "macos")]
-                        let architecture = match (
-                            link_str.contains(MACOS),
-                            link_str.contains(ARM64),
-                            link_str.contains(X64),
+                        let architecture: &str = match (
+                            link_lower.contains(MACOS),
+                            link_lower.contains(ARM64),
+                            link_lower.contains(X64),
                         ) {
-                            (true, true, _) => APPLE_SILICON,
-                            (true, _, true) => INTEL,
+                            (true, true, _) => ARM64,
+                            (true, _, true) => continue,
                             _ => "unknown",
                         };
-                        if architecture == INTEL {
-                            continue;
-                        }
+                        // Release tarballs are named `linux-x64`; the daily feed calls the
+                        // same architecture `x86_64`, so that is the value stored.
+                        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+                        let architecture: &str = match (
+                            link_lower.contains(LINUX),
+                            link_lower.contains(X64) || link_lower.contains(X86_64),
+                        ) {
+                            (true, true) => X86_64,
+                            _ => "unknown",
+                        };
+                        let bitness: i32 = if architecture.ends_with("32") { 32 } else { 64 };
                         let new_app = DownloadableBlenderVersion {
                             url: format!("{}/{}", url, link_str),
                             app: BLENDER.to_string(),
@@ -392,16 +411,10 @@ impl BlenderDownloadServiceImpl {
                             platform: String::from("windows"),
                             #[cfg(target_os = "macos")]
                             platform: String::from("darwin"),
+                            #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+                            platform: String::from("linux"),
                             architecture: architecture.to_string(),
-                            bitness: match architecture
-                                .to_string()
-                                .replace("x", "")
-                                .replace("arm", "")
-                                .parse::<i32>()
-                            {
-                                Ok(v) => v,
-                                Err(e) => return Err(format!("Failed scrape_release_blender_series: {:?}", e)),
-                            },
+                            bitness,
                             file_mtime: blender_release_timestamp,
                             file_name: link_str.to_string(),
                             file_size: blender_file_size.round() as i64,

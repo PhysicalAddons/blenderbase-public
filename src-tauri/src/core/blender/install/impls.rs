@@ -10,7 +10,8 @@ use crate::{
         probe_blender_build_info, resolve_blender_console_executable, sha256_of_file,
         validate_blender_executable, write_file,
         DownloadStatusKind, DownloadableBlenderVersion, OrderKind,
-        BLENDERBASE_DOWNLOAD_DATA, BLENDER_LAUNCHER_EXE, BLENDER_ORG_RELEASE_CHECKSUM_BASE,
+        blender_executable_in, blender_version_dir_of,
+        BLENDERBASE_DOWNLOAD_DATA, BLENDER_ORG_RELEASE_CHECKSUM_BASE,
         BLENDER_VERSION_VARIANT_REGEX,
         FORWARD_SLASH_DELIMETER, LTS, LTS_VERSION_ARR, PR, STABLE, PROJECTS_BLENDER_ORG_BLENDER_BLENDER_COMMIT,
         PROJECTS_BLENDER_ORG_BLENDER_BLENDER_PULLS,
@@ -135,7 +136,7 @@ static VERSION_VARIANT_RE: LazyLock<Regex> =
 pub struct BlenderInstallServiceImpl;
 
 /// `blenderbase_download_data.json` lives in the version's own folder (the one
-/// holding `blender-launcher.exe`), which is also where the frontend writes it
+/// holding `blender-launcher.exe`, `Blender.app` or `blender`), which is also where the frontend writes it
 /// after a download. Every reader goes through here so they agree on the spot.
 fn download_data_path(version_dir: &std::path::Path) -> std::path::PathBuf {
     version_dir.join(format!("{}{}", BLENDERBASE_DOWNLOAD_DATA, ".json"))
@@ -191,7 +192,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 if !entry.path().is_dir() {
                     continue;
                 }
-                let executable_file_path = entry.path().join(BLENDER_LAUNCHER_EXE);
+                let executable_file_path = blender_executable_in(&entry.path());
                 if !executable_file_path.exists() {
                     continue;
                 }
@@ -283,7 +284,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 if !entry.path().is_dir() {
                     continue;
                 }
-                let executable_file_path = entry.path().join(BLENDER_LAUNCHER_EXE);
+                let executable_file_path = blender_executable_in(&entry.path());
                 if !executable_file_path.exists() {
                     continue;
                 }
@@ -487,8 +488,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         blender_version.installation_directory_path =
             installation_directory_path.to_string_lossy().to_string();
         blender_version.executable_file_path = Some(
-            installation_directory_path
-                .join("blender-launcher.exe")
+            blender_executable_in(&installation_directory_path)
                 .to_string_lossy()
                 .to_string(),
         );
@@ -545,10 +545,13 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             ));
         }
         let download_status_type_completed = download_status_types.remove(0);
-        let parent_dir = match executable_file_path.parent() {
+        // The version folder: the executable's parent on Windows/Linux, the
+        // folder holding `Blender.app` on macOS.
+        let parent_dir_buf: std::path::PathBuf = match blender_version_dir_of(&executable_file_path) {
             Some(val) => val,
             None => return Err(format!("Failed insert_blender_version: Failed to get file path parent")),
         };
+        let parent_dir: &std::path::Path = parent_dir_buf.as_path();
         let dir_name = match parent_dir.file_name() {
             Some(val) => val.to_string_lossy().to_string(),
             None => return Err(format!("Failed insert_blender_version: Failed to get file name")),
@@ -638,9 +641,9 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             match blender_version
                 .executable_file_path
                 .as_deref()
-                .and_then(|p| std::path::Path::new(p).parent())
+                .and_then(|p| blender_version_dir_of(std::path::Path::new(p)))
             {
-                Some(v) => v.to_path_buf(),
+                Some(v) => v,
                 None => return Err(String::from("Failed refresh_blender_version: version has no folder")),
             }
         } else {

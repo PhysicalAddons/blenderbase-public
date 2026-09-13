@@ -40,6 +40,13 @@ zip = "8.6.0"
 function_name = "0.3.0"
 base64 = "0.22"
 
+# Blender ships `.tar.xz` archives for Linux (and they are readable on macOS).
+# `static` links the bundled liblzma so the app does not depend on a system or
+# Homebrew `liblzma.dylib` at runtime.
+[target.'cfg(not(windows))'.dependencies]
+tar = "0.4"
+liblzma = { version = "0.4", features = ["static"] }
+
 [profile.release]
 lto = true
 codegen-units = 1

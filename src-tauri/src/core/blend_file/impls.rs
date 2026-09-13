@@ -4,8 +4,8 @@ use tauri::AppHandle;
 
 use crate::{
     core::{
-        launch_executable, open_in_file_explorer, validate_blender_executable, OrderKind, BLENDER,
-        BLENDER_FOUNDATION,
+        blender_config_root, launch_executable, open_in_file_explorer,
+        validate_blender_executable, OrderKind,
     },
     database::{BlendFile, BlendFileBlenderSeries, BlenderSeries},
     AppState,
@@ -296,12 +296,11 @@ impl BlendFileServiceImpl {
             }
         }
         // Read in new entries.
-        let config_directory = match dirs::config_dir() {
+        let blender_config_directory: std::path::PathBuf = match blender_config_root() {
             Some(v) => v,
             None => return Err(format!("Failed refresh_blender_series_inner")),
         };
-        let blender_foundation_directory = config_directory.join(BLENDER_FOUNDATION).join(BLENDER);
-        let directory_entries = match std::fs::read_dir(blender_foundation_directory) {
+        let directory_entries = match std::fs::read_dir(blender_config_directory) {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed refresh_blender_series_inner: {}", e)),
         };
