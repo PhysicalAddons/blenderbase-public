@@ -283,13 +283,35 @@ $home-launcher-height: 56px;
     }
 }
 
-.sidebar_toggle__open {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 2;
-    .cds--popover {
-        display: none;
+// Show / hide Recent Files: a 48px block at the right end of a toolbar band, filled like
+// the other toolbar actions. Lives in the middle column's band while the column is hidden
+// and in the Recent Files band while it is shown, so it always sits at the window's right edge.
+.column_actions .recent_files_toggle {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    margin-left: auto;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bb-field);
+    color: var(--bb-text-muted);
+    border: none;
+    border-left: 1px solid var(--bb-divider);
+    border-radius: 0;
+    cursor: pointer;
+    transition: background motion.$duration-fast-01 cubic-bezier(0.2, 0, 0.38, 0.9), color motion.$duration-fast-01 cubic-bezier(0.2, 0, 0.38, 0.9);
+    svg {
+        fill: currentColor;
+    }
+    &:hover {
+        background: var(--bb-field-hover);
+        color: var(--bb-text);
+    }
+    &:focus-visible {
+        outline: 2px solid var(--bb-text);
+        outline-offset: -2px;
     }
 }
 

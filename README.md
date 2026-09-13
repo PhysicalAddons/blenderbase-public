@@ -1,57 +1,77 @@
-# Blenderbase 
+# Blenderbase
 
-[Download](https://github.com/PhysicalAddons/blenderbase-public/releases) | [Documentation](https://github.com/PhysicalAddons/blenderbase-public/wiki) | [Get Help](https://discord.com/invite/4pseCn9pys)
+[Download](https://github.com/PhysicalAddons/blenderbase-public/releases/latest) | [Changelog](CHANGELOG.md) | [Documentation](https://github.com/PhysicalAddons/blenderbase-public/wiki) | [Get Help](https://discord.com/invite/4pseCn9pys)
 
-Blenderbase is a free utility app for Blender 3D (supporting versions `3.0.0.+`) that manages installed Blender versions, community and official addons and blend files. It was first developed as an internal tool for the `Physical Addons` team for addon development, but has been proven to be useful for general Blender use as well.
+Blenderbase is a free desktop app that manages your Blender installations, their addons and your recent `.blend` files from one window. Install any stable, LTS, daily or patch build of Blender, switch between versions, enable or disable addons without opening Blender, and launch the right version for the right file. It was first built as an internal tool for the [Physical Addons](https://www.physicaladdons.com) team and has proven useful for everyday Blender work as well.
 
-![image](https://github.com/PhysicalAddons/blenderbase-public/assets/60788469/c8ddb72a-3b2b-4260-aef7-3644fa3821d1)
+![Blenderbase](docs/screenshot.png)
 
-It was inspired by similar apps, such as `Blender launcher` and owes its success to all forerunners, who, like Blenderbase, tried to improve the user experience for Blender. It was built using the `Tauri framework`, which uses the `Rust` programming language, making the app fast and reliable as well as lightweight. For specialized tasks inside of a Blender instance, `Python` and `BPY` are used.
+Blenderbase runs on **Windows 10/11**, **macOS (Apple Silicon)** and **Linux**. It is built with the Tauri framework: a Rust backend and a small web front end, so the app is fast, lightweight and native on every platform. For work inside a Blender instance it drives Blender headlessly through Python and `bpy`.
 
-Blenderbase improves upon apps like `Blender launcher`, by providing a faster downloadable Blender version webscraping, as well as limiting the footprint on Blender Foundations bandwidth, by only scraping versions starting from `3.1.0.+`, and ingoring older versions. It also allows the integration of already installed Blender versions (starting from `3.0.0.` versions), meaning you can manage already installed Blender versions through Blenderbase, whereas Blender launcher was built to only manage Blender versions downloaded through it. Blenderbase also allows accessing locally saved .blend files and launching them via any Blender version (as long as the Blender version and .blend file are compatible), as well as many other features.
+## What it does
 
-The goal for Blenderbase is to function as an external manager for all things Blender. The name comes from the combination of words `Blender` and `database` - `Blenderbase`. The app functions as an interface to a locally generated database, that hosts data about locally installed Blender versions.
+**Blender versions**
+- Lists every Blender version found in your installation locations, with its build date, commit hash and release cycle (Stable, LTS, Alpha, Beta, Release Candidate).
+- Downloads and installs portable builds from the Blender Foundation: Stable and LTS releases, Daily builds and Patch builds, with search. Every archive is checked against its published SHA-256 before it is unpacked.
+- Proposes a default install folder on the first download and lets you pick another: `C:\blenderbaseapps` on Windows, `~/Applications/Blenderbase` on macOS, `~/.local/share/blenderbase/apps` on Linux. Any number of locations can be registered, including folders with versions you installed yourself.
+- Registers Blender versions that are already installed (`3.0` and newer), so existing installs are managed alongside downloaded ones.
+- Marks one version as the default, uninstalls versions, and opens a version's folder in Explorer or Finder from the right-click menu.
+- Launches the selected version, optionally **with its console** for Python output and script errors: a terminal segment on the Launch button turns it on, and the choice is remembered.
 
-This database stores data, such as:
-- Blender version metadata, allowing you to decern which specific Blender version you want to launch,
-- Community and official addon metadata, allowing you to also easily install/delete, and enable/disable them outside of a launched `Blender` instance,
-- Recently used .blend files file paths, allowing easy access to your project files, as well as a way to launch them in any Blender version of your choosing,
-- Downloadable portable Blender version metadata, which is webscraped from publically accesible Blender Foundation online resources and mirror websites.
+**Addons**
+- Lists the addons and extensions of the selected Blender version with their version, type (Addon, Extension, Core) and enabled state.
+- Enables or disables addons outside a running Blender instance.
+- Installs addons from a `.zip` or a `.py`, and uninstalls them.
+- Links a development folder in place (symlink), so an addon under development stays in your project folder. On Windows this asks for administrator rights when needed.
+- Opens an addon's folder from the right-click menu.
 
-## Blenderbase can:
-- Support `Windows 10/11` (x64),
-- `Auto update` to new versions of the app, when they are published,
-- Manage up to `3` modifiable Blender parent installation directories, that hold installed Blender version source file directories,
-- Locally register installed Blender versions, their addons, recently used .blend files and the most recently published downloadable Blender versions,
-- Download and install portable Blender versions from publicly accessible Blender Fouddtion online resources (`Stable` and `LTS` versions are currently taken from the European mirror website, `Daily` and `Patch` versions are taken from the main Blender Foundation website)
-- Uninstall both portable and .msi installed Blender versions (for `Windows 10/11`),
-- Launch any registered Blender version through Blenderbase, enabling/disabling its addons, which are registered in the Blenderbase database,
-- Enable/disable addons outside of a Blender instance, saving the changes in the Blenderbase databse,
-- Install any community addons via a `.zip` or a `.py`,
-- Semantic link addon directories (meant for easier addon development), when Blenderbase is launched `as admin`,
-- Uninstall any community addon or delete the semantic link, if there is one,
-- Open recently saved .blend files in any selected Blender version (provided the specific Blender version works for the .blend file).
+**Recent files**
+- Lists the `.blend` files recently opened in each Blender version.
+- Opens a file in any installed Blender version, as long as that version can read it.
+- Reveals a file in Explorer or Finder from the right-click menu.
 
-## Notice
+**App**
+- Updates itself: Blenderbase checks GitHub Releases on launch and offers new versions; **Check for updates** in Settings does the same on demand.
+- Settings open in the middle column of the main window: installation locations, minimise-on-launch, update checks and the light/dark/system theme.
+- Recovers from a damaged database: the file is set aside and a fresh one is created, and installed versions are found again by rescanning.
 
-`Blenderbase` is the property of `Physical Addons` and has no legal binding to `Blender Foundation`, unless further specified. Currently there exists no formal agreement between `Physical Addons` and `Blender Foundation` regarding the use of their online resources, but all `Blender Foundation` resources are used in good faith and with the utmost care, so as to not strain, slow down or misuse `Blender Foundation` online resources, those being the `official` and `mirror` download pages, hosting the `Stable`, `LTS`, `Daily` and `Patch` Blender version releases.
+## How it works
 
-Since v1.0.28, Blenderbase scrapes downloadable portable Blender versions from:
-- https://ftp.nluug.nl/pub/graphics/blender/release/
+Blenderbase keeps a local SQLite database, generated on first start, with the metadata it needs: installed Blender versions, their addons, recent `.blend` files and the list of downloadable builds. The name comes from `Blender` + `database`. Nothing is sent anywhere; the only network requests are the Blender Foundation download pages, the downloads themselves and the GitHub Releases check for updates.
+
+Downloadable builds are read from:
+- https://ftp.nluug.nl/pub/graphics/blender/release/ (Stable and LTS, the European mirror)
 - https://builder.blender.org/download/daily/
 - https://builder.blender.org/download/patch/
 
-**Note:** **_The EU mirror was chosen to currently be the only LTS and Stable version source, because the apps developers are based in the EU region._**
+Only versions from `3.1` onwards are listed, to keep the load on Blender Foundation servers small.
 
-Blenderbase is currently free (closed source) and is allowed to be used in any projects involving Blender use, addon development or Blender project management wheter for hobby, educational or commercial reasons. 
+## Installing
+
+Download the installer for your platform from the [latest release](https://github.com/PhysicalAddons/blenderbase-public/releases/latest):
+
+| Platform | File |
+| --- | --- |
+| Windows 10/11 (x64) | `Blenderbase_x.y.z_x64_en-US.msi` |
+| macOS (Apple Silicon) | `Blenderbase_x.y.z_aarch64.dmg` |
+| Linux (x64) | `Blenderbase_x.y.z_amd64.AppImage` |
+
+The installers are not yet code-signed. Windows shows a SmartScreen prompt on first run; on macOS, clear the quarantine flag once after copying the app to Applications:
+
+```
+xattr -dr com.apple.quarantine /Applications/Blenderbase.app
+```
+
+Installs of 1.2.0 or newer update themselves. Older installs (1.1.0 and 1.0.x) have to be replaced by hand once; see the [1.2.0 notes](CHANGELOG.md#120).
 
 ## Building from source
 
 Prerequisites:
 - Rust (stable, via [rustup](https://rustup.rs/))
 - Node.js 20.19+ (24 recommended; see `.nvmrc`)
-- Visual Studio 2022 C++ Build Tools
-- WebView2 runtime (preinstalled on Windows 10/11)
+- Windows: Visual Studio 2022 C++ Build Tools and the WebView2 runtime (preinstalled on Windows 10/11)
+- macOS: Xcode command line tools
+- Linux: the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your distribution
 
 ```
 npm ci
@@ -63,3 +83,11 @@ Set these environment variables before building:
 - `IBM_TELEMETRY_DISABLED=true` - opts out of the Carbon Design System install-time telemetry
 
 If the checkout lives in a synced folder (Dropbox, OneDrive), point `CARGO_TARGET_DIR` and `VITE_CACHE_DIR` at a folder outside it, otherwise the sync client can lock build artifacts mid-write and break the build.
+
+Releases are built by GitHub Actions from a `v*` tag; the release notes are the matching section of [CHANGELOG.md](CHANGELOG.md).
+
+## Notice
+
+Blenderbase is the property of Physical Addons and has no legal binding to the Blender Foundation. There is no formal agreement between Physical Addons and the Blender Foundation regarding the use of their online resources; all Blender Foundation resources are used in good faith and with care, so as not to strain, slow down or misuse the official and mirror download pages.
+
+Blenderbase is free to use in any project involving Blender, addon development or Blender project management, whether for hobby, educational or commercial purposes.

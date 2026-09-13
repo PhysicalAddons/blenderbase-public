@@ -11,6 +11,7 @@ import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { ThemePreference, useThemeStore } from '../../store/themeStore';
 import { postStatus, postStatusError } from '../../store/statusStore';
 import { usePagedScroll } from '../../utility/usePagedScroll';
+import RecentFilesToggle from '../RecentFiles/Actions/Button';
 
 const settingsService = new SettingsService();
 
@@ -471,6 +472,7 @@ const SettingsPanel = () => {
 						</Button>
 					</div>
 				)}
+				<RecentFilesToggle placement='middle' />
 			</div>
 			{activeSection === 'locations' ? (
 				<div className='list_header settings_panel__list_header settings_panel__list_header--locations'>

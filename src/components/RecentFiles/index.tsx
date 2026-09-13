@@ -1,16 +1,12 @@
 import { useUiControlsStore } from "../../store/uiControlsStore";
-import ButtonSideBarToggle from "./Actions/Button";
+import RecentFilesToggle from "./Actions/Button";
 import Sections from "./Sections";
 import { useBlendFileStore } from "../../store/blendFileStore";
 import { useEffect, useRef } from "react";
-import { useShallow } from "zustand/react/shallow";
 import { usePagedScroll } from "../../utility/usePagedScroll";
 
 const RecentFiles = () => {
-    const { isSidebarExpanded, setIsSidebarExpanded } = useUiControlsStore(
-        useShallow((s) => ({ isSidebarExpanded: s.isSidebarExpanded, setIsSidebarExpanded: s.setIsSidebarExpanded }))
-    )
-    const setBlenderSeries = useBlendFileStore((s) => s.setBlenderSeries)
+    const isSidebarExpanded = useUiControlsStore((s) => s.isSidebarExpanded)
     const listRef = useRef<HTMLDivElement>(null)
     // Series headers are one row, file rows half a row; both edges are snap points.
     usePagedScroll(listRef, { rowSelector: '.cds--contained-list__header, .cds--contained-list-item' })
@@ -23,19 +19,9 @@ const RecentFiles = () => {
         load().catch((e) => console.error(e));
     }, [])
 
-    const handleRecentFilesSidebarToggle = async (v: boolean) => {
-        setIsSidebarExpanded(v)
-        await setBlenderSeries();
-    }
-
     return (
         <div className={`recent_files_panel ${isSidebarExpanded ? '' : 'hidden'}`}>
             <div className="recent_files">
-                {/* Same top-right corner as the open button in the middle column. */}
-                <ButtonSideBarToggle
-                    isSidebarExpanded={isSidebarExpanded}
-                    setIsSidebarExpanded={handleRecentFilesSidebarToggle}
-                />
                 <div className="column_header">
                     <div className="column_header__titles">
                         <span className="column_header__title">Recent Files</span>
@@ -43,6 +29,14 @@ const RecentFiles = () => {
                             zero height and the whole column would sit 18px higher than its neighbours. */}
                         <span className="column_header__subtitle">{" "}</span>
                     </div>
+                </div>
+                {/* Toolbar band on the same row as the other columns; the hide block sits at the right edge. */}
+                <div className="column_actions recent_files__toolbar">
+                    <RecentFilesToggle placement='recent' />
+                </div>
+                {/* Same list-header line as the other columns, so the series and file rows start on their grid. */}
+                <div className="list_header recent_files__list_header">
+                    <span>Files by Blender version</span>
                 </div>
                 <div className="recent_files__sections" ref={listRef}>
                     <Sections />

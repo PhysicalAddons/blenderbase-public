@@ -1,5 +1,3 @@
-import { SidePanelClose } from '@carbon/react/icons';
-import { Button } from '@carbon/react';
 import { useShallow } from 'zustand/react/shallow';
 import RecentFiles from '../../components/RecentFiles';
 import LauncherBar from '../../components/LauncherBar/index';
@@ -11,21 +9,17 @@ import EmptyState from '../../components/EmptyState';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useEffect } from 'react';
 import { useUiControlsStore } from '../../store/uiControlsStore';
-import { useBlendFileStore } from '../../store/blendFileStore';
 import { postStatusError } from '../../store/statusStore';
 
 const Home = () => {
-    const { isSidebarExpanded, isInstallBlenderOpen, isSettingsOpen, setIsSidebarExpanded, setIsInstallBlenderOpen, setIsSettingsOpen } = useUiControlsStore(
+    const { isInstallBlenderOpen, isSettingsOpen, setIsInstallBlenderOpen, setIsSettingsOpen } = useUiControlsStore(
         useShallow((s) => ({
-            isSidebarExpanded: s.isSidebarExpanded,
             isInstallBlenderOpen: s.isInstallBlenderOpen,
             isSettingsOpen: s.isSettingsOpen,
-            setIsSidebarExpanded: s.setIsSidebarExpanded,
             setIsInstallBlenderOpen: s.setIsInstallBlenderOpen,
             setIsSettingsOpen: s.setIsSettingsOpen,
         }))
     )
-    const setBlenderSeries = useBlendFileStore((s) => s.setBlenderSeries)
     const { installedBuilds, hasLoadedInstalledBuilds } = useBlenderManagerStore(
         useShallow((s) => ({ installedBuilds: s.installedBuilds, hasLoadedInstalledBuilds: s.hasLoadedInstalledBuilds }))
     )
@@ -57,28 +51,11 @@ const Home = () => {
         return () => document.removeEventListener('keydown', onKeyDown);
     }, [isInstallBlenderOpen, isSettingsOpen]);
 
-    const openRecentFilesPanel = async () => {
-        setIsSidebarExpanded(true)
-        await setBlenderSeries();
-    }
-
     return (
         <>
             <div className={`home ${isInstallBlenderOpen ? 'home--installing' : ''} ${isSettingsOpen ? 'home--settings' : ''}`}>
                 <BlenderColumn />
                 <div className='home__main'>
-                    {!isSidebarExpanded && (
-                        <div className='sidebar_toggle__open'>
-                            <Button
-                                renderIcon={SidePanelClose}
-                                kind="ghost"
-                                iconDescription="Open recent files"
-                                title="Open recent files"
-                                hasIconOnly
-                                onClick={openRecentFilesPanel}
-                            />
-                        </div>
-                    )}
                     {isSettingsOpen ? <SettingsPanel /> : isInstallBlenderOpen ? <InstallBlenderPanel /> : isEmpty ? <EmptyState /> : <AddonPanel />}
                 </div>
                 <RecentFiles />

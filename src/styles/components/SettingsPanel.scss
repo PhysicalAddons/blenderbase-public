@@ -20,6 +20,10 @@
             margin-left: auto;
             flex-shrink: 0;
             border-left: 1px solid var(--bb-divider);
+            // Only one element may take the free space, otherwise flex splits it between them.
+            + .recent_files_toggle {
+                margin-left: 0;
+            }
             .cds--btn.settings_panel__add {
                 height: 48px;
                 gap: 12px;

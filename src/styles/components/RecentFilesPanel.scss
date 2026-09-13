@@ -28,11 +28,28 @@
         background: $background;
         border-left: 1px solid var(--bb-border);
 
-        // Rhythm: series headers are one 56px row, file rows half a row (28px), no gaps, so
-        // every rule lines up with the rows of the other columns. The first header is 56px
-        // tall but must end on the 48px list-header line, hence the 8px shorter top padding.
+        // The toolbar band is filled edge to edge like the other columns' bands, with the hide
+        // block at the right end; only the content box is painted, not the 24px gap above it.
+        .recent_files__toolbar {
+            justify-content: flex-end;
+            background: var(--bb-field);
+            background-clip: content-box;
+            .recent_files_toggle {
+                border-left: none;
+            }
+        }
+
+        .recent_files__list_header {
+            grid-template-columns: minmax(0, 1fr);
+            margin-left: $home-column-inset;
+            margin-right: 16px;
+        }
+
+        // Rhythm: series headers are one 56px row, file rows half a row (28px), no gaps, and
+        // the list starts on the same line as the other columns' lists, so every rule lines up
+        // with their rows at any scroll position.
         .recent_files__sections {
-            padding-top: calc(24px + 48px + 24px - 8px);
+            padding-top: 0;
             overflow-y: auto;
             padding-bottom: 24px;
             &::-webkit-scrollbar {
@@ -158,28 +175,6 @@
                 color: var(--bb-text-secondary);
             }
         }
-    }
-}
-
-.sidebar_toggle__close {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 2;
-    color: var(--bb-text-muted);
-    flex-shrink: 0;
-    button {
-        svg {
-            fill: var(--bb-text-faint) !important;
-        }
-        &:hover {
-            svg {
-                fill: var(--bb-text) !important;
-            }
-        }
-    }
-    .cds--popover {
-        display: none;
     }
 }
 

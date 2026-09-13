@@ -4,7 +4,7 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
-## Unreleased
+## 1.2.6
 
 ### Added
 - A terminal segment on the left of the Launch button. Click it to launch
@@ -18,8 +18,17 @@ copied into the GitHub release by the release workflow, so keep the
 - Settings now open in the middle column like Install Blender, with
   Locations, Launch, Updates and Appearance sections; the separate
   settings page is gone.
+- The **Show / hide Recent Files** button is a block at the right end of the
+  toolbar band instead of a floating icon in the header corner: in the
+  middle column while the panel is hidden, in the Recent Files column while
+  it is shown, so it always sits at the window's right edge on the same row.
 
 ### Fixed
+- Recent files drifted off the row grid of the other columns once scrolled:
+  the list started 72px above their rows, which is not a whole number of
+  28px file rows. The column now has a list header like its neighbours and
+  its list starts on the same line, so series and file rows stay aligned at
+  every scroll position.
 - A damaged database (SQLite "disk image is malformed") no longer leaves the
   app showing no versions with every action failing. At startup the file is
   checked; a damaged one is moved into a dated `corrupt-…` folder next to it

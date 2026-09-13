@@ -10,6 +10,7 @@ import { useAddonStore } from '../../store/addonStore';
 import { resolveSelectedBlenderVersion } from '../../utility';
 import { usePagedScroll } from '../../utility/usePagedScroll';
 import { useShallow } from 'zustand/react/shallow';
+import RecentFilesToggle from '../RecentFiles/Actions/Button';
 
 interface ITypeFilter {
 	id: string,
@@ -206,6 +207,7 @@ const AddonPanel = () => {
 					selectedItem={typeFilter}
 					onChange={({ selectedItem }: { selectedItem: ITypeFilter | null }) => setTypeFilter(selectedItem ?? TYPE_FILTERS[0])}
 				/>
+				<RecentFilesToggle placement='middle' />
 			</div>
 			<div className='list_header addon_panel__list_header'>
 				<span>Name</span>
