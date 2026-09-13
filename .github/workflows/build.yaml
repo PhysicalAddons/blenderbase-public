@@ -84,14 +84,17 @@ jobs:
           # pick them out of the asset list (the rest of which serves the
           # in-app updater).
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
-          downloads="## Download
-- **Windows:** [Blenderbase_${version}_x64_en-US.msi](${base}/Blenderbase_${version}_x64_en-US.msi)
-- **macOS (Apple Silicon):** [Blenderbase_${version}_aarch64.dmg](${base}/Blenderbase_${version}_aarch64.dmg)
-- **Linux:** [Blenderbase_${version}_amd64.AppImage](${base}/Blenderbase_${version}_amd64.AppImage)
-
-The remaining files are used by Blenderbase to update itself.
-
-## Changes"
+          # Every line of this string must stay indented under the `run: |`
+          # block, or YAML ends the block early and the workflow is invalid.
+          downloads="$(printf '%s\n' \
+            "## Download" \
+            "- **Windows:** [Blenderbase_${version}_x64_en-US.msi](${base}/Blenderbase_${version}_x64_en-US.msi)" \
+            "- **macOS (Apple Silicon):** [Blenderbase_${version}_aarch64.dmg](${base}/Blenderbase_${version}_aarch64.dmg)" \
+            "- **Linux:** [Blenderbase_${version}_amd64.AppImage](${base}/Blenderbase_${version}_amd64.AppImage)" \
+            "" \
+            "The remaining files are used by Blenderbase to update itself." \
+            "" \
+            "## Changes")"
           {
             echo "body<<NOTES_EOF"
             printf '%s\n\n%s\n' "$downloads" "$body"

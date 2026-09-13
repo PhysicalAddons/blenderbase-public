@@ -4,19 +4,20 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
-## Unreleased
+## 1.2.3
 
 ### Added
 - Right-click an addon, a recent file or an installed Blender version and
   choose **Open file location** to show it in Explorer or Finder with the
   item selected.
 
-## 1.2.3
-
 ### Fixed
 - **macOS:** the window buttons sit lower, centred in the title bar.
+- Recent files rows line up with the rows of the other two columns; the
+  panel header was 18px shorter than its neighbours.
 
 ### Changed
+- Release notes open with direct links to the three installers.
 - Releases ship one installer per platform (MSI, dmg, AppImage) plus the
   signed update bundles and manifest the updater needs; the NSIS and deb
   packages are no longer published.

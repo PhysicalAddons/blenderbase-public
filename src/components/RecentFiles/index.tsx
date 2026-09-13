@@ -38,8 +38,9 @@ const RecentFiles = () => {
                 <div className="column_header">
                     <div className="column_header__titles">
                         <span className="column_header__title">Recent Files</span>
-                        {/* Empty on purpose: keeps the header the same height as the other columns. */}
-                        <span className="column_header__subtitle">{" "}</span>
+                        {/* A non-breaking space, not a plain one: a whitespace-only span collapses to
+                            zero height and the whole column would sit 18px higher than its neighbours. */}
+                        <span className="column_header__subtitle">{" "}</span>
                     </div>
                 </div>
                 <div className="recent_files__sections" ref={listRef}>

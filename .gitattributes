@@ -3,3 +3,8 @@
 *.jpg binary
 *.ico binary
 *.icns binary
+
+# Migrations are hashed byte-for-byte by sqlx at compile time; the line
+# endings must be identical on every machine or a build from one machine
+# refuses the database written by a build from another.
+*.sql text eol=lf

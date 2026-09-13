@@ -72,6 +72,10 @@ $home-launcher-height: 56px;
     .column_header__subtitle {
         font-size: 14px;
         line-height: 18px;
+        // Reserve the line even when the subtitle is empty, so every column's
+        // header is the same height and the rows below line up.
+        display: block;
+        min-height: 18px;
         color: var(--bb-text-muted);
         white-space: nowrap;
         overflow: hidden;
