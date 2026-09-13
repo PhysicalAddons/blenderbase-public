@@ -44,3 +44,22 @@ Since v1.0.28, Blenderbase scrapes downloadable portable Blender versions from:
 **Note:** **_The EU mirror was chosen to currently be the only LTS and Stable version source, because the apps developers are based in the EU region._**
 
 Blenderbase is currently free (closed source) and is allowed to be used in any projects involving Blender use, addon development or Blender project management wheter for hobby, educational or commercial reasons. 
+
+## Building from source
+
+Prerequisites:
+- Rust (stable, via [rustup](https://rustup.rs/))
+- Node.js 20.19+ (24 recommended; see `.nvmrc`)
+- Visual Studio 2022 C++ Build Tools
+- WebView2 runtime (preinstalled on Windows 10/11)
+
+```
+npm ci
+npm run tauri dev
+```
+
+Set these environment variables before building:
+- `SQLX_OFFLINE=true` - compiles the SQL queries against the checked-in `.sqlx` metadata instead of a live database
+- `IBM_TELEMETRY_DISABLED=true` - opts out of the Carbon Design System install-time telemetry
+
+If the checkout lives in a synced folder (Dropbox, OneDrive), point `CARGO_TARGET_DIR` and `VITE_CACHE_DIR` at a folder outside it, otherwise the sync client can lock build artifacts mid-write and break the build.

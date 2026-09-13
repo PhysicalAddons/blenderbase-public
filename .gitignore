@@ -23,3 +23,17 @@ dist-ssr
 *.sln
 *.sw?
 .env
+# Local databases
+*.db
+*.db-wal
+*.db-shm
+
+# Environment files
+.env.*
+
+# Vite cache
+.vite/
+node_modules/.vite/
+
+# TypeScript incremental build info
+*.tsbuildinfo

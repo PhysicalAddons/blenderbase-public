@@ -3,30 +3,35 @@
   "private": true,
   "version": "1.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "typecheck": "tsc --noEmit -p .",
+    "check": "npm run typecheck"
   },
   "dependencies": {
     "@carbon/react": "^1.109.0",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "2.7.1",
     "@tauri-apps/plugin-opener": "2.5.4",
-    "@tauri-apps/plugin-sql": "2.4.0",
     "@tauri-apps/plugin-upload": "^2.2.1",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-router-dom": "7.17.0",
-    "sass": "1.100.0",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.11.2",
+    "@types/node": "^26.5.1",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
+    "sass": "1.100.0",
     "typescript": "6.0.3",
     "vite": "^8.0.16"
   }

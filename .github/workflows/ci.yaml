@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+    tags-ignore:
+      - "**"
+
+env:
+  IBM_TELEMETRY_DISABLED: "true"
+  SQLX_OFFLINE: "true"
+
+jobs:
+  check:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Typecheck frontend
+        run: npm run typecheck
+
+      # tauri-build verifies that frontendDist (dist/) exists, so create a stub
+      # before any cargo step compiles the crate.
+      - name: Create frontend dist stub
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist
+          Set-Content dist/index.html "<!doctype html>"
+
+      - name: cargo fmt
+        working-directory: src-tauri
+        continue-on-error: true # codebase is not yet formatted
+        run: cargo fmt --check
+
+      - name: cargo clippy
+        working-directory: src-tauri
+        continue-on-error: true # existing warnings; tighten once clean
+        run: cargo clippy --no-deps -- -D warnings
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test --lib
