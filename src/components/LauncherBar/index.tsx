@@ -1,7 +1,6 @@
 import { Button, InlineLoading } from '@carbon/react';
 import { Checkmark, WarningAlt } from '@carbon/react/icons';
 import BlenderLogo from '../BlenderLogo';
-import blenderbaseIcon from '../../assets/images/icons/blenderbase-icon.png';
 import { postStatus, postStatusError, useStatusStore } from '../../store/statusStore';
 import { useDisplayInformationStore } from '../../store/displayInformationStore';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
@@ -57,7 +56,6 @@ const LauncherBar = () => {
                     title='Physical Addons: https://www.physicaladdons.com'
                     href="https://www.physicaladdons.com"
                 >
-                    <img className='launcher_bar__mark' src={blenderbaseIcon} alt='' />
                     <svg
                         className="library_logo"
                         id="Layer_1"
