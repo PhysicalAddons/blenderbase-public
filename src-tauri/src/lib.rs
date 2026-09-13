@@ -144,7 +144,9 @@ pub async fn run() {
             cmd_delete_addon,
             cmd_reveal_addon_in_file_explorer,
             cmd_refresh_blender_version_details,
-            cmd_confirm_blender_installation_location
+            cmd_confirm_blender_installation_location,
+            cmd_reveal_in_file_explorer,
+            cmd_reveal_blender_version_in_file_explorer
         ])
         .run(tauri::generate_context!());
     if let Err(e) = app {

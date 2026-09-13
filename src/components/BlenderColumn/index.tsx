@@ -8,9 +8,19 @@ import { useUiControlsStore } from '../../store/uiControlsStore';
 import { BlenderService } from '../../services/blenderService';
 import { blenderVersionLabel, buildChannel, describeBuildVariant, formatBuildDate, resolveSelectedBlenderVersion, shortHash } from '../../utility';
 import { usePagedScroll } from '../../utility/usePagedScroll';
+import { showContextMenu } from '../../utility/contextMenu';
 import { postStatus, postStatusError } from '../../store/statusStore';
 
 const blenderService = new BlenderService();
+
+const revealBlenderVersion = async (id: string): Promise<void> => {
+	try {
+		await blenderService.revealBlenderVersion(id);
+	} catch (e) {
+		console.error(e);
+		postStatusError(`Could not open the installation folder: ${e}`);
+	}
+};
 
 const BlenderColumn = () => {
 	const { installedBuilds, setInstalledBuilds, refreshInstalledBuilds } = useBlenderManagerStore(
@@ -162,6 +172,9 @@ const BlenderColumn = () => {
 							className={`blender_row ${isSelected ? "blender_row--selected" : ""}`}
 							title={`Blender ${blenderVersionLabel(x)}`}
 							onClick={() => selectVersion(x.id)}
+							onContextMenu={(e) => showContextMenu(e, [
+								{ text: 'Open file location', action: () => { void revealBlenderVersion(x.id); } },
+							])}
 						>
 							<div className='blender_row__main'>
 								<div className='blender_row__title'>

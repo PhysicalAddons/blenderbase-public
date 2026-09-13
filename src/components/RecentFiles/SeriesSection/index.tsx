@@ -7,6 +7,7 @@ import { ChevronDown } from '@carbon/react/icons';
 import { useBlenderManagerStore } from '../../../store/blenderManagerStore';
 import EmptyRecentFilesBurgerMenu from '../EmptyRecentFilesBurgerMenu';
 import { parseVersion } from '../../../utility';
+import { showContextMenu } from '../../../utility/contextMenu';
 import { useBlendFileStore } from '../../../store/blendFileStore';
 import { postStatus, postStatusError } from '../../../store/statusStore';
 
@@ -55,6 +56,15 @@ const SeriesSection = (props: Props) => {
     }
 
     /** Opens the file with the newest installed version of this file's own series. */
+    const revealBlendFile = async (blendFile: IBlendFile): Promise<void> => {
+        try {
+            await blendFileService.revealBlendFile(blendFile.id);
+        } catch (e) {
+            console.error(e);
+            postStatusError(`Could not open the file location: ${e}`);
+        }
+    };
+
     const openBlendFileInSeriesBlender = async (blendFile: IBlendFile): Promise<void> => {
         const bv = installedBuilds
             .filter(x => x.series === blenderSeries.series)
@@ -123,6 +133,10 @@ const SeriesSection = (props: Props) => {
                                 }
                             >
                                 <span
+                                    className='blend_file_row__label'
+                                    onContextMenu={(e) => showContextMenu(e, [
+                                        { text: 'Open file location', action: () => { void revealBlendFile(blendFile); } },
+                                    ])}
                                     title={
 `
 File path: ${blendFile.file_path}

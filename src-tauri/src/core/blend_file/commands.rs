@@ -91,10 +91,10 @@ pub async fn cmd_open_blend_file(
 pub async fn cmd_reveal_in_file_explorer(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
-    file_path: std::path::PathBuf,
+    blend_file_id: String,
 ) -> Result<(), String> {
     match BlendFileServiceImpl
-        .reveal_in_file_explorer(app, state, file_path)
+        .reveal_in_file_explorer(app, state, blend_file_id)
         .await
     {
         Ok(_) => Ok(()),

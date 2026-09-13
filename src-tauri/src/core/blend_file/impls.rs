@@ -53,7 +53,7 @@ pub trait TBlendFileService {
         &self,
         app: AppHandle,
         state: tauri::State<'_, AppState>,
-        file_path: std::path::PathBuf,
+        blend_file_id: String,
     ) -> Result<(), String>;
     async fn delete_blend_file(
         &self,
@@ -224,10 +224,23 @@ impl TBlendFileService for BlendFileServiceImpl {
     async fn reveal_in_file_explorer(
         &self,
         _app: AppHandle,
-        _state: tauri::State<'_, AppState>,
-        file_path: std::path::PathBuf,
+        state: tauri::State<'_, AppState>,
+        blend_file_id: String,
     ) -> Result<(), String> {
-        match open_in_file_explorer(std::path::PathBuf::from(file_path)) {
+        // The path comes from the stored row, never from the page.
+        let mut blend_files = match state
+            .blend_file_repository()
+            .fetch(Some(blend_file_id), None, None, None)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed reveal_in_file_explorer: {:?}", e)),
+        };
+        if blend_files.is_empty() {
+            return Err(String::from("Failed reveal_in_file_explorer: file not found"));
+        }
+        let blend_file = blend_files.remove(0);
+        match open_in_file_explorer(std::path::PathBuf::from(blend_file.file_path)) {
             Ok(_) => Ok(()),
             Err(e) => {
                 return Err(format!(

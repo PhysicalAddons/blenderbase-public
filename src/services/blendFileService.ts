@@ -35,6 +35,11 @@ export class BlendFileService {
         await invoke<void>("cmd_update_blender_series", { blenderSeries });
     }
 
+    /** Shows the .blend file in Explorer or Finder with the file selected. */
+    public async revealBlendFile(blendFileId: string): Promise<void> {
+        await invoke<void>("cmd_reveal_in_file_explorer", { blendFileId });
+    }
+
     public async openBlendFile(blendFileId: string, blenderVersionId: string): Promise<void> {
         await invoke<void>("cmd_open_blend_file", { blendFileId, blenderVersionId });
     }

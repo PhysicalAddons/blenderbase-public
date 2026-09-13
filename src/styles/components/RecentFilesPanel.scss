@@ -191,3 +191,9 @@
     padding-left: 0px;
     padding-right: 0px;
 }
+
+// The label fills the list item so a right-click anywhere on the row opens the context menu.
+.blend_file_row__label {
+    display: block;
+    width: 100%;
+}

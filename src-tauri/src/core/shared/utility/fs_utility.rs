@@ -109,21 +109,32 @@ pub fn open_in_file_explorer(file_path: std::path::PathBuf) -> Result<(), String
         Some(v) => v,
         None => return Err(format!("Failed open in file explorer")),
     };
+    // Windows and macOS can open the parent folder with the item itself
+    // selected, which is what "open file location" means to users. Linux
+    // file managers have no portable equivalent, so the parent is opened.
     #[cfg(target_os = "windows")]
-    match std::process::Command::new("explorer")
-        .arg(parent_directory)
-        .spawn()
     {
-        Ok(_) => Ok(()),
-        Err(e) => return Err(format!("Failed open in file explorer: {:?}", e)),
+        let _ = parent_directory;
+        let system_root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+        let explorer = std::path::PathBuf::from(system_root).join("explorer.exe");
+        let mut select_arg = std::ffi::OsString::from("/select,");
+        select_arg.push(file_path.as_os_str());
+        match std::process::Command::new(explorer).arg(select_arg).spawn() {
+            Ok(_) => Ok(()),
+            Err(e) => return Err(format!("Failed open in file explorer: {:?}", e)),
+        }
     }
     #[cfg(target_os = "macos")]
-    match std::process::Command::new("open")
-        .arg(parent_directory)
-        .spawn()
     {
-        Ok(_) => Ok(()),
-        Err(e) => return Err(format!("{:?}", e)),
+        let _ = parent_directory;
+        match std::process::Command::new("open")
+            .arg("-R")
+            .arg(&file_path)
+            .spawn()
+        {
+            Ok(_) => Ok(()),
+            Err(e) => return Err(format!("{:?}", e)),
+        }
     }
     #[cfg(target_os = "linux")]
     match std::process::Command::new("xdg-open")

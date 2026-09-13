@@ -31,6 +31,11 @@ export class BlenderService {
         });
     }
 
+    /** Shows the version's installation folder in Explorer or Finder. */
+    public async revealBlenderVersion(id: string): Promise<void> {
+        await invoke<void>("cmd_reveal_blender_version_in_file_explorer", { id });
+    }
+
     public async launchInstalledBlender(id: string): Promise<void> {
         await invoke<void>("cmd_launch_blender_version", { id });
     }

@@ -4,6 +4,13 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## Unreleased
+
+### Added
+- Right-click an addon, a recent file or an installed Blender version and
+  choose **Open file location** to show it in Explorer or Finder with the
+  item selected.
+
 ## 1.2.3
 
 ### Fixed

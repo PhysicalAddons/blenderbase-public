@@ -3,6 +3,7 @@ import { Button, Dropdown, InlineLoading, Search, Toggle } from '@carbon/react';
 import { Add, Link, Renew, TrashCan } from '@carbon/react/icons';
 import { ask, open } from '@tauri-apps/plugin-dialog';
 import { IAddon } from '../../models';
+import { showContextMenu } from '../../utility/contextMenu';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
 import { useAddonStore } from '../../store/addonStore';
@@ -36,7 +37,7 @@ const kindLabel = (a: IAddon): string => {
 const AddonPanel = () => {
 	const installedBuilds = useBlenderManagerStore((s) => s.installedBuilds)
 	const selectedBlenderVersionId = useUiControlsStore((s) => s.selectedBlenderVersionId)
-	const { addons, isBusy, loadedForBlenderVersionId, loadAddons, refreshAddons, toggleAddon, installAddon, symlinkAddon, deleteAddon, clear } = useAddonStore(
+	const { addons, isBusy, loadedForBlenderVersionId, loadAddons, refreshAddons, toggleAddon, installAddon, symlinkAddon, deleteAddon, revealAddon, clear } = useAddonStore(
 		useShallow((s) => ({
 			addons: s.addons,
 			isBusy: s.isBusy,
@@ -47,9 +48,16 @@ const AddonPanel = () => {
 			installAddon: s.installAddon,
 			symlinkAddon: s.symlinkAddon,
 			deleteAddon: s.deleteAddon,
+			revealAddon: s.revealAddon,
 			clear: s.clear,
 		}))
 	)
+
+	/** Native right-click menu for an addon row. */
+	const showRowMenu = (e: React.MouseEvent, a: IAddon) =>
+		showContextMenu(e, [
+			{ text: 'Open file location', action: () => { void revealAddon(a.id); } },
+		]);
 	const [searchText, setSearchText] = useState<string>("")
 	const [typeFilter, setTypeFilter] = useState<ITypeFilter>(TYPE_FILTERS[0])
 	const listRef = useRef<HTMLDivElement>(null)
@@ -218,7 +226,7 @@ const AddonPanel = () => {
 							: "No addons match the current filter."}
 					</div>
 				) : visibleAddons.map((a) => (
-					<div key={a.id} className='addon_row' title={a.description ?? a.name ?? ""}>
+					<div key={a.id} className='addon_row' title={a.description ?? a.name ?? ""} onContextMenu={(e) => showRowMenu(e, a)}>
 						<div className='addon_row__name'>
 							<span className='addon_row__label'>{a.name || a.functional_name}</span>
 							{a.is_symbolic_link && (

@@ -6,6 +6,7 @@ use tauri::AppHandle;
 use crate::{
     core::{
         delete_directory, delete_file, instance_native_ask_dialog_window, launch_executable,
+        open_in_file_explorer,
         find_sha256_in_listing, http_get_as_string, is_sha256_hex, open_archive,
         probe_blender_build_info, resolve_blender_console_executable, sha256_of_file,
         validate_blender_executable, write_file,
@@ -122,6 +123,13 @@ pub trait TBlenderInstallService {
         ids: Vec<String>,
     ) -> Result<Vec<BlenderVersion>, String>;
     async fn launch_blender_version(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        id: String,
+    ) -> Result<(), String>;
+    /// Shows the version's installation folder in the system file browser.
+    async fn reveal_blender_version_in_file_explorer(
         &self,
         app: AppHandle,
         state: tauri::State<'_, AppState>,
@@ -1000,6 +1008,32 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             result.push(Self::probe_and_store_details(&state, entries.remove(0)).await);
         }
         Ok(result)
+    }
+
+    async fn reveal_blender_version_in_file_explorer(
+        &self,
+        _app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        id: String,
+    ) -> Result<(), String> {
+        let repository = state.blender_version_repository();
+        let mut versions = match repository.fetch(Some(id), None, None, None, None).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed reveal_blender_version_in_file_explorer: {:?}", e)),
+        };
+        if versions.is_empty() {
+            return Err(String::from(
+                "Failed reveal_blender_version_in_file_explorer: version not found",
+            ));
+        }
+        let version = versions.remove(0);
+        if version.installation_directory_path.trim().is_empty() {
+            return Err(String::from(
+                "Failed reveal_blender_version_in_file_explorer: this version has no installation folder",
+            ));
+        }
+        open_in_file_explorer(std::path::PathBuf::from(version.installation_directory_path))
+            .map_err(|e| format!("Failed reveal_blender_version_in_file_explorer: {}", e))
     }
 
     async fn launch_blender_version(

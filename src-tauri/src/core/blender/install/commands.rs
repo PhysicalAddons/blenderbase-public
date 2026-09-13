@@ -213,6 +213,21 @@ pub async fn cmd_launch_blender_version(
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }
+#[named]
+#[tauri::command]
+pub async fn cmd_reveal_blender_version_in_file_explorer(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    match BlenderInstallServiceImpl
+        .reveal_blender_version_in_file_explorer(app, state, id)
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
 
 #[named]
 #[tauri::command]
