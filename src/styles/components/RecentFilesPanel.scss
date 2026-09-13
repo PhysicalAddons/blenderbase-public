@@ -43,10 +43,13 @@
             }
         }
 
+        // Rule runs edge to edge like the other columns' list headers; the inset is padding.
         .recent_files__list_header {
             grid-template-columns: minmax(0, 1fr);
-            margin-left: $home-column-inset;
-            margin-right: 16px;
+            margin-left: 0;
+            margin-right: 0;
+            padding-left: $home-column-inset;
+            padding-right: 16px;
         }
 
         // Rhythm: series headers are one 56px row, file rows half a row (28px), no gaps, and
