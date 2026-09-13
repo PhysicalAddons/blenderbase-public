@@ -47,7 +47,7 @@ const BlenderColumn = () => {
 	)
 
 	const listRef = useRef<HTMLDivElement>(null)
-	usePagedScroll(listRef)
+	usePagedScroll(listRef, { rowSelector: '.blender_row' })
 	const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
 
 	/** Rescans the installation locations on disk and reloads the list. */

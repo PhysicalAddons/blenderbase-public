@@ -4,6 +4,17 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## Unreleased
+
+### Fixed
+- Blenderbase starts on databases written by builds whose migration files
+  had different line endings, instead of failing with "migration ... was
+  previously applied but has been modified".
+
+### Changed
+- Lists scroll smoothly and always come to rest on a row boundary, in
+  every column, whether scrolled by wheel, trackpad, scrollbar or keys.
+
 ## 1.2.3
 
 ### Added

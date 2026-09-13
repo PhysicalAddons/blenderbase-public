@@ -12,7 +12,8 @@ const RecentFiles = () => {
     )
     const setBlenderSeries = useBlendFileStore((s) => s.setBlenderSeries)
     const listRef = useRef<HTMLDivElement>(null)
-    usePagedScroll(listRef)
+    // Series headers are one row, file rows half a row; both edges are snap points.
+    usePagedScroll(listRef, { rowSelector: '.cds--contained-list__header, .cds--contained-list-item' })
 
     // First mount: import the recent files from disk, then load. Later mounts (and StrictMode's
     // second run) only load. The store owns the state, so nothing is set after unmount.

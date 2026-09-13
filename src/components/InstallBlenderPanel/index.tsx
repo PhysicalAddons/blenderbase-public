@@ -39,7 +39,7 @@ const InstallBlenderPanel = () => {
 	const [isConfirmingLocation, setIsConfirmingLocation] = useState<boolean>(false)
 	const [isFetching, setIsFetching] = useState<boolean>(false)
 	const listRef = useRef<HTMLDivElement>(null)
-	usePagedScroll(listRef)
+	usePagedScroll(listRef, { rowSelector: '.download_row' })
 	const { installedBuilds, downloadableBuilds, activeDownloadBuildType, setActiveDownloadBuildType, setDownloadableBuilds, setInstalledBuilds } = useBlenderManagerStore(
 		useShallow((s) => ({
 			installedBuilds: s.installedBuilds,

@@ -117,9 +117,13 @@ pub fn open_in_file_explorer(file_path: std::path::PathBuf) -> Result<(), String
         let _ = parent_directory;
         let system_root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
         let explorer = std::path::PathBuf::from(system_root).join("explorer.exe");
-        let mut select_arg = std::ffi::OsString::from("/select,");
-        select_arg.push(file_path.as_os_str());
-        match std::process::Command::new(explorer).arg(select_arg).spawn() {
+        // Explorer only accepts `/select,"<path>"` with the quotes around the
+        // path alone. Rust's normal argument quoting would wrap the whole
+        // token once the path contains a space, and Explorer then ignores it
+        // and opens the Documents folder instead. `raw_arg` bypasses that.
+        let mut command = std::process::Command::new(explorer);
+        command.raw_arg(format!("/select,\"{}\"", file_path.display()));
+        match command.spawn() {
             Ok(_) => Ok(()),
             Err(e) => return Err(format!("Failed open in file explorer: {:?}", e)),
         }

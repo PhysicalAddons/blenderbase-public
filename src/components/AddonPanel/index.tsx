@@ -61,7 +61,7 @@ const AddonPanel = () => {
 	const [searchText, setSearchText] = useState<string>("")
 	const [typeFilter, setTypeFilter] = useState<ITypeFilter>(TYPE_FILTERS[0])
 	const listRef = useRef<HTMLDivElement>(null)
-	usePagedScroll(listRef)
+	usePagedScroll(listRef, { rowSelector: '.addon_row' })
 
 	const selectedVersion = resolveSelectedBlenderVersion(installedBuilds, selectedBlenderVersionId);
 	const selectedId = selectedVersion?.id ?? null;

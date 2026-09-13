@@ -59,6 +59,7 @@ async fn init_app_state() -> Result<AppState, String> {
             ))
         }
     };
+    reconcile_migration_checksums(&pool).await?;
     if let Err(e) = sqlx::migrate!().run(&pool).await {
         return Err(format!(
             "Could not update the database {}: {}",
@@ -73,6 +74,62 @@ async fn init_app_state() -> Result<AppState, String> {
         http_client,
         action_timeouts: Mutex::new(action_timeouts),
     })
+}
+
+/// Brings stored migration checksums in line with the ones embedded in this
+/// build.
+///
+/// sqlx hashes each migration byte for byte. A database written by a build
+/// whose copy of a migration differed only in line endings (a Windows
+/// checkout without the LF rule) would otherwise refuse to start with
+/// "previously applied but has been modified". Shipped migrations are never
+/// edited after release, so a mismatch on an already-applied version is
+/// treated as that drift: the stored checksum is replaced and startup goes
+/// on. Migrations not yet applied are left for `migrate!().run` as usual.
+async fn reconcile_migration_checksums(pool: &sqlx::SqlitePool) -> Result<(), String> {
+    let table: Option<String> = sqlx::query_scalar(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '_sqlx_migrations'",
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("Could not inspect the database: {}", e))?;
+    if table.is_none() {
+        return Ok(());
+    }
+    let applied: Vec<(i64, Vec<u8>)> =
+        sqlx::query_as("SELECT version, checksum FROM _sqlx_migrations")
+            .fetch_all(pool)
+            .await
+            .map_err(|e| format!("Could not read applied migrations: {}", e))?;
+    for migration in sqlx::migrate!().iter() {
+        // Reversible migrations are listed twice (up and down) under one
+        // version; only the up script's checksum is what sqlx verifies.
+        if migration.migration_type.is_down_migration() {
+            continue;
+        }
+        let Some((_, stored)) = applied.iter().find(|(v, _)| *v == migration.version) else {
+            continue;
+        };
+        if stored.as_slice() == migration.checksum.as_ref() {
+            continue;
+        }
+        sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = ?")
+            .bind(migration.checksum.as_ref())
+            .bind(migration.version)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                format!(
+                    "Could not reconcile migration {}: {}",
+                    migration.version, e
+                )
+            })?;
+        eprintln!(
+            "Migration {} was recorded with a different checksum (line-ending drift); updated to this build's.",
+            migration.version
+        );
+    }
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -152,5 +209,40 @@ pub async fn run() {
     if let Err(e) = app {
         eprintln!("Error while running Blenderbase application: {}", e);
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A database whose stored checksum for an applied migration differs from
+    /// this build's (line-ending drift) must start after reconciliation.
+    #[tokio::test]
+    async fn reconciles_a_drifted_migration_checksum() {
+        use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+        use std::str::FromStr;
+        let dir = std::env::temp_dir().join(format!("blenderbase-migrate-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let url = format!("sqlite://{}", dir.join("t.db").to_string_lossy());
+        let opts = SqliteConnectOptions::from_str(&url).unwrap().create_if_missing(true);
+        let pool = SqlitePoolOptions::new().max_connections(1).connect_with(opts).await.unwrap();
+
+        sqlx::migrate!().run(&pool).await.unwrap();
+        let first = sqlx::migrate!().iter().next().unwrap().version;
+        sqlx::query("UPDATE _sqlx_migrations SET checksum = X'00' WHERE version = ?")
+            .bind(first)
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert!(
+            sqlx::migrate!().run(&pool).await.is_err(),
+            "sqlx must refuse the drifted checksum before reconciliation"
+        );
+
+        reconcile_migration_checksums(&pool).await.unwrap();
+        sqlx::migrate!().run(&pool).await.unwrap();
+        pool.close().await;
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
