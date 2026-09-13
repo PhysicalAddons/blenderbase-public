@@ -1,0 +1,85 @@
+# Changelog
+
+Release notes for Blenderbase. The section matching a version tag is
+copied into the GitHub release by the release workflow, so keep the
+`## X.Y.Z` headings exact.
+
+## 1.2.2
+
+### Fixed
+- **macOS:** the native close, minimise and zoom buttons are back in the
+  top-left corner of the window.
+
+### Changed
+- Release notes now come from this changelog: the section matching the
+  version tag is published with each release.
+
+## 1.2.1
+
+### Changed
+- Pressing **Install Blender** with no install folder set now opens the
+  folder picker directly. The chosen folder is registered, made the
+  default and checked for write access, and the download starts right
+  away. Cancelling the picker simply does nothing.
+- Adding a location in Settings no longer reports an error when the
+  picker is cancelled.
+
+### Security
+- Updated dependencies with published advisories on both sides of the
+  app. The web side (react-router, PostCSS, nanoid, Immutable) and the
+  Rust side (HTTP/2 and QUIC networking, XML parsing) now report zero
+  known vulnerabilities.
+
+## 1.2.0
+
+### Added
+- **New layout.** Installed Blender versions on the left, the addons of
+  the selected version in the middle, recent files on the right, and the
+  launch bar below. The Install panel lists stable, LTS, daily and patch
+  builds with search.
+- **Addon management.** List every addon and extension of a Blender
+  version, enable or disable them, install from a `.zip` or `.py`, link
+  a development folder in place (symlink), delete, and reveal in the
+  file browser. Blender is driven headlessly, so nothing needs to be
+  open.
+- **Automatic updates.** Blenderbase checks GitHub Releases on launch
+  and offers new versions; **Check for updates** in Settings does the
+  same on demand.
+- **macOS (Apple Silicon) and Linux builds** alongside Windows. macOS
+  installs are mounted from the official dmg; Linux from the official
+  tar.xz.
+- Build date, commit hash and release cycle shown for every installed
+  version.
+- New application icon.
+
+### Security
+- Every downloaded Blender archive is verified against its published
+  SHA-256 before it is unpacked; a mismatch discards the download.
+- Archives can no longer write outside their target folder.
+- Installation paths are never passed through a shell, and Blender
+  versions are launched or deleted only from confirmed locations.
+- A Content Security Policy is enforced in the app window.
+
+### Fixed
+- Launching Blender no longer freezes Blenderbase until Blender exits.
+- Refreshing a version reads its download metadata from the right
+  folder.
+- Corrupt metadata files produce an error instead of a crash, and a
+  failed start shows the reason instead of exiting silently.
+- Success messages are only shown when the action actually succeeded.
+- Version lists sort numerically (4.10 after 4.2).
+
+### Changed
+- Fetching lists no longer rescans the disk on every call; use the
+  refresh buttons or the automatic scan at startup.
+- Long operations (extracting, deleting, dialogs) no longer stall the
+  rest of the app.
+
+### Notes
+- Installs older than 1.2.0 cannot update automatically to this
+  version: 1.1.0 shipped without an updater, and 1.0.x builds were
+  signed with a key that is no longer available. Install 1.2.0 by hand
+  once; every version from here on updates itself.
+- Installers are not yet code-signed. Windows shows a SmartScreen
+  prompt; on macOS, clear the quarantine flag once with
+  `xattr -dr com.apple.quarantine /Applications/Blenderbase.app`.

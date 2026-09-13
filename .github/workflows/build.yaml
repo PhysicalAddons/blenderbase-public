@@ -65,6 +65,27 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # The release body comes from the CHANGELOG.md section whose heading
+      # matches the tag (## 1.2.1 for v1.2.1). Falls back to a pointer at
+      # the changelog when no section exists yet.
+      - name: Extract release notes
+        id: notes
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          body="$(awk -v v="$version" '
+            $0 ~ "^## " { if (found) exit; if ($2 == v) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md)"
+          if [ -z "$(printf "%s" "$body" | tr -d "[:space:]")" ]; then
+            body="See CHANGELOG.md for details."
+          fi
+          {
+            echo "body<<NOTES_EOF"
+            printf '%s\n' "$body"
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       # All three jobs upload into the same draft release, matched by tag.
       - name: Build and create GitHub Release
         uses: tauri-apps/tauri-action@v0
@@ -77,8 +98,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: Blenderbase v__VERSION__
-          releaseBody: |
-            Release notes: tba.
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           # Publishes latest.json plus the signed updater bundles. Signed with
