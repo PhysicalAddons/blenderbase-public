@@ -4,6 +4,13 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## Unreleased
+
+### Changed
+- Releases ship one installer per platform (MSI, dmg, AppImage) plus the
+  signed update bundles and manifest the updater needs; the NSIS and deb
+  packages are no longer published.
+
 ## 1.2.2
 
 ### Fixed
