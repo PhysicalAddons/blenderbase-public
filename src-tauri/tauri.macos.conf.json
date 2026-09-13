@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "title": "Blenderbase",
+        "width": 1280,
+        "height": 800,
+        "label": "main",
+        "devtools": true,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 14,
+          "y": 16
+        }
+      }
+    ]
+  }
+}
