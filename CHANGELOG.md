@@ -6,6 +6,9 @@ copied into the GitHub release by the release workflow, so keep the
 
 ## Unreleased
 
+### Fixed
+- **macOS:** the window buttons sit lower, centred in the title bar.
+
 ### Changed
 - Releases ship one installer per platform (MSI, dmg, AppImage) plus the
   signed update bundles and manifest the updater needs; the NSIS and deb
