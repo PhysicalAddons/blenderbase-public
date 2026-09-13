@@ -31,6 +31,7 @@ Blenderbase runs on **Windows 10/11**, **macOS (Apple Silicon)** and **Linux**. 
 - Reveals a file in Explorer or Finder from the right-click menu.
 
 **App**
+- Keeps its lists current: installed versions are rescanned when the window regains focus, and a version's addons are re-read after you launched it from Blenderbase. Both are also in the lists' right-click menus.
 - Updates itself: Blenderbase checks GitHub Releases on launch and offers new versions; **Check for updates** in Settings does the same on demand.
 - Settings open in the middle column of the main window: installation locations, minimise-on-launch, update checks and the light/dark/system theme.
 - Recovers from a damaged database: the file is set aside and a fresh one is created, and installed versions are found again by rescanning.
