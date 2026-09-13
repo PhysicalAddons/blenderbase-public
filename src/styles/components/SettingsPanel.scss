@@ -60,7 +60,13 @@
         display: flex;
         flex-direction: column;
         min-height: 0;
-        overflow-y: auto;
+        // Only the Locations list can grow past the panel. The other sections
+        // hold a handful of rows and stay unscrollable, so an open dropdown
+        // menu cannot extend the scroll range and push its own row out of view.
+        overflow: visible;
+        &.settings_panel__list--scroll {
+            overflow-y: auto;
+        }
         padding: 0 0 24px 0;
         &::-webkit-scrollbar {
             display: none;

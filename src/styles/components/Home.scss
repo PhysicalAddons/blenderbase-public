@@ -40,6 +40,17 @@ $home-launcher-height: 56px;
             pointer-events: none;
         }
     }
+    // In Settings the gear and Escape are the way out, so the Install Blender
+    // block steps back with the rest of the column; it lights up again on hover
+    // and still opens the download list.
+    &.home--settings .blender_column .column_actions .install_button {
+        opacity: 0.35;
+        transition: opacity motion.$duration-fast-02 cubic-bezier(0.2, 0, 0.38, 0.9);
+        &:hover,
+        &:focus-visible {
+            opacity: 1;
+        }
+    }
 }
 
 // Header icon buttons: no focus frame after a mouse click.

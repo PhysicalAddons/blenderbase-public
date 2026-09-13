@@ -484,7 +484,7 @@ const SettingsPanel = () => {
 					<span></span>
 				</div>
 			)}
-			<div className='settings_panel__list' ref={listRef}>
+			<div className={`settings_panel__list ${activeSection === 'locations' ? "settings_panel__list--scroll" : ""}`} ref={listRef}>
 				{renderSection()}
 			</div>
 		</div>
