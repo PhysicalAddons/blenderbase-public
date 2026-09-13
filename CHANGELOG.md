@@ -7,9 +7,11 @@ copied into the GitHub release by the release workflow, so keep the
 ## 1.2.5
 
 ### Fixed
-- Deleting a Blender version whose folder is missing, or lies outside the
-  installation locations, now offers to remove it from the list instead
-  of refusing with an error. Files outside the locations are never touched.
+- Deleting a Blender version inside an installation location registered
+  before 1.2.1 was refused as "not inside a confirmed location". Every
+  registered location now counts. A version whose folder is missing, or
+  lies outside all locations, is offered to be removed from the list;
+  files outside the locations are never touched.
 - **macOS and Linux:** installing a Blender build failed after unpacking
   with "No such file or directory". The download path was built with a
   Windows separator and the version folder was guessed from a `.zip`

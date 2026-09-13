@@ -971,9 +971,11 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed delete_blender_version: {:?}", e)),
         };
+        // Every registered location counts, confirmed or not: the "confirmed"
+        // flag records a write-access check for downloads, and locations
+        // registered before that flag existed carry it unset.
         let inside_location = locations
             .iter()
-            .filter(|l| l.is_confirmed)
             .filter_map(|l| std::path::PathBuf::from(&l.directory_path).canonicalize().ok())
             .any(|root| canonical_version_dir != root && canonical_version_dir.starts_with(&root));
         if !inside_location {
