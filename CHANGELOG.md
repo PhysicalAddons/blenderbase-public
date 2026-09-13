@@ -7,6 +7,8 @@ copied into the GitHub release by the release workflow, so keep the
 ## 1.2.4
 
 ### Fixed
+- **Open file location** on Windows now selects the item in Explorer; it
+  opened the Documents folder instead.
 - Blenderbase starts on databases written by builds whose migration files
   had different line endings, instead of failing with "migration ... was
   previously applied but has been modified".
