@@ -4,6 +4,7 @@
 // **Home layout**
 // Three columns (Blender versions | Addons or Install Blender | Recent Files) above the launcher bar.
 $home-column-inset: 24px;
+$home-recent-files-width: 300px; // the Recent Files column, and the block that opens it
 $home-row-height: 56px;
 $home-list-header-height: 48px;
 $home-launcher-height: 56px;
@@ -313,15 +314,22 @@ $home-launcher-height: 56px;
         outline: 2px solid var(--bb-text);
         outline-offset: -2px;
     }
-    // With a label (middle column) the block is as wide as its text, like "All types".
+    // With a label (middle column) the block is exactly as wide as the Recent Files column it
+    // opens, label at the column inset and icon at the right, so nothing shifts when the panel
+    // slides in and the title takes the label's place.
     &.recent_files_toggle--labelled {
-        flex-basis: auto;
-        width: auto;
-        padding: 0 16px;
+        flex: 0 0 $home-recent-files-width;
+        width: $home-recent-files-width;
+        justify-content: space-between;
+        padding: 0 16px 0 $home-column-inset;
         gap: 16px;
         color: var(--bb-text);
         font-size: 14px;
         white-space: nowrap;
+        @media screen and (max-width: 672px) {
+            flex-basis: 50vw;
+            width: 50vw;
+        }
         .recent_files_toggle__text {
             line-height: 1;
         }

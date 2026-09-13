@@ -8,7 +8,7 @@
     -ms-user-select: none;     /* Internet Explorer/Edge */
     user-select: none;         /* Non-prefixed version, currently supported by Chrome, Opera, and Edge */
 
-    width: 300px;
+    width: $home-recent-files-width;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
