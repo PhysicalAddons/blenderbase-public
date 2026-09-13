@@ -3,12 +3,14 @@ use std::{
     os::windows::process::CommandExt,
 };
 
+use sha2::{Digest, Sha256};
+
 use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 use crate::core::{
     PermissionDetails, COMMAND, CREATE_NO_WINDOW_FLAG, GET_PATH_PERMISSIONS_PS1_EXPRESSION, HIDDEN,
-    NO_SENTANCE_CASE, POWERSHELL, WINDOW_STYLE, YES_SENTANCE_CASE,
+    NO_SENTANCE_CASE, WINDOW_STYLE, YES_SENTANCE_CASE,
 };
 
 const WIDTH: f64 = 600.0;
@@ -126,9 +128,28 @@ pub fn open_in_file_explorer(file_path: std::path::PathBuf) -> Result<(), String
     }
 }
 
+/// Absolute path to Windows PowerShell, so a `powershell.exe` planted in the
+/// working directory or on PATH can never be picked up instead.
+pub fn powershell_executable() -> std::path::PathBuf {
+    let system_root = std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into());
+    std::path::PathBuf::from(system_root).join("System32\\WindowsPowerShell\\v1.0\\powershell.exe")
+}
+
 pub fn run_ps1_expression_as_string(args: Vec<&str>) -> Result<String, String> {
-    let out = std::process::Command::new(POWERSHELL)
+    run_ps1_expression_with_env(args, &[])
+}
+
+/// Runs PowerShell with extra environment variables. Any value that comes
+/// from a user or the webview must travel this way and be read as `$env:NAME`
+/// inside the script. Splicing it into the script text would let a quote in
+/// the value end the string literal and run the rest as a command.
+pub fn run_ps1_expression_with_env(
+    args: Vec<&str>,
+    envs: &[(&str, &str)],
+) -> Result<String, String> {
+    let out = std::process::Command::new(powershell_executable())
         .args(args)
+        .envs(envs.iter().copied())
         .stdout(std::process::Stdio::piped()) // Pipe stdout to Rust process.
         .stderr(std::process::Stdio::piped()) // Pipe stderr to Rust process.
         .creation_flags(CREATE_NO_WINDOW_FLAG) // CREATE_NO_WINDOW flag - powershell window is hidden.
@@ -145,15 +166,18 @@ pub fn run_ps1_expression_as_string(args: Vec<&str>) -> Result<String, String> {
 }
 
 pub fn get_permission_details(path: &str) -> Result<PermissionDetails, String> {
+    // The path is handed over as an environment variable and never written
+    // into the script: a directory name containing `'` or `;` would otherwise
+    // close the string literal and execute whatever follows as PowerShell.
     let expr = format!(
         r#"
-$Path = '{}'
+$Path = $env:BLENDERBASE_PATH
 {}
     "#,
-        path, GET_PATH_PERMISSIONS_PS1_EXPRESSION
+        GET_PATH_PERMISSIONS_PS1_EXPRESSION
     );
     let args = vec![WINDOW_STYLE, HIDDEN, COMMAND, expr.as_str()];
-    let out = match run_ps1_expression_as_string(args) {
+    let out = match run_ps1_expression_with_env(args, &[("BLENDERBASE_PATH", path)]) {
         Ok(v) => v,
         Err(e) => return Err(format!("Failed get permission detail: {:?}", e)),
     };
@@ -242,7 +266,8 @@ pub fn symlink_directory(src: &std::path::Path, dst: &std::path::Path) -> Result
     // `-Verb RunAs` is what raises the UAC prompt. `-Wait -PassThru` lets us
     // read the elevated process's exit code once the user has answered it.
     let expr = format!(
-        "$p = Start-Process -FilePath 'powershell' -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','{}'\r\nexit $p.ExitCode",
+        "$p = Start-Process -FilePath '{}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','{}'\r\nexit $p.ExitCode",
+        ps_quote(&powershell_executable()),
         ps_quote(&script_path)
     );
     let args = vec![WINDOW_STYLE, HIDDEN, COMMAND, expr.as_str()];
@@ -262,6 +287,46 @@ pub fn symlink_directory(src: &std::path::Path, dst: &std::path::Path) -> Result
             ),
         }),
     }
+}
+
+/// SHA-256 of a file as lowercase hex. Hashing runs on the blocking pool so a
+/// 400 MB Blender archive does not stall the async runtime.
+pub async fn sha256_of_file(path: std::path::PathBuf) -> Result<String, String> {
+    let join = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let mut file = std::fs::File::open(&path)
+            .map_err(|e| format!("Failed sha256 of file {}: {}", path.display(), e))?;
+        let mut hasher = Sha256::new();
+        let mut buf = vec![0u8; 1 << 20];
+        loop {
+            let n = file
+                .read(&mut buf)
+                .map_err(|e| format!("Failed sha256 of file {}: {}", path.display(), e))?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buf[..n]);
+        }
+        Ok(format!("{:x}", hasher.finalize()))
+    });
+    match join.await {
+        Ok(v) => v,
+        Err(e) => Err(format!("Failed sha256 of file: {:?}", e)),
+    }
+}
+
+/// Looks `file_name` up in a Blender `*.sha256` listing, whose lines have the
+/// form `<hex digest>  <file name>`.
+pub fn find_sha256_in_listing(listing: &str, file_name: &str) -> Option<String> {
+    listing.lines().find_map(|line| {
+        let mut parts = line.split_whitespace();
+        let hash = parts.next()?;
+        let name = parts.next()?;
+        (name == file_name && is_sha256_hex(hash)).then(|| hash.to_ascii_lowercase())
+    })
+}
+
+pub fn is_sha256_hex(s: &str) -> bool {
+    s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
 pub async fn write_file(file_path: std::path::PathBuf, content: String) -> Result<(), String> {
@@ -340,8 +405,36 @@ pub async fn open_archive(
             Ok(v) => v,
             Err(e) => return Err(format!("Failed open archive: {:?}", e)),
         };
-        let outpath = extract_dir.join(inner_file.name());
-        if inner_file.name().ends_with('/') {
+        // Entry names are attacker-controlled. `enclosed_name` rejects absolute
+        // paths and any `..` component; the `starts_with` check is a second
+        // line of defence after joining.
+        let relative = match inner_file.enclosed_name() {
+            Some(v) => v,
+            None => {
+                return Err(format!(
+                    "Failed open archive: entry '{}' would escape the extraction directory",
+                    inner_file.name()
+                ))
+            }
+        };
+        let outpath = extract_dir.join(relative);
+        if !outpath.starts_with(extract_dir) {
+            return Err(format!(
+                "Failed open archive: entry '{}' would escape the extraction directory",
+                inner_file.name()
+            ));
+        }
+        // Symbolic links inside an archive are never materialised.
+        const S_IFMT: u32 = 0o170000;
+        const S_IFLNK: u32 = 0o120000;
+        if inner_file
+            .unix_mode()
+            .map(|m| m & S_IFMT == S_IFLNK)
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        if inner_file.is_dir() {
             match std::fs::create_dir_all(&outpath) {
                 Ok(_) => {}
                 Err(e) => return Err(format!("Failed open archive: {:?}", e)),
@@ -456,5 +549,101 @@ pub async fn get_main_storage_device_root_path() -> Result<std::path::PathBuf, S
             }
             None => Err(format!("Failed get main storage device root path")),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_dir() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("blenderbase-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn sha256_listing_lookup_matches_exact_file_name() {
+        let listing = "\
+2dc8e4bf6fe2ba93027ca752e2dec90c761037b7578204662a564d503ccb40a1  blender-4.5.1-windows-x64.msi
+aab6b8a0d0d9d5b3f0e0b7d1c2a3e4f5061728394a5b6c7d8e9f0a1b2c3d4e5f  blender-4.5.1-windows-x64.zip
+not-a-hash  blender-4.5.1-linux-x64.tar.xz
+";
+        assert_eq!(
+            find_sha256_in_listing(listing, "blender-4.5.1-windows-x64.zip").as_deref(),
+            Some("aab6b8a0d0d9d5b3f0e0b7d1c2a3e4f5061728394a5b6c7d8e9f0a1b2c3d4e5f")
+        );
+        assert_eq!(find_sha256_in_listing(listing, "blender-4.5.1-linux-x64.tar.xz"), None);
+        assert_eq!(find_sha256_in_listing(listing, "blender-4.5.1-windows-x64"), None);
+        assert!(is_sha256_hex("2dc8e4bf6fe2ba93027ca752e2dec90c761037b7578204662a564d503ccb40a1"));
+        assert!(!is_sha256_hex("2dc8e4bf"));
+    }
+
+    /// The path used to be spliced into the script inside single quotes, so a
+    /// directory name like this one closed the literal and ran the remainder.
+    /// It now travels as an environment variable and must come back as data.
+    #[test]
+    fn permission_probe_treats_quotes_and_semicolons_as_data() {
+        let dir = temp_dir().join("bb 'quote'; Write-Output INJECTED; '");
+        std::fs::create_dir_all(&dir).unwrap();
+        let details = get_permission_details(&dir.to_string_lossy()).unwrap();
+        assert!(details.read, "the probe must report the real ACL of the directory");
+        let _ = std::fs::remove_dir_all(dir.parent().unwrap());
+    }
+
+    #[tokio::test]
+    async fn sha256_of_file_matches_known_digest() {
+        let dir = temp_dir();
+        let file = dir.join("abc.txt");
+        std::fs::write(&file, b"abc").unwrap();
+        let digest = sha256_of_file(file).await.unwrap();
+        assert_eq!(
+            digest,
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn open_archive_refuses_entries_that_escape_the_target() {
+        let outer = temp_dir();
+        let inner = outer.join("inner");
+        std::fs::create_dir_all(&inner).unwrap();
+        let archive = inner.join("evil.zip");
+        {
+            let file = std::fs::File::create(&archive).unwrap();
+            let mut writer = zip::ZipWriter::new(file);
+            let options: zip::write::FileOptions<()> = zip::write::FileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+            writer.start_file("../escaped.txt", options).unwrap();
+            writer.write_all(b"owned").unwrap();
+            writer.finish().unwrap();
+        }
+        let result = open_archive(archive).await;
+        assert!(result.is_err(), "traversal entry must be rejected");
+        assert!(
+            !outer.join("escaped.txt").exists(),
+            "no file may be written outside the extraction directory"
+        );
+        let _ = std::fs::remove_dir_all(&outer);
+    }
+
+    #[tokio::test]
+    async fn open_archive_extracts_well_formed_entries() {
+        let dir = temp_dir();
+        let archive = dir.join("good.zip");
+        {
+            let file = std::fs::File::create(&archive).unwrap();
+            let mut writer = zip::ZipWriter::new(file);
+            let options: zip::write::FileOptions<()> = zip::write::FileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+            writer.start_file("good/hello.txt", options).unwrap();
+            writer.write_all(b"hi").unwrap();
+            writer.finish().unwrap();
+        }
+        let extracted = open_archive(archive).await.unwrap();
+        assert_eq!(extracted, dir.join("good"));
+        assert_eq!(std::fs::read_to_string(dir.join("good").join("hello.txt")).unwrap(), "hi");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

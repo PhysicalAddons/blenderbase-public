@@ -36,6 +36,11 @@ export class BlenderService {
             console.error(e);
         }
     };
+    /** Asks each build for its date, commit hash, branch and cycle; returns the updated rows. */
+    public async refreshBlenderVersionDetails(ids: string[]): Promise<IBlenderVersion[]> {
+        return await invoke("cmd_refresh_blender_version_details", { ids });
+    }
+
     public async deleteInstalledBlender(id: string): Promise<void> {
         try {
             await invoke("cmd_delete_blender_version", {

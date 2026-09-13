@@ -42,11 +42,52 @@ pub trait TBlenderInstallationLocationService {
         state: tauri::State<'_, AppState>,
         id: String,
     ) -> Result<(), String>;
+    /// Confirms where Blender versions are installed (first-download prompt). The directory is
+    /// created when missing, and becomes the default location.
+    async fn confirm_blender_installation_location(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        id: String,
+        directory_path: String,
+    ) -> Result<BlenderInstallationLocation, String>;
 }
 
 pub struct BlenderInstallationLocationServiceImpl;
 
 impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceImpl {
+    async fn confirm_blender_installation_location(
+        &self,
+        _app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        id: String,
+        directory_path: String,
+    ) -> Result<BlenderInstallationLocation, String> {
+        let path = directory_path.trim().to_string();
+        if path.is_empty() {
+            return Err(String::from("Failed confirm blender installation location: no directory given"));
+        }
+        if let Err(e) = std::fs::create_dir_all(&path) {
+            return Err(format!("Failed confirm blender installation location: could not create {}: {:?}", path, e));
+        }
+        let permission_details: PermissionDetails = match get_permission_details(path.as_str()) {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed confirm blender installation location: {:?}", e)),
+        };
+        let blr = state.blender_installation_location_repository();
+        if let Err(e) = blr.confirm(&id, &path, &permission_details).await {
+            return Err(format!("Failed confirm blender installation location: {:?}", e));
+        }
+        let mut entries = match blr.fetch(Some(id), None, None, None).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed confirm blender installation location: {:?}", e)),
+        };
+        if entries.is_empty() {
+            return Err(String::from("Failed confirm blender installation location: location not found"));
+        }
+        Ok(entries.remove(0))
+    }
+
     async fn refresh_blender_installation_locations(
         &self,
         _app: AppHandle,
@@ -118,6 +159,7 @@ impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceI
             read: permission_details.read,
             write: permission_details.write,
             special_permissions: permission_details.special_permissions,
+            is_confirmed: false,
             directory_path: repo_directory_path.to_string_lossy().to_string(),
             created_by: match whoami::username() {
                 Ok(v) => Some(v.to_owned()),

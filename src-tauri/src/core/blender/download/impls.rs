@@ -6,7 +6,7 @@ use tauri::AppHandle;
 use crate::core::{WINDOWS, X32, X64};
 use crate::{
     AppState, core::{
-        B3D_LINK_REGEX, BLENDER, BLENDER_DOWNLOAD_LINK_REGEX, BLENDER_VERSION_REGEX, BUILDER_BLENDER_ORG_DOWNLOAD_DAILY_FORMAT_JSON_V2, BUILDER_BLENDER_ORG_DOWNLOAD_PATCH_FORMAT_JSON_V2, BlenderBuildKind, BlenderVersionBuildTypeDTO, DOWNLOAD_BLENDER_ORG_RELEASE, DownloadableBlenderVersion, FILE_REGEX_RELEASE, INTEL, ISO_FORMAT, LTS, LTS_VERSION_ARR, OrderKind, PUB_GRAPHICS_BLENDER_RELEASE, PUBLISH_TIMESTAMP_REGEX, STABLE, http_get_as_json, http_get_as_string
+        B3D_LINK_REGEX, BLENDER, BLENDER_DOWNLOAD_LINK_REGEX, BLENDER_VERSION_REGEX, BUILDER_BLENDER_ORG_DOWNLOAD_DAILY_FORMAT_JSON_V2, BUILDER_BLENDER_ORG_DOWNLOAD_PATCH_FORMAT_JSON_V2, BlenderBuildKind, BlenderVersionBuildTypeDTO, DOWNLOAD_BLENDER_ORG_RELEASE, DownloadableBlenderVersion, FILE_REGEX_RELEASE, INTEL, ISO_FORMAT, LTS, LTS_VERSION_ARR, OrderKind, PUB_GRAPHICS_BLENDER_RELEASE, PUBLISH_TIMESTAMP_REGEX, STABLE, http_get_as_json, http_get_as_string, http_get_as_string_with_client
     }, database::DownloadStatusType
 };
 
@@ -220,7 +220,7 @@ impl BlenderDownloadServiceImpl {
         };
         let b3d_link_regex = regex::bytes::Regex::new(B3D_LINK_REGEX).unwrap();
         let lines: Vec<&str> = body.lines().collect();
-        let mut data: Vec<DownloadableBlenderVersion> = Vec::new();
+        let mut series_urls: Vec<String> = Vec::new();
         for line in lines {
             if let Some(captures) = b3d_link_regex.captures(line.as_bytes()) {
                 // Accessing the first capture group (If "Blender3.6" counts as .get(0), then .get(1) is "3.6").
@@ -236,23 +236,43 @@ impl BlenderDownloadServiceImpl {
                     if version_float < 3.1 {
                         continue;
                     }
-                    let url = format!("{}{}{}", url, BLENDER, version_str);
-                    match Self::scrape_release_blender_series(state.clone(), url).await {
-                        Ok(mut v) => {
-                            data.append(&mut v);
-                        }
-                        Err(e) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
-                    }
+                    series_urls.push(format!("{}{}{}", url, BLENDER, version_str));
                 }
             }
+        }
+        // One directory page per series; fetching them one after another took most of the
+        // time, so they run concurrently with a small cap to stay polite to the mirror.
+        let client = state.http_client.clone();
+        let limiter = std::sync::Arc::new(tokio::sync::Semaphore::new(6));
+        let mut tasks = tokio::task::JoinSet::new();
+        for (index, series_url) in series_urls.into_iter().enumerate() {
+            let client = client.clone();
+            let limiter = limiter.clone();
+            tasks.spawn(async move {
+                let _permit = limiter.acquire_owned().await.ok();
+                (index, Self::scrape_release_blender_series(client, series_url).await)
+            });
+        }
+        let mut chunks: Vec<(usize, Vec<DownloadableBlenderVersion>)> = Vec::new();
+        while let Some(joined) = tasks.join_next().await {
+            match joined {
+                Ok((index, Ok(v))) => chunks.push((index, v)),
+                Ok((_, Err(e))) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
+                Err(e) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
+            }
+        }
+        chunks.sort_by_key(|(index, _)| *index);
+        let mut data: Vec<DownloadableBlenderVersion> = Vec::new();
+        for (_, mut v) in chunks {
+            data.append(&mut v);
         }
         return Ok(data);
     }
     async fn scrape_release_blender_series(
-        state: tauri::State<'_, AppState>,
+        client: reqwest::Client,
         url: String,
     ) -> Result<Vec<DownloadableBlenderVersion>, String> {
-        let body = match http_get_as_string(state, url.clone()).await {
+        let body = match http_get_as_string_with_client(client, url.clone()).await {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed scrape_release_blender_series: {:?}", e)),
         };

@@ -22,7 +22,9 @@
 // Components
 @import "styles/navigation_bar/navbar.scss";
 @import "styles/components/Settings.scss";
+@import "styles/components/Home";
 @import "styles/components/RecentFilesPanel.scss";
-@import "styles/components/AddonManager";
-@import "styles/components/BlenderManager";
+@import "styles/components/BlenderColumn";
+@import "styles/components/AddonPanel";
+@import "styles/components/InstallBlenderPanel";
 @import "styles/components/LauncherBar";

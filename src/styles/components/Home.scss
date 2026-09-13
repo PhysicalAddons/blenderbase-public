@@ -1,0 +1,285 @@
+// **Home layout**
+// Three columns (Blender versions | Addons or Install Blender | Recent Files) above the launcher bar.
+$home-column-inset: 24px;
+$home-row-height: 56px;
+$home-list-header-height: 48px;
+$home-launcher-height: 56px;
+
+.home {
+    display: flex;
+    height: calc(100% - #{$home-launcher-height});
+    overflow: hidden;
+    width: 100%;
+
+    .home__main {
+        flex-grow: 1;
+        min-width: 0;
+        position: relative;
+        background: $layer-01;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    // While Install Blender is open the version list and Recent Files step back; the Blender
+    // header with its Install button and the footer stay live as the way out.
+    .blender_column__list_header,
+    .blender_column__list,
+    .recent_files_panel {
+        transition: opacity motion.$duration-fast-02 cubic-bezier(0.2, 0, 0.38, 0.9);
+    }
+    &.home--installing {
+        .blender_column__list_header,
+        .blender_column__list,
+        .recent_files_panel {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+    }
+}
+
+// Header icon buttons: no focus frame after a mouse click.
+.column_header > .cds--btn:focus:not(:focus-visible) {
+    border-color: transparent;
+    box-shadow: none;
+}
+
+// Shared column header: 28px title with a muted subtitle, same height in every column.
+.column_header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 40px $home-column-inset 0 $home-column-inset;
+    flex-shrink: 0;
+
+    .column_header__titles {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+    }
+    .column_header__title {
+        font-size: 28px;
+        line-height: 1.2;
+        letter-spacing: -0.4px;
+        color: var(--bb-text);
+        white-space: nowrap;
+    }
+    .column_header__subtitle {
+        font-size: 14px;
+        line-height: 18px;
+        color: var(--bb-text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    > .cds--btn {
+        flex-shrink: 0;
+    }
+    // Bare spinner in the refresh icon's own slot; the footer status line carries the words.
+    .column_header__loading {
+        width: 40px;
+        min-height: 40px;
+        flex-shrink: 0;
+        justify-content: center;
+        .cds--inline-loading__animation {
+            margin: 0;
+        }
+    }
+    .cds--popover {
+        display: none;
+    }
+}
+
+// The row beneath the header: install buttons, search, filters. It runs edge to edge like
+// the launcher bar; the first control carries the column inset so its label lines up with
+// the header and the list.
+.column_actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 0 0 0;
+    flex-shrink: 0;
+    > .cds--btn:first-child {
+        padding-left: $home-column-inset;
+    }
+}
+
+// List header row that sits on the same line in every column.
+.list_header {
+    display: grid;
+    align-items: center;
+    height: $home-list-header-height;
+    margin: 24px $home-column-inset 0 $home-column-inset;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--bb-text);
+    border-bottom: 1px solid var(--bb-border-strong);
+    flex-shrink: 0;
+    .centered {
+        text-align: center;
+    }
+}
+
+// Carbon buttons reserve 63px on the right for a trailing icon; these have a leading icon instead.
+// Filled dark instead of Carbon's outlined tertiary, so the frames do not compete with the content.
+.cds--btn.install_button {
+    padding-right: 15px;
+    gap: 12px;
+    justify-content: flex-start;
+    background: var(--bb-field);
+    border: 1px solid transparent;
+    color: var(--bb-text);
+    svg {
+        flex-shrink: 0;
+        fill: currentColor;
+    }
+    &:hover,
+    &:focus {
+        background: var(--bb-field-hover);
+        color: var(--bb-text);
+    }
+    &:disabled,
+    &:disabled:hover {
+        background: var(--bb-field);
+        color: var(--bb-text-muted);
+    }
+    // Mouse clicks leave no focus frame; keyboard focus keeps Carbon's ring.
+    &:focus:not(:focus-visible) {
+        border-color: transparent;
+        box-shadow: none;
+    }
+}
+
+// Fields in the toolbar rows: same fill as the buttons, no underline, so the row reads as one band.
+.column_actions {
+    .cds--search .cds--search-input {
+        background: var(--bb-field);
+        border-block-end: none;
+        height: 48px;
+    }
+    .cds--search .cds--search-magnifier-icon {
+        fill: var(--bb-text-muted);
+    }
+    .cds--dropdown {
+        background: var(--bb-field);
+        border-block-end: none;
+        min-width: 150px;
+    }
+    .cds--dropdown:hover {
+        background: var(--bb-field-hover);
+    }
+    .cds--list-box__menu {
+        background: var(--bb-field);
+    }
+    // Same chevron behaviour as the Recent Files groups: right when closed, down when open.
+    .cds--list-box__menu-icon {
+        transform: rotate(-90deg);
+        transition: transform motion.$duration-moderate-01 cubic-bezier(0.2, 0, 0.38, 0.9);
+        svg {
+            transform: none;
+            transition: none;
+        }
+    }
+    .cds--list-box__menu-icon--open {
+        transform: rotate(0deg);
+    }
+}
+
+// Variant tags, color coded by release cycle (plus the "New" marker)
+.blender_tag {
+    background: var(--bb-tag-neutral-bg);
+    color: var(--bb-tag-neutral-fg);
+    padding: 2px 8px;
+    border-radius: 100px;
+    display: inline-block;
+    font-size: 16px;
+    line-height: 1.3;
+    text-decoration: none;
+    white-space: nowrap;
+    &.blender_tag--small {
+        font-size: 12px;
+    }
+    &.blender_tag--lts {
+        background: var(--bb-tag-lts-bg);
+        color: var(--bb-tag-lts-fg);
+    }
+    &.blender_tag--stable {
+        background: var(--bb-tag-stable-bg);
+        color: var(--bb-tag-stable-fg);
+    }
+    &.blender_tag--candidate {
+        background: var(--bb-tag-candidate-bg);
+        color: var(--bb-tag-candidate-fg);
+    }
+    &.blender_tag--beta {
+        background: var(--bb-tag-beta-bg);
+        color: var(--bb-tag-beta-fg);
+    }
+    &.blender_tag--alpha {
+        background: var(--bb-tag-alpha-bg);
+        color: var(--bb-tag-alpha-fg);
+    }
+    &.blender_tag--neutral {
+        background: var(--bb-tag-neutral-bg);
+        color: var(--bb-tag-neutral-fg);
+    }
+    &.blender_tag--new {
+        background: var(--bb-tag-new-bg);
+        color: var(--bb-tag-new-fg);
+    }
+}
+
+.sidebar_toggle__open {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    .cds--popover {
+        display: none;
+    }
+}
+
+// Middle column when no Blender version is installed.
+.empty_state {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px $home-column-inset 96px $home-column-inset;
+    text-align: center;
+    .empty_state__mark {
+        width: 64px;
+        height: 64px;
+        color: var(--bb-text);
+        opacity: 0.2;
+        margin-bottom: 12px;
+    }
+    .empty_state__title {
+        font-size: 28px;
+        line-height: 1.2;
+        letter-spacing: -0.4px;
+        color: var(--bb-text);
+        margin: 0;
+    }
+    .empty_state__text {
+        font-size: 14px;
+        line-height: 18px;
+        color: var(--bb-text-muted);
+        max-width: 360px;
+        margin: 0 0 12px 0;
+    }
+    .cds--btn.empty_state__button {
+        background: var(--bb-primary);
+        color: var(--bb-primary-text);
+        justify-content: center;
+        min-width: 220px;
+        &:hover {
+            background: #0353e9;
+            color: var(--bb-primary-text);
+        }
+    }
+}

@@ -6,9 +6,12 @@ use tauri::AppHandle;
 use crate::{
     core::{
         delete_directory, delete_file, instance_native_ask_dialog_window, launch_executable,
-        open_archive, write_file, DownloadStatusKind, DownloadableBlenderVersion, OrderKind,
-        BLENDERBASE_DOWNLOAD_DATA, BLENDER_LAUNCHER_EXE, BLENDER_VERSION_VARIANT_REGEX,
-        FORWARD_SLASH_DELIMETER, PR, PROJECTS_BLENDER_ORG_BLENDER_BLENDER_COMMIT,
+        find_sha256_in_listing, http_get_as_string, is_sha256_hex, open_archive,
+        probe_blender_build_info, resolve_blender_console_executable, sha256_of_file, write_file,
+        DownloadStatusKind, DownloadableBlenderVersion, OrderKind,
+        BLENDERBASE_DOWNLOAD_DATA, BLENDER_LAUNCHER_EXE, BLENDER_ORG_RELEASE_CHECKSUM_BASE,
+        BLENDER_VERSION_VARIANT_REGEX,
+        FORWARD_SLASH_DELIMETER, LTS, LTS_VERSION_ARR, PR, STABLE, PROJECTS_BLENDER_ORG_BLENDER_BLENDER_COMMIT,
         PROJECTS_BLENDER_ORG_BLENDER_BLENDER_PULLS,
     },
     database::{BlenderInstallationLocation, BlenderVersion},
@@ -108,6 +111,14 @@ pub trait TBlenderInstallService {
         state: tauri::State<'_, AppState>,
         id: String,
     ) -> Result<(), String>;
+    /// Fills in build date, commit hash, branch and release cycle for versions that were
+    /// installed without download data, by asking each build with `--version`.
+    async fn refresh_blender_version_details(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        ids: Vec<String>,
+    ) -> Result<Vec<BlenderVersion>, String>;
     async fn launch_blender_version(
         &self,
         app: AppHandle,
@@ -441,6 +452,22 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             return Err(format!("Failed install_blender_version"));
         }
         let mut blender_version = blender_versions.remove(0);
+        // Integrity check before anything is extracted. A build whose
+        // checksum cannot be established is refused, not installed unverified.
+        let expected =
+            Self::expected_archive_sha256(state.clone(), &blender_version, &archive_file_path)
+                .await?;
+        let actual = match sha256_of_file(archive_file_path.clone()).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed install_blender_version: {}", e)),
+        };
+        if actual != expected {
+            let _ = delete_file(archive_file_path.clone()).await;
+            return Err(format!(
+                "Failed install_blender_version: the downloaded file failed its integrity check (expected SHA-256 {}, got {}). The download was discarded; please try again.",
+                expected, actual
+            ));
+        }
         let installation_directory_path =
             match open_archive(archive_file_path.clone()).await {
                 Ok(v) => v,
@@ -565,7 +592,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             app: Some(downloadable_blender_version.app),
             version: Some(version.clone()),
             series: Some(version.split('.').take(2).collect::<Vec<_>>().join(".")),
-            risk_id: Some(variant),
+            risk_id: Some(variant.clone()),
             branch: Some(downloadable_blender_version.branch),
             patch_url: Some(match &downloadable_blender_version.patch {
                 Some(v) => format!(
@@ -591,7 +618,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             file_name: Some(downloadable_blender_version.file_name),
             file_size: downloadable_blender_version.file_size,
             file_extension: Some(downloadable_blender_version.file_extension),
-            release_cycle: Some(downloadable_blender_version.release_cycle),
+            release_cycle: Some(infer_release_cycle(&variant, &version, &downloadable_blender_version.release_cycle)),
             checksum: Some(downloadable_blender_version.checksum),
             installation_directory_path: parent_dir.to_string_lossy().to_string(),
             executable_file_path: Some(executable_file_path.to_string_lossy().to_string()),
@@ -930,6 +957,27 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         }
     }
 
+    async fn refresh_blender_version_details(
+        &self,
+        _app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        ids: Vec<String>,
+    ) -> Result<Vec<BlenderVersion>, String> {
+        let repository = state.blender_version_repository();
+        let mut result: Vec<BlenderVersion> = Vec::new();
+        for id in ids {
+            let mut entries = match repository.fetch(Some(id), None, None, None, None).await {
+                Ok(v) => v,
+                Err(e) => return Err(format!("Failed refresh_blender_version_details: {:?}", e)),
+            };
+            if entries.is_empty() {
+                continue;
+            }
+            result.push(Self::probe_and_store_details(&state, entries.remove(0)).await);
+        }
+        Ok(result)
+    }
+
     async fn launch_blender_version(
         &self,
         _app: AppHandle,
@@ -987,6 +1035,113 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
 }
 
 impl BlenderInstallServiceImpl {
+    /// Resolves the SHA-256 a downloaded archive must match.
+    ///
+    /// Daily and patch builds carry their checksum in the builder.blender.org
+    /// feed, which is stored on the version row. Stable and LTS releases are
+    /// listed from a mirror that publishes no checksums, so the official
+    /// `.sha256` file for that release is fetched from download.blender.org
+    /// and the archive's file name looked up in it.
+    async fn expected_archive_sha256(
+        state: tauri::State<'_, AppState>,
+        blender_version: &BlenderVersion,
+        archive_file_path: &std::path::Path,
+    ) -> Result<String, String> {
+        if let Some(stored) = blender_version.checksum.as_deref().map(str::trim) {
+            if !stored.is_empty() {
+                if is_sha256_hex(stored) {
+                    return Ok(stored.to_ascii_lowercase());
+                }
+                return Err(format!(
+                    "Failed install_blender_version: stored checksum '{}' is not a SHA-256 digest",
+                    stored
+                ));
+            }
+        }
+        let file_name = match blender_version
+            .file_name
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+        {
+            Some(v) => v.trim().to_string(),
+            None => archive_file_path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default(),
+        };
+        let version = blender_version.version.clone().unwrap_or_default();
+        let series = blender_version.series.clone().unwrap_or_default();
+        if version.is_empty() || series.is_empty() || file_name.is_empty() {
+            return Err(String::from(
+                "Failed install_blender_version: no checksum is available for this build, so it cannot be verified",
+            ));
+        }
+        let url = format!(
+            "{}Blender{}/blender-{}.sha256",
+            BLENDER_ORG_RELEASE_CHECKSUM_BASE, series, version
+        );
+        let listing = match http_get_as_string(state, url.clone()).await {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(format!(
+                    "Failed install_blender_version: could not fetch the published checksums from {}: {}",
+                    url, e
+                ))
+            }
+        };
+        match find_sha256_in_listing(&listing, &file_name) {
+            Some(v) => Ok(v),
+            None => Err(format!(
+                "Failed install_blender_version: {} is not listed in the published checksums at {}",
+                file_name, url
+            )),
+        }
+    }
+
+    async fn probe_and_store_details(
+        state: &tauri::State<'_, AppState>,
+        mut blender_version: BlenderVersion,
+    ) -> BlenderVersion {
+        let executable = match &blender_version.executable_file_path {
+            Some(v) if !v.is_empty() => resolve_blender_console_executable(std::path::Path::new(v)),
+            _ => return blender_version,
+        };
+        let info = match probe_blender_build_info(&executable, 30).await {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!(
+                    "refresh_blender_version_details: {}: {}",
+                    blender_version.version.clone().unwrap_or_default(),
+                    e
+                );
+                return blender_version;
+            }
+        };
+        if !info.hash.is_empty() {
+            blender_version.hash_url = Some(format!(
+                "{}{}{}",
+                PROJECTS_BLENDER_ORG_BLENDER_BLENDER_COMMIT, FORWARD_SLASH_DELIMETER, info.hash
+            ));
+            blender_version.hash = Some(info.hash);
+        }
+        let date = if info.commit_date.is_empty() { &info.build_date } else { &info.commit_date };
+        if let Ok(d) = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d") {
+            if let Some(dt) = d.and_hms_opt(0, 0, 0) {
+                blender_version.file_mtime = dt.and_utc().timestamp();
+            }
+        }
+        if !info.branch.is_empty() {
+            blender_version.branch = Some(info.branch);
+        }
+        if !info.cycle.is_empty() {
+            blender_version.release_cycle = Some(info.cycle);
+        }
+        if let Err(e) = state.blender_version_repository().update(&blender_version).await {
+            eprintln!("refresh_blender_version_details: could not store details: {:?}", e);
+        }
+        blender_version
+    }
+
     async fn is_default(_app: AppHandle, state: tauri::State<'_, AppState>) -> Result<bool, String> {
         let blender_version_repository = state.blender_version_repository();
         let download_status_type_repository = state.download_status_type_repository();
@@ -1095,4 +1250,24 @@ impl BlenderInstallServiceImpl {
         let patch = parts.next().unwrap_or("0").parse().unwrap_or(0);
         (major, minor, patch)
     }
+}
+
+/// Release cycle of an installed build when no download data recorded one. Release archives
+/// carry only the platform in their name (`blender-5.2.1-windows-x64`), so a platform word in
+/// the variant slot means a release build: LTS for LTS series, stable otherwise. Daily and
+/// candidate builds name their cycle in the folder (`alpha`, `beta`, `candidate`).
+fn infer_release_cycle(variant: &str, version: &str, recorded: &str) -> String {
+    if !recorded.trim().is_empty() {
+        return recorded.to_string();
+    }
+    let v = variant.trim().to_lowercase();
+    let platform_words = ["windows", "win", "darwin", "macos", "mac", "linux", "x64", "x86", "arm64"];
+    if v.is_empty() || platform_words.contains(&v.as_str()) {
+        let series = version.split('.').take(2).collect::<Vec<_>>().join(".");
+        if LTS_VERSION_ARR.contains(&series.as_str()) {
+            return LTS.to_string();
+        }
+        return STABLE.to_string();
+    }
+    v
 }

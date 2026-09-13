@@ -44,6 +44,10 @@ pub const A_SELECTOR: &str = "a.b-version, a.b-variant, a.b-reference";
 pub const DIV_SELECTOR: &str = "div.b-date, div.b-arch";
 // pub const ISO_FORMAT: &str = "%d-%b-%Y %H:%M";
 pub const DOWNLOAD_BLENDER_ORG_RELEASE: &str = "https://ftp.nluug.nl/pub/graphics/blender/release/"; //"https://download.blender.org/release/";
+/// Official Blender Foundation release host. Checksums are always fetched from
+/// here, even when the archive itself came from a mirror, so a tampered mirror
+/// cannot also supply a matching checksum.
+pub const BLENDER_ORG_RELEASE_CHECKSUM_BASE: &str = "https://download.blender.org/release/";
 pub const BUILDER_BLENDER_ORG_DOWNLOAD_DAILY_FORMAT_JSON_V2: &str =
     "https://builder.blender.org/download/daily/?format=json&v=2";
 pub const BUILDER_BLENDER_ORG_DOWNLOAD_PATCH_FORMAT_JSON_V2: &str =

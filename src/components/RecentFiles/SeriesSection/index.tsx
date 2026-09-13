@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { IBlenderSeries, IBlenderVersion, IBlendFile } from '../../../models'
 import { ContainedList, ContainedListItem, OverflowMenu, OverflowMenuItem } from '@carbon/react';
 import { BlendFileService } from '../../../services/blendFileService';
-import { ChevronDown, ChevronUp } from '@carbon/react/icons';
+import { ChevronDown } from '@carbon/react/icons';
 import { useBlenderManagerStore } from '../../../store/blenderManagerStore';
 import EmptyRecentFilesBurgerMenu from '../EmptyRecentFilesBurgerMenu';
 import { parseVersion } from '../../../utility';
@@ -17,7 +17,8 @@ const blendFileService = new BlendFileService();
 const SeriesSection = (props: Props) => {
     const [localBlenderSeries, setLocalBlenderSeries] = useState<IBlenderSeries>(props.blenderSeries);
     const { installedBuilds } = useBlenderManagerStore()
-    const { blendFiles, setBlendFiles } = useBlendFileStore()
+    const { blendFilesBySeries, setBlendFiles } = useBlendFileStore()
+    const blendFiles = blendFilesBySeries[props.blenderSeries.id] ?? []
     useEffect(() => {
         async function init() {
             setBlendFiles(props.blenderSeries.id);
@@ -82,19 +83,13 @@ const SeriesSection = (props: Props) => {
                             <span className='blender_series_number'>
                                 {localBlenderSeries.series}
                             </span>
-                            {localBlenderSeries.is_collapsed === true ?
-                                <span
-                                    className='expand_blend_file_list_icon'
-                                >
-                                    <ChevronDown />
-                                </span>
-                                :
-                                <span
-                                    className='expand_blend_file_list_icon'
-                                >
-                                    <ChevronUp />
-                                </span>
-                            }
+                            {/* One chevron, rotated: right when collapsed, down when expanded. */}
+                            <span
+                                className={`expand_blend_file_list_icon ${localBlenderSeries.is_collapsed ? 'expand_blend_file_list_icon--collapsed' : ''}`}
+                                title={localBlenderSeries.is_collapsed ? "Show files" : "Hide files"}
+                            >
+                                <ChevronDown />
+                            </span>
                         </div>
                     </div>
                 }
@@ -147,6 +142,10 @@ Date accessed: ${blendFile.accessed_datetime}
                     </>
                 )}
             </ContainedList>
+            {/* Keeps the next series header on the 56px row grid when a group has an odd number of files. */}
+            {!localBlenderSeries.is_collapsed && blendFiles.length % 2 === 1 && (
+                <div className="recent_files__spacer" />
+            )}
         </div>
     )
 }

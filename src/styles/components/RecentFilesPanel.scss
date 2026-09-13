@@ -3,40 +3,64 @@
     -moz-user-select: none;    /* Firefox */
     -ms-user-select: none;     /* Internet Explorer/Edge */
     user-select: none;         /* Non-prefixed version, currently supported by Chrome, Opera, and Edge */
-    
-    position: relative;
-    left: 0px;
+
     width: 300px;
-    display: inline-block;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     @media screen and (max-width: 672px) {
         width: 50%;
     }
-    @media screen and (max-width: 500px) {
-        width: 100%;
+    &.hidden {
+        display: none;
     }
     .recent_files {
-        position: sticky;
-        overflow-y: scroll;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
         background: $background;
-        height: calc(100vh - 40px);
-        border-left: 1px solid #222222;
-        padding-bottom: 200px;
+        border-left: 1px solid var(--bb-border);
+
+        // Rhythm: series headers are one 56px row, file rows half a row (28px), no gaps, so
+        // every rule lines up with the rows of the other columns. The first header is 56px
+        // tall but must end on the 48px list-header line, hence the 8px shorter top padding.
+        .recent_files__sections {
+            padding-top: calc(24px + 48px + 24px - 8px);
+            overflow-y: auto;
+            padding-bottom: 24px;
+            &::-webkit-scrollbar {
+                display: none;
+            }
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
         .blender_series_heading {
-            padding-left: 1em;
-            padding-right: 1em;
-            padding-top: 5px;
-            padding-bottom: 5px;
-            margin-left: 1px;
-            margin-right: 2px;
+            height: $home-row-height;
+            display: flex;
+            align-items: center;
+            padding-left: $home-column-inset;
+            padding-right: 16px;
+        }
+        .expand_blend_file_list_icon {
+            display: flex;
+            transition: transform motion.$duration-moderate-01 cubic-bezier(0.2, 0, 0.38, 0.9);
+            transform: rotate(0deg);
+            &.expand_blend_file_list_icon--collapsed {
+                transform: rotate(-90deg);
+            }
         }
         .blender_series_heading:active {
-            outline: 1px solid white
+            outline: 1px solid var(--bb-text)
         }
         .recent_files__blender_series_number {
             display: flex;
             align-items: center;
             justify-content: space-between;
-
+            width: 100%;
         }
         .blender_series_number {
             display: flex;
@@ -50,7 +74,7 @@
             opacity: 0.5;
         }
         .recent_files__empty_all_blenders {
-            color: colors.$gray-60;
+            color: var(--bb-text-muted);
             display: block;
             text-align: center;
             padding: 64px 16px;
@@ -61,31 +85,62 @@
                 margin-bottom: 16px;
             }
         }
-        h4 {
-            padding: 16px 16px 48px 16px;
-            @include type.type-style("heading-compact-02");
-            font-size: 16px;
-            line-height: 100%;
-            color: colors.$gray-60;
-            font-weight: 400;
-        }
         .cds--contained-list--on-page + .cds--contained-list--on-page {
-            margin-block-start: 24px;
+            margin-block-start: 0;
         }
         .cds--contained-list__label {
             font-weight: bold;
-            color: #6a6a6a;
+            color: var(--bb-text-muted);
+            width: 100%;
         }
         .cds--contained-list__header {
+            // Carbon pins list headers while scrolling; here they scroll with their files.
+            position: static;
             background: $background;
-            border-bottom: 1px solid #222222;
+            border-bottom: 1px solid var(--bb-border-strong);
+            min-height: $home-row-height;
+            padding: 0;
+        }
+        // File rows are half a version row (28px), so two files span one row of the other columns.
+        .cds--contained-list-item {
+            min-block-size: 28px;
+            height: 28px;
+            // Carbon overlaps consecutive items by 1px to merge their rulers; that would drift the
+            // 28px rhythm by a pixel per file.
+            margin-block-start: 0 !important;
+        }
+        .cds--contained-list-item__content {
+            min-block-size: 28px;
+            height: 28px;
+            padding: 0 10px 0 $home-column-inset;
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+        }
+        .cds--contained-list-item__action {
+            height: 28px;
+        }
+        // File rows are zebra striped like Blender's Outliner instead of ruled.
+        .cds--contained-list-item::before {
+            display: none;
+        }
+        .cds--contained-list-item:nth-child(even) {
+            background: var(--bb-stripe);
+        }
+        .cds--contained-list-item:hover {
+            background: var(--bb-row-hover);
+        }
+        .recent_files__spacer {
+            height: 28px;
+            background: var(--bb-stripe);
         }
         .cds--overflow-menu__wrapper {
             opacity: 0;
             padding-right: 10px;
-            height: 32px;
+            height: 28px;
             button {
-                min-height: 32px !important;
+                min-height: 28px !important;
+                height: 28px;
             }
         }
         li {
@@ -102,56 +157,33 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
                 overflow: hidden;
-                color: #c6c6c6;
+                color: var(--bb-text-secondary);
             }
         }
-        // .blend_file_blender_version_menu:focus {
-
-        // }
-        .cds--contained-list--inset-rulers
-            .cds--contained-list-item:not(:last-of-type)::before {
-            right: 0px;
-        }
-        .cds--contained-list-item:not(:last-of-type)::before {
-            background: #222222;
-        }
-    }
-}
-
-.sidebar_toggle__open {
-    position: absolute;
-    right: 0px;
-    .cds--popover {
-        opacity: 0;
-    }
-
-    .cds--popover {
-        display: none;
     }
 }
 
 .sidebar_toggle__close {
-    display: inline-block;
-    top: 0px;
-    color: colors.$gray-60;
     position: absolute;
-    right: 0px;
-    z-index: 1000;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    color: var(--bb-text-muted);
+    flex-shrink: 0;
     button {
         svg {
-            fill: colors.$gray-80 !important;
+            fill: var(--bb-text-faint) !important;
         }
         &:hover {
             svg {
-                fill: colors.$gray-10 !important;
+                fill: var(--bb-text) !important;
             }
         }
     }
     .cds--popover {
-        opacity: 0;
+        display: none;
     }
 }
-
 
 .cds--popover--open {
     margin-right: 0px;

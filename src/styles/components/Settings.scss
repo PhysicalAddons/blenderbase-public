@@ -68,7 +68,7 @@
                 }
                 .delete_blender_installation_location_button {
                     border: none;
-                    color: white;
+                    color: var(--bb-text);
                     background: none;
                     // z-index: 0;
                 }
@@ -92,9 +92,9 @@
         .settings_subsection {
             margin-top: 32px;
             padding: 1em;
-            background-color: #262626;
+            background-color: var(--bb-settings-section);
             border-radius: 8px;
-            color: white;
+            color: var(--bb-text);
 
             .settings_subsection_heading {
                 margin: 0 0 1em 0;
@@ -107,7 +107,7 @@
 
             .setting_description_hyperlink {
                 text-decoration: none;
-                color: white;
+                color: var(--bb-text);
             }
 
             .setting_description_hyperlink:hover {
@@ -165,10 +165,10 @@
                 padding: 0.15rem 0.35rem;
 
                 border-radius: 4px;
-                border: 1px solid #555;
+                border: 1px solid var(--bb-settings-input-border);
 
-                background-color: #333;
-                color: white;
+                background-color: var(--bb-settings-input);
+                color: var(--bb-text);
             }
 
             .setting_decimal_input {
@@ -177,10 +177,10 @@
                 padding: 0.15rem 0.35rem;
 
                 border-radius: 4px;
-                border: 1px solid #555;
+                border: 1px solid var(--bb-settings-input-border);
 
-                background-color: #333;
-                color: white;
+                background-color: var(--bb-settings-input);
+                color: var(--bb-text);
 
                 -moz-appearance: textfield;
                 appearance: textfield;
@@ -197,8 +197,8 @@
                 height: 32px;
                 padding: 0 12px;
                 margin-right: 8px;
-                color: white;
-                background-color: #4F4F59;
+                color: var(--bb-text);
+                background-color: var(--bb-settings-button);
                 border: 0;
                 border-radius: 0.25rem;
                 min-width: 56px;
@@ -206,11 +206,11 @@
             }
 
             .setting_button:hover {
-                background-color: #6F6F79;
+                background-color: var(--bb-settings-button-hover);
             }
 
             .setting_button:active {
-                background-color: #81838F;
+                background-color: var(--bb-settings-button-active);
             }
 
             .setting_button_inline_loading {
@@ -220,7 +220,7 @@
             .setting_description {
                 margin-top: 1em;
                 font-size: 1em;
-                color: rgba($color: #cccccc, $alpha: 0.7);
+                color: var(--bb-settings-description);
             }
 
             .setting_validation_error {
@@ -260,14 +260,14 @@
                 .sub_setting_description {
                     margin-top: 0.5em;
                     font-size: 0.9em;
-                    color: rgba($color: #cccccc, $alpha: 0.7);
+                    color: var(--bb-settings-description);
                 }
             }
 
             .divider {
                 border: 0;
                 height: 1px;
-                background: #444;
+                background: var(--bb-settings-divider);
                 margin-top: 1.5em;
                 margin-bottom: 1.5em;
             }
@@ -299,5 +299,13 @@
             opacity: 0.8;
             margin-top: 8px;
         }
+    }
+}
+.appearance_section {
+    .cds--radio-button-group {
+        margin-top: 0.5em;
+    }
+    .cds--radio-button-group--horizontal .cds--radio-button-wrapper:not(:last-of-type) {
+        margin-inline-end: 2em;
     }
 }

@@ -54,7 +54,7 @@ impl<'a> BlenderSeriesRepository<'a> {
             Ok(item)
         } else if is_mapped.is_some_and(|x| x == true) {
             let item = sqlx::query_as::<_, BlenderSeries>(
-                "SELECT blender_series.* FROM blender_series JOIN blend_file_blender_series ON blender_series.id = blend_file_blender_series.blender_series_id WHERE blend_file_blender_series.blender_series_id IS NOT NULL",
+                "SELECT DISTINCT blender_series.* FROM blender_series JOIN blend_file_blender_series ON blender_series.id = blend_file_blender_series.blender_series_id WHERE blend_file_blender_series.blender_series_id IS NOT NULL",
             )
             .bind(series)
             .fetch_all(self.pool)

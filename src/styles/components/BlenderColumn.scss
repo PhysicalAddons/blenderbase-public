@@ -1,0 +1,123 @@
+.blender_column {
+    width: 320px;
+    flex-shrink: 0;
+    background: $background;
+    border-right: 1px solid var(--bb-border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+
+    @media screen and (max-width: 1056px) {
+        width: 280px;
+    }
+
+    .column_actions .install_button {
+        width: 100%;
+        max-width: none;
+        padding-left: $home-column-inset;
+    }
+    .cds--btn.install_button--active {
+        background: var(--bb-field-active);
+    }
+
+    // Header and rows run edge to edge; the 24px inset is applied as padding instead.
+    .blender_column__list_header {
+        grid-template-columns: minmax(0, 1fr) 48px 48px;
+        margin-left: 0;
+        margin-right: 0;
+        padding: 0 $home-column-inset;
+    }
+
+    .blender_column__list {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow-y: auto;
+        padding-bottom: 24px;
+        &::-webkit-scrollbar {
+            display: none;
+        }
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .blender_column__empty {
+        padding: 24px $home-column-inset;
+        color: var(--bb-text-muted);
+        font-size: 14px;
+    }
+
+    .blender_row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 48px 48px;
+        align-items: center;
+        height: $home-row-height;
+        margin: 0;
+        padding-left: calc(#{$home-column-inset} - 3px);
+        padding-right: $home-column-inset;
+        border-bottom: 1px solid var(--bb-border);
+        border-left: 3px solid transparent;
+        cursor: pointer;
+        // Rows keep their height; a short window scrolls the list instead.
+        flex-shrink: 0;
+        &:hover {
+            background: var(--bb-row-hover);
+        }
+        &.blender_row--selected {
+            background: var(--bb-selected, var(--bb-field));
+            border-left-color: $primary-color;
+        }
+
+        .blender_row__main {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .blender_row__title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .blender_row__version {
+            font-size: 20px;
+            line-height: 20px;
+            letter-spacing: -0.4px;
+            color: var(--bb-text);
+        }
+        .blender_row__meta {
+            font-size: 12px;
+            line-height: 14px;
+            color: var(--bb-text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cds--btn.blender_row__star {
+            color: var(--bb-text-faint);
+            &:hover {
+                color: var(--bb-text);
+            }
+            svg {
+                fill: currentColor;
+            }
+        }
+        .cds--btn.blender_row__star--default {
+            color: var(--bb-text);
+        }
+        .cds--btn.blender_row__delete {
+            color: var(--bb-text-faint);
+            &:hover {
+                color: var(--bb-danger);
+            }
+            svg {
+                fill: currentColor;
+            }
+        }
+        .cds--popover {
+            display: none;
+        }
+    }
+}

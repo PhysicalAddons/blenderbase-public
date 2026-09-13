@@ -92,3 +92,90 @@ pub fn extract_json_payload(stdout: &str) -> Result<String, String> {
     }
     Err(String::from("Blender did not report a result"))
 }
+
+/// Installed versions are registered with `blender-launcher.exe`, which starts the real process
+/// and exits at once without forwarding its output. Scripts and probes use the sibling console
+/// executable whenever it exists.
+pub fn resolve_blender_console_executable(path: &std::path::Path) -> std::path::PathBuf {
+    let is_launcher = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase().starts_with("blender-launcher"))
+        .unwrap_or(false);
+    if is_launcher {
+        if let Some(parent) = path.parent() {
+            for candidate in ["blender.exe", "blender"] {
+                let console = parent.join(candidate);
+                if console.is_file() {
+                    return console;
+                }
+            }
+        }
+    }
+    path.to_path_buf()
+}
+
+/// What `blender --version` reports about a build.
+#[derive(Debug, Default, Clone)]
+pub struct BlenderBuildInfo {
+    /// First line, e.g. `Blender 5.2.1 LTS` or `Blender 4.5.4 LTS Release Candidate`.
+    pub title: String,
+    pub build_date: String,
+    pub commit_date: String,
+    pub hash: String,
+    pub branch: String,
+    /// Derived from the title: lts / stable / candidate / beta / alpha.
+    pub cycle: String,
+}
+
+/// Runs `blender --version` (fast, no Python) and parses the build details.
+pub async fn probe_blender_build_info(
+    executable_file_path: &std::path::Path,
+    timeout_secs: u64,
+) -> Result<BlenderBuildInfo, String> {
+    let mut command = tokio::process::Command::new(executable_file_path);
+    command
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(target_os = "windows")]
+    command.creation_flags(CREATE_NO_WINDOW_FLAG);
+    let output = match tokio::time::timeout(Duration::from_secs(timeout_secs), command.output()).await {
+        Ok(Ok(v)) => v,
+        Ok(Err(e)) => return Err(format!("Failed to start Blender: {:?}", e)),
+        Err(_) => return Err(format!("Blender did not answer within {} seconds", timeout_secs)),
+    };
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let mut info = BlenderBuildInfo::default();
+    for line in stdout.lines() {
+        let t = line.trim();
+        if info.title.is_empty() && t.starts_with("Blender ") {
+            info.title = t.to_string();
+        } else if let Some(v) = t.strip_prefix("build date:") {
+            info.build_date = v.trim().to_string();
+        } else if let Some(v) = t.strip_prefix("build commit date:") {
+            info.commit_date = v.trim().to_string();
+        } else if let Some(v) = t.strip_prefix("build hash:") {
+            info.hash = v.trim().to_string();
+        } else if let Some(v) = t.strip_prefix("build branch:") {
+            info.branch = v.trim().to_string();
+        }
+    }
+    if info.title.is_empty() {
+        return Err(String::from("Blender did not report its version"));
+    }
+    let lower = info.title.to_lowercase();
+    info.cycle = if lower.contains("candidate") {
+        "candidate"
+    } else if lower.contains("alpha") {
+        "alpha"
+    } else if lower.contains("beta") {
+        "beta"
+    } else if lower.contains("lts") {
+        "lts"
+    } else {
+        "stable"
+    }
+    .to_string();
+    Ok(info)
+}

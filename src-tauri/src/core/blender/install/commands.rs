@@ -219,3 +219,19 @@ pub async fn cmd_delete_blender_version(
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }
+
+#[named]
+#[tauri::command]
+pub async fn cmd_refresh_blender_version_details(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    ids: Vec<String>,
+) -> Result<Vec<BlenderVersion>, String> {
+    match BlenderInstallServiceImpl
+        .refresh_blender_version_details(app, state, ids)
+        .await
+    {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}

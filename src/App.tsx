@@ -8,6 +8,7 @@ import { useNetworkInformationStore } from "./store/networkInformationStore";
 import { WebUtilityService } from "./services/webUtilityService";
 import { SettingsService } from "./services/settingsService";
 import { DatabaseService } from "./services/databaseService";
+import { useThemeStore } from "./store/themeStore";
 
 const webUtilityService = new WebUtilityService();
 const settingsService = new SettingsService();
@@ -16,10 +17,12 @@ const databaseService = new DatabaseService();
 const AppContent = () => {
     const { setAppVersion } = useDisplayInformationStore()
     const { setHasInternetConnection } = useNetworkInformationStore()
+    const initTheme = useThemeStore((t) => t.init)
     // const location = useLocation();
     // Show title bar if we're not in a popup route.
     // const isStandalone = location.pathname.startsWith('/standalone');
     useEffect(() => {
+        initTheme();
         async function init() {
             try {
                 await fetchVersion();

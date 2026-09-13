@@ -1,6 +1,7 @@
 import BlenderInstallationLocationTable from './BlenderInstallationLocationTable'
 import Sections from './Sections'
 import Footer from './Footer'
+import AppearanceSection from './AppearanceSection'
 
 const SettingsManager = () => {
   return (
@@ -13,6 +14,7 @@ const SettingsManager = () => {
       </div> */}
       <div className='content_container'>
         <h2>Settings</h2>
+        <AppearanceSection />
         <BlenderInstallationLocationTable />
         <Sections />
         <Footer />

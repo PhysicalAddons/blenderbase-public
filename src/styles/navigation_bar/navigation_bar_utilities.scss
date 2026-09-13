@@ -1,9 +1,13 @@
 .navigation_bar_utilities {
     display: flex;
-    margin-right: 0.5em;
+    // The tab group spans the width of the right column (300px) minus the window controls, so
+    // the Home tab lines up with the Recent Files column and the Launch button below it.
+    width: calc(300px - #{$app_window-control-width} * 3);
+    justify-content: flex-start;
+    margin-right: 0;
 
     @media screen and (max-width: 672px) {
-        margin-right: 0;
+        width: auto;
     }
 
     .navigation_bar_utilities_option {
@@ -26,19 +30,32 @@
 
     .get_help_navbar {
         text-decoration: none;
-        color: #d8d8d8;
+        color: var(--bb-icon);
     }
     .get_help_navbar:hover {
         text-decoration: none;
-        color: #5892c9;
+        color: var(--bb-icon-hover);
+    }
+    .navigation_bar_tab {
+        text-decoration: none;
+        color: var(--bb-icon);
+    }
+    .navigation_bar_tab:hover {
+        text-decoration: none;
+        color: var(--bb-icon-hover);
+    }
+    .navigation_bar_tab.active {
+        color: var(--bb-text);
+        background: $layer-01;
+        border-bottom: 1px solid $border-subtle-01;
     }
     .internet_connection_positive_navbar {
         text-decoration: none;
-        color: #d8d8d8;
+        color: var(--bb-icon);
     }
     .internet_connection_positive_navbar:hover {
         text-decoration: none;
-        color: #5892c9;
+        color: var(--bb-icon-hover);
     }
     .internet_connection_negative_navbar {
         text-decoration: none;

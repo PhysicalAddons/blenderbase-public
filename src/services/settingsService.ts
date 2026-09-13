@@ -27,6 +27,11 @@ export class SettingsService {
             return [];
         }
     };
+    /** Confirms the install location (creating it when needed) and makes it the default. */
+    public async confirmBlenderInstallationLocation(id: string, directoryPath: string): Promise<IBlenderInstallationLocation> {
+        return await invoke("cmd_confirm_blender_installation_location", { id, directoryPath });
+    }
+
     public async insertBlenderInstallationLocation(): Promise<void> {
         try {
             await invoke("cmd_insert_blender_installation_location");

@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import Links from "./Links";
 import UtilityOptions from "./UtilityOptions";
 import MainWindowControls from "./WindowControls/Main";
 import { OS_OBJECT } from "../../constants";
-import StatusInformation from "./InternetConnection";
 
 const Titlebar = () => {
     const [OS, setOS] = useState<string>("");
@@ -24,11 +22,9 @@ const Titlebar = () => {
             >
                 {/* This is to be left empty. */}
             </div>
-            <Links />
             <div className="navigation_bar_delimiter">
                 {/* This is to be left empty. */}
             </div>
-            <StatusInformation />
             <UtilityOptions />
             <MainWindowControls />
         </nav>

@@ -155,4 +155,37 @@ impl<'a> BlenderInstallationLocationRepository<'a> {
             .await?;
         Ok(())
     }
+
+    /// Marks a location as confirmed and default, moving it to `directory_path` when the user
+    /// picked a different folder in the prompt. Other locations lose their default flag.
+    pub async fn confirm(
+        &self,
+        id: &str,
+        directory_path: &str,
+        permissions: &crate::core::PermissionDetails,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE blender_installation_location SET is_default = 0 WHERE id != ?")
+            .bind(id)
+            .execute(self.pool)
+            .await?;
+        sqlx::query(
+            "UPDATE blender_installation_location SET
+                directory_path = ?, is_confirmed = 1, is_default = 1,
+                full_control = ?, modify = ?, read_and_execute = ?, list_folder_contents = ?,
+                read = ?, write = ?, special_permissions = ?, modified = CURRENT_TIMESTAMP
+            WHERE id = ?",
+        )
+        .bind(directory_path)
+        .bind(permissions.full_control)
+        .bind(permissions.modify)
+        .bind(permissions.read_and_execute)
+        .bind(permissions.list_folder_contents)
+        .bind(permissions.read)
+        .bind(permissions.write)
+        .bind(permissions.special_permissions)
+        .bind(id)
+        .execute(self.pool)
+        .await?;
+        Ok(())
+    }
 }

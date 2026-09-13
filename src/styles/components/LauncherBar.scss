@@ -1,137 +1,118 @@
+// Footer: one 56px row on the column grid. Logo block = Blender column, status line in the
+// middle, Launch block = Recent Files column.
 .launcher_bar {
     z-index: 1;
     display: flex;
     flex-direction: row;
-    justify-content: space-between;
+    align-items: stretch;
     width: 100%;
     position: fixed;
     bottom: 0px;
+    height: $home-launcher-height;
     background: $background;
+    border-top: 1px solid var(--bb-border);
 
     .launcher_bar__logo {
+        width: 320px;
+        flex-shrink: 0;
         display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: center;
-        width: 128px;
-        height: 64px;
+        align-items: center;
+        gap: 12px;
+        padding: 0 $home-column-inset;
+        border-right: 1px solid var(--bb-border);
         opacity: 0.4;
-        margin-left: 12px;
-    
         &:hover {
             opacity: 0.5;
         }
-    
+        @media screen and (max-width: 1056px) {
+            width: 280px;
+        }
         @media screen and (max-width: 672px) {
             display: none;
         }
-    
-        @media screen and (min-width: 1057px) {
-            margin-left: 90px; 
-        }
-    
+
         .launcher_bar__logo_text {
+            display: flex;
             text-decoration: none;
-            color: white;
-            font-size: 1.3em;
+            color: var(--bb-text);
         }
-    
         .library_logo {
-            fill: white;
+            fill: var(--bb-text);
             stroke-width: 0px;
-            width: 128px;
-            height: 20px;
+            width: 112px;
+            height: 18px;
         }
-    
         .app_version {
-            color: white;
-            font-size: 0.8em;
-            margin-top: 5px; /* Adjust as needed */
+            color: var(--bb-text);
+            font-size: 12px;
+            line-height: 1;
         }
     }
-    
-    .launcher_bar__actions {
+
+    .launcher_bar__status {
+        flex-grow: 1;
+        min-width: 0;
         display: flex;
-        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        padding: 0 $home-column-inset 0 calc(#{$home-column-inset} + 16px);
+        color: var(--bb-text-muted);
+        font-size: 13px;
+
+        .launcher_bar__status_icon {
+            display: flex;
+            flex-shrink: 0;
+            color: var(--bb-success);
+            svg {
+                fill: currentColor;
+            }
+            &--busy {
+                color: var(--bb-info);
+            }
+            &--error {
+                color: var(--bb-danger);
+            }
+        }
+        .cds--inline-loading {
+            width: auto;
+            min-height: 0;
+            .cds--inline-loading__animation {
+                margin: 0;
+            }
+        }
+        .launcher_bar__status_text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    }
+
+    .launcher_bar__button {
+        width: 300px;
+        flex-shrink: 0;
         @media screen and (max-width: 672px) {
+            width: 50%;
+        }
+        .cds--btn {
             width: 100%;
-        }
-        .launcher_bar__dropdown {
-            width: 300px;
-            border-left: 1px solid #262626;
-            box-sizing: content-box;
-            @media screen and (max-width: 672px) {
-                width: 50%;
+            max-width: none;
+            height: $home-launcher-height;
+            min-height: $home-launcher-height;
+            padding: 0 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            // Carbon pins render icons to the right edge; here the mark sits next to the label.
+            .cds--btn__icon {
+                position: static;
+                margin: 0;
+                width: 18px;
+                height: 18px;
             }
-            .launcher_bar__no_versions {
-                opacity: 0.4;
-                font-size: 14px;
-                padding: 16px;
-            }
-            .launcher_bar__main_button {
-                z-index: 1;
-                background: $background;
-            }
-            button {
-                width: 100%;
-                color: #F4F4F4;
-                padding: 10px 16px;
-                .launcher_bar__version {
-                    font-size: 20px;
-                    letter-spacing: -0.4px;
-                }
-                .launcher_bar__meta {
-                    font-size: 14px;
-                    color: #393939;
-                    position: absolute;
-                    bottom: 10px;
-                    .launcher_bar__type {
-                        color: #6F6F6F;
-                        padding-right: 4px;
-                    }
-                }
-            }
-            .launcher_bar__select {
-                position: absolute;
-                top: 0px;
-                width: 300px;
-                background: black;
-                border-bottom: 1px solid #161616;
-                transform: translateY(-100%);
-                // transition: transform motion.$duration-moderate-01;
-                transition: transform 0.1s;
-                max-height: 495px;
-                overflow-y: scroll;
-                @media screen and (max-width: 672px) {
-                    width: calc(50% - 1px);
-                }
-                &.hidden {
-                    opacity: 0.5;
-                    transform: translateY(0%);
-                    // transition: transform motion.$duration-moderate-01;
-                    transition: transform 0.1s;
-                }
-                button {
-                    border-bottom: 1px solid #161616;
-                }
-                .launcher_bar__active {
-                    background: #161616;
-                    border: 2px solid #F4F4F4;
-                }
-            }
-        }
-        .launcher_bar__button {
-            width: 300px;
-            border-left: 1px solid #161616;
-            @media screen and (max-width: 672px) {
-                width: 50%;
-            }
-            button {
-                width: 100%;
-            }
-            &--disabled {
-                background-color: colors.$gray-80;
-                color: colors.$gray-50;
+            &:focus:not(:focus-visible) {
+                box-shadow: none;
+                border-color: transparent;
             }
         }
     }

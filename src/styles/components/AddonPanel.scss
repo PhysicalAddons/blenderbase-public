@@ -1,0 +1,131 @@
+.addon_panel {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+
+    // One continuous row: buttons, search and type filter share a fill and are only
+    // separated by hairlines, like the blocks of the launcher bar.
+    .addon_panel__toolbar {
+        gap: 0;
+        > * + * {
+            border-left: 1px solid var(--bb-divider);
+        }
+        .cds--btn.install_button {
+            flex-shrink: 0;
+        }
+        .cds--search {
+            flex-grow: 1;
+            min-width: 0;
+        }
+        .cds--list-box__wrapper {
+            flex-shrink: 0;
+        }
+        @media screen and (max-width: 1056px) {
+            flex-wrap: wrap;
+        }
+    }
+
+    // Header and rows run edge to edge; the column inset becomes padding.
+    .addon_panel__list_header {
+        grid-template-columns: minmax(0, 1fr) 88px 96px 72px 48px;
+        margin-left: 0;
+        margin-right: 0;
+        padding: 0 $home-column-inset 0 calc(#{$home-column-inset} + 16px);
+    }
+
+    .addon_panel__list {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        padding: 0 0 24px 0;
+        &::-webkit-scrollbar {
+            display: none;
+        }
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .addon_panel__empty {
+        padding: 24px calc(#{$home-column-inset} + 16px);
+        color: var(--bb-text-muted);
+        font-size: 14px;
+    }
+
+    .addon_row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 88px 96px 72px 48px;
+        align-items: center;
+        height: $home-row-height;
+        padding-left: calc(#{$home-column-inset} + 16px);
+        padding-right: $home-column-inset;
+        border-bottom: 1px solid var(--bb-border);
+        flex-shrink: 0;
+        &:hover {
+            background: var(--bb-row-hover);
+        }
+
+        .addon_row__name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+        .addon_row__label {
+            font-size: 14px;
+            color: var(--bb-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .addon_row__link {
+            display: flex;
+            color: var(--bb-text-muted);
+            flex-shrink: 0;
+            svg {
+                fill: currentColor;
+            }
+        }
+        .addon_row__version {
+            font-size: 14px;
+            color: var(--bb-text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .addon_row__type {
+            font-size: 12px;
+            color: var(--bb-text-muted);
+        }
+        .addon_row__toggle {
+            display: flex;
+            .cds--toggle__label-text,
+            .cds--toggle__text {
+                display: none;
+            }
+            .cds--toggle__appearance {
+                column-gap: 0;
+            }
+            .cds--toggle__switch--checked {
+                background-color: var(--bb-success);
+            }
+        }
+        .addon_row__menu {
+            display: flex;
+            justify-content: center;
+        }
+        .cds--btn.addon_row__delete {
+            color: var(--bb-text-faint);
+            &:hover {
+                color: var(--bb-danger);
+            }
+            svg {
+                fill: currentColor;
+            }
+        }
+        .cds--popover {
+            display: none;
+        }
+    }
+}

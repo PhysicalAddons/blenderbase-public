@@ -1,4 +1,3 @@
-pub const POWERSHELL: &str = "powershell";
 pub const CREATE_NO_WINDOW_FLAG: u32 = 0x08000000;
 pub const WINDOW_STYLE: &str = "-WindowStyle";
 pub const HIDDEN: &str = "Hidden";

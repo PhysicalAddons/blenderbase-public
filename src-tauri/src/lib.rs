@@ -89,13 +89,8 @@ pub async fn run() {
                     std::process::exit(1);
                 }
             }
-            // Opens the developer tools when run in debug.
-            #[cfg(debug_assertions)]
-            {
-                let window = app.get_webview_window("main").unwrap();
-                window.open_devtools();
-                window.close_devtools();
-            }
+            // DevTools are not opened at startup: an attached DevTools makes the WebView draw a
+            // "W × H" size overlay while the window is resized. F12 still opens them in debug.
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -127,7 +122,16 @@ pub async fn run() {
             cmd_open_blend_file,
             cmd_write_blender_version_download_data,
             cmd_set_blender_version_as_default,
-            cmd_delete_blender_version
+            cmd_delete_blender_version,
+            cmd_fetch_addons,
+            cmd_refresh_addons,
+            cmd_toggle_addon,
+            cmd_install_addon,
+            cmd_symlink_addon,
+            cmd_delete_addon,
+            cmd_reveal_addon_in_file_explorer,
+            cmd_refresh_blender_version_details,
+            cmd_confirm_blender_installation_location
         ])
         .run(tauri::generate_context!());
     if let Err(e) = app {

@@ -1,83 +1,35 @@
-import { useEffect, useRef, useState } from 'react'
-import { Button } from '@carbon/react';
-import { Checkmark, ChevronDown, ChevronUp, Rocket } from '@carbon/react/icons';
+import { Button, InlineLoading } from '@carbon/react';
+import { Checkmark, WarningAlt } from '@carbon/react/icons';
+import BlenderLogo from '../BlenderLogo';
+import { postStatus, postStatusError, useStatusStore } from '../../store/statusStore';
 import { useDisplayInformationStore } from '../../store/displayInformationStore';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
-import { IBlenderVersion } from '../../models';
+import { useUiControlsStore } from '../../store/uiControlsStore';
 import { BlenderService } from '../../services/blenderService';
-import { generateTitle } from '../../utility';
+import { blenderVersionLabel, resolveSelectedBlenderVersion } from '../../utility';
 
 const blenderService = new BlenderService();
 
 const LauncherBar = () => {
     const { appVersion } = useDisplayInformationStore()
-    const [defaultBlenderVersion, setDefaultBlenderVersion] = useState<IBlenderVersion | null | undefined>(null);
     const { installedBuilds, setInstalledBuilds } = useBlenderManagerStore()
+    const { selectedBlenderVersionId, clearNewlyInstalledBlenderId } = useUiControlsStore()
+    const { message, isBusy, isError } = useStatusStore()
 
-    const [dropdownOpen, setDropdownOpen] = useState<boolean>(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+    const selectedVersion = resolveSelectedBlenderVersion(installedBuilds, selectedBlenderVersionId);
 
-    const toggleDropdown = async () => {
-        setInstalledBuilds();
-        setDropdownOpen(!dropdownOpen);
-    };
-
-    const closeDropdown = () => {
-        setDropdownOpen(false);
-    };
-
-    useEffect(() => {
-        setDefaultBlenderVersion(installedBuilds.find((x) => x.is_default === true))
-    }, [installedBuilds]);
-
-    // useEffect(() => {
-    //     async function init() {
-    //         setDropdownOpen(false);
-    //     }
-    //     init();
-    // }, [defaultBlenderVersion]);
-
-    useEffect(() => {
-        // Handles pressing ESC, which collapses the Blender version dropdown.
-        const handleKeyDown = (e: any) => {
-            if (e.key === 'Escape') {
-                closeDropdown();
-            }
-        };
-        // Handles clicking anywhere other than the dropdown, 
-        // which collapses the Blender version dropdown.
-        const handleClickOutside = (e: any) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-                closeDropdown();
-            }
-        };
-        document.addEventListener('keydown', handleKeyDown);
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('keydown', handleKeyDown);
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    const setBlenderVersionAsDefault = async (id: string) => {
+    const launchSelectedBlender = async () => {
         try {
-            await blenderService.setBlenderVersionAsDefault(id)
+            if (selectedVersion === undefined) {
+                throw new Error("No Blender version selected");
+            }
+            clearNewlyInstalledBlenderId(selectedVersion.id);
+            postStatus(`Launching Blender ${blenderVersionLabel(selectedVersion)}…`, true);
+            await blenderService.launchInstalledBlender(selectedVersion.id)
+            postStatus(`Launched Blender ${blenderVersionLabel(selectedVersion)}`);
         } catch (e) {
             console.error(e);
-        } finally {
-            setInstalledBuilds();
-            setDropdownOpen(false);
-        }
-    }
-
-    const launchInstalledBlender = async (id: string | undefined) => {
-        try {
-            if (id === undefined) {
-                throw new Error("No default Blender version set");
-            }
-            await blenderService.launchInstalledBlender(id)
-        } catch (e) {
-            console.error(e);
+            postStatusError(`Could not launch Blender: ${e}`);
         } finally {
             setInstalledBuilds();
         }
@@ -110,87 +62,33 @@ const LauncherBar = () => {
 
                 <span className='app_version'>v{appVersion}</span>
             </div>
-            <div className='launcher_bar__actions'>
-                <div className='launcher_bar__dropdown' ref={dropdownRef}>
-                    <div>
-                        {defaultBlenderVersion
-                            ? (
-                                <Button
-                                    title={generateTitle(defaultBlenderVersion)}
-                                    onClick={toggleDropdown}
-                                    renderIcon={dropdownOpen ? ChevronDown : ChevronUp}
-                                    kind="ghost"
-                                    size="xl"
-                                    className={`launcher_bar__main_button ${dropdownOpen ? 'launcher_bar__main_button--active' : ''}`}
-                                >
-                                    <div className='launcher_bar__version'>
-                                        {defaultBlenderVersion!.version || ""}
-                                    </div>
-                                    <div className='launcher_bar__meta'>
-                                        <span className='launcher_bar__type'>
-                                            {defaultBlenderVersion!.risk_id || ""}
-                                        </span>
-                                        {defaultBlenderVersion!.hash || ""}
-                                    </div>
-                                </Button>
-                            ) : (
-                                <div className='launcher_bar__no_versions'>
-                                    <span>No Blender versions found</span>
-                                </div>
-                            )}
-                    </div>
-
-                    <div className={`launcher_bar__select ${dropdownOpen ? '' : 'hidden'}`}>
-                        {installedBuilds.length !== 0 ? (
-                            <>
-                                {installedBuilds.slice().reverse().map((blenderVersion, index) => (
-                                    <div key={index}>
-                                        <Button
-                                            title={generateTitle(blenderVersion)}
-                                            renderIcon={defaultBlenderVersion?.id === blenderVersion.id ? Checkmark : undefined}
-                                            className={defaultBlenderVersion?.id === blenderVersion.id ? 'launcher_bar__active' : ''}
-                                            kind="ghost"
-                                            size="xl"
-                                            onClick={async () => { setBlenderVersionAsDefault(blenderVersion.id) }}
-                                        >
-                                            <div className='launcher_bar__version'>
-                                                {blenderVersion.version || ""}
-                                            </div>
-                                            <div className='launcher_bar__meta'>
-                                                <span className='launcher_bar__type'>
-                                                    {blenderVersion.risk_id || ""}
-                                                </span>
-                                                {blenderVersion.hash || ""}
-                                            </div>
-                                        </Button>
-                                    </div>
-                                ))}
-                            </>
-                        ) : (
-                            <div></div>
-                        )}
-                    </div>
-                </div>
-                <div
-                    className='launcher_bar__button'
+            <div className='launcher_bar__status' title={message}>
+                {isBusy ? (
+                    <InlineLoading />
+                ) : isError ? (
+                    <span className='launcher_bar__status_icon launcher_bar__status_icon--error'><WarningAlt /></span>
+                ) : message ? (
+                    <span className='launcher_bar__status_icon'><Checkmark /></span>
+                ) : null}
+                <span className='launcher_bar__status_text'>{message || "Ready"}</span>
+            </div>
+            <div className='launcher_bar__button'>
+                <Button
+                    title={
+                        selectedVersion
+                            ? `Launch Blender ${blenderVersionLabel(selectedVersion)}`
+                            : "No Blender versions"
+                    }
+                    renderIcon={BlenderLogo}
+                    kind="primary"
+                    size="lg"
+                    disabled={selectedVersion === undefined}
+                    onClick={launchSelectedBlender}
                 >
-                    <Button
-                        title={
-                            installedBuilds.length !== 0
-                                ? installedBuilds.find((x) => x.is_default === true) !== null
-                                    ? `Launch Blender ${installedBuilds.find((x) => x.is_default === true)?.version} ${installedBuilds.find((x) => x.is_default === true)?.risk_id}`
-                                    : "No Blender versions"
-                                : "No Blender versions"
-                        }
-                        renderIcon={Rocket}
-                        kind="primary"
-                        size="xl"
-                        disabled={defaultBlenderVersion == null || defaultBlenderVersion == undefined}
-                        onClick={async () => await launchInstalledBlender(defaultBlenderVersion?.id)}
-                    >
-                        Launch
-                    </Button>
-                </div>
+                    {selectedVersion
+                        ? `Launch ${blenderVersionLabel(selectedVersion)}`
+                        : "Launch"}
+                </Button>
             </div>
         </div>
     );

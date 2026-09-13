@@ -13,6 +13,7 @@ dependencies = [
  "reqwest 0.13.4",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx 0.9.0",
  "tauri",
  "tauri-build",

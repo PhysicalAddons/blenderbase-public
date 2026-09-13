@@ -13,6 +13,8 @@ pub struct BlenderInstallationLocation {
     pub write: bool, // Protected
     pub special_permissions: bool,
     pub directory_path: String,
+    /// Set once the user has confirmed this location (first-download prompt or Settings).
+    pub is_confirmed: bool,
     pub created_by: Option<String>,
     pub created: String,
     pub modified: String,

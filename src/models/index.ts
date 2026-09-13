@@ -64,6 +64,7 @@ export interface IBlenderInstallationLocation {
     write: boolean,
     special_permissions: boolean,
     directory_path: string,
+    is_confirmed: boolean,
     created_by: string | null
     created: string,
     modified: string,
@@ -205,6 +206,32 @@ export interface IBlenderVersion {
     executable_file_path: string | null,
     blender_installation_location_id: string,
     download_status_type_id: number
+    created: string,
+    modified: string,
+}
+
+export type AddonKind = "extension" | "addon" | "core";
+
+export interface IAddon {
+    id: string,
+    is_enabled: boolean,
+    is_symbolic_link: boolean,
+    main_python_file_path: string,
+    installation_directory: string,
+    variant_type: AddonKind | string | null,
+    functional_name: string | null,
+    name: string | null,
+    author: string | null,
+    version: string | null,
+    blender_version: string | null,
+    location: string | null,
+    description: string | null,
+    warning: string | null,
+    documentation_url: string | null,
+    tracker_url: string | null,
+    support: string | null,
+    category: string | null,
+    parent_blender_version_id: string | null,
     created: string,
     modified: string,
 }

@@ -1,5 +1,101 @@
-// **Background**
-$background: colors.$black;
-$layer-01: colors.$gray-100;
-$border-subtle-01: colors.$gray-90;
-$primary-color: #0f62fe;
+// **Theme tokens**
+// Every surface color the app draws itself comes from these custom properties, so switching the
+// `data-theme` attribute on <html> re-themes the whole UI. Carbon's own components follow the
+// <Theme> provider (g100 / white) chosen in MainContainer.
+
+:root,
+:root[data-theme="dark"] {
+    // Surfaces
+    --bb-background: #000000;      // side columns, title bar, footer
+    --bb-layer: #161616;           // body and middle column
+    --bb-field: #262626;           // buttons, search, dropdown, selected row
+    --bb-field-hover: #353535;
+    --bb-field-active: #393939;
+    --bb-row-hover: #1c1c1c;
+    --bb-stripe: #111111;          // zebra rows
+    // Lines
+    --bb-border: #222222;          // rules between rows and columns
+    --bb-border-strong: #393939;   // list header lines
+    --bb-divider: #161616;         // hairlines between toolbar blocks
+    // Text and icons
+    --bb-text: #F4F4F4;
+    --bb-text-secondary: #c6c6c6;
+    --bb-text-muted: #6f6f6f;
+    --bb-text-faint: #525252;
+    --bb-icon: #d8d8d8;
+    --bb-icon-hover: #5892c9;
+    --bb-on-emphasis: #161616;     // text on a light (inverted) block
+    // Accents
+    --bb-primary: #0f62fe;
+    --bb-primary-text: #ffffff;
+    --bb-danger: #fa4d56;
+    --bb-success: #42be65;
+    --bb-info: #78a9ff;
+    --bb-link: #78a9ff;
+    --bb-link-hover: #a6c8ff;
+    // Variant tags
+    --bb-tag-lts-bg: #08bdba33;       --bb-tag-lts-fg: #3ddbd9;
+    --bb-tag-stable-bg: #22875c33;    --bb-tag-stable-fg: #4adc9f;
+    --bb-tag-candidate-bg: #be95ff33; --bb-tag-candidate-fg: #be95ff;
+    --bb-tag-beta-bg: #69c0ff33;      --bb-tag-beta-fg: #69c0ff;
+    --bb-tag-alpha-bg: #ff927a33;     --bb-tag-alpha-fg: #ff927a;
+    --bb-tag-new-bg: #0f62fe33;       --bb-tag-new-fg: #78a9ff;
+    --bb-tag-neutral-bg: #393939;     --bb-tag-neutral-fg: #c6c6c6;
+    // Settings page
+    --bb-settings-section: #262626;
+    --bb-settings-input: #333333;
+    --bb-settings-input-border: #555555;
+    --bb-settings-button: #4F4F59;
+    --bb-settings-button-hover: #6F6F79;
+    --bb-settings-button-active: #81838F;
+    --bb-settings-divider: #444444;
+    --bb-settings-description: rgba(204, 204, 204, 0.7);
+}
+
+:root[data-theme="light"] {
+    --bb-background: #f4f4f4;
+    --bb-layer: #ffffff;
+    --bb-field: #e0e0e0;
+    --bb-field-hover: #d1d1d1;
+    --bb-field-active: #c6c6c6;
+    --bb-row-hover: #e8e8e8;
+    --bb-stripe: #e8e8e8;
+    --bb-border: #e0e0e0;
+    --bb-border-strong: #c6c6c6;
+    --bb-divider: #ffffff;
+    --bb-text: #161616;
+    --bb-text-secondary: #525252;
+    --bb-text-muted: #6f6f6f;
+    --bb-text-faint: #a8a8a8;
+    --bb-icon: #525252;
+    --bb-icon-hover: #0f62fe;
+    --bb-on-emphasis: #ffffff;
+    --bb-primary: #0f62fe;
+    --bb-primary-text: #ffffff;
+    --bb-danger: #da1e28;
+    --bb-success: #198038;
+    --bb-info: #0043ce;
+    --bb-link: #0f62fe;
+    --bb-link-hover: #0043ce;
+    --bb-tag-lts-bg: #9ef0f0;         --bb-tag-lts-fg: #005d5d;
+    --bb-tag-stable-bg: #a7f0ba;      --bb-tag-stable-fg: #0e6027;
+    --bb-tag-candidate-bg: #e8daff;   --bb-tag-candidate-fg: #6929c4;
+    --bb-tag-beta-bg: #d0e2ff;        --bb-tag-beta-fg: #0043ce;
+    --bb-tag-alpha-bg: #ffd9be;       --bb-tag-alpha-fg: #8a3800;
+    --bb-tag-new-bg: #d0e2ff;         --bb-tag-new-fg: #0f62fe;
+    --bb-tag-neutral-bg: #e0e0e0;     --bb-tag-neutral-fg: #525252;
+    --bb-settings-section: #f4f4f4;
+    --bb-settings-input: #ffffff;
+    --bb-settings-input-border: #c6c6c6;
+    --bb-settings-button: #e0e0e0;
+    --bb-settings-button-hover: #d1d1d1;
+    --bb-settings-button-active: #c6c6c6;
+    --bb-settings-divider: #c6c6c6;
+    --bb-settings-description: rgba(22, 22, 22, 0.7);
+}
+
+// Sass-level aliases used across the stylesheets.
+$background: var(--bb-background);
+$layer-01: var(--bb-layer);
+$border-subtle-01: var(--bb-border);
+$primary-color: var(--bb-primary);

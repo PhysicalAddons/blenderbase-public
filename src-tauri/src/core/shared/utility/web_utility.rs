@@ -116,3 +116,21 @@ pub async fn check_internet_connection(
     }
     return Ok(None);
 }
+
+/// Like `http_get_as_string`, but with a cloned client so it can run inside spawned tasks.
+pub async fn http_get_as_string_with_client(
+    client: reqwest::Client,
+    url: String,
+) -> Result<String, String> {
+    let response = match client.get(&url).send().await {
+        Ok(v) => v,
+        Err(e) => return Err(format!("Failed http get as string: {}", e)),
+    };
+    if !response.status().is_success() {
+        return Err(format!("Failed http get as string: {} returned {}", url, response.status()));
+    }
+    match response.text().await {
+        Ok(v) => Ok(v),
+        Err(e) => Err(format!("Failed http get as string: {}", e)),
+    }
+}

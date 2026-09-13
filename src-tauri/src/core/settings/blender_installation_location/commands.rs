@@ -73,3 +73,20 @@ pub async fn cmd_delete_blender_installation_location(
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }
+
+#[named]
+#[tauri::command]
+pub async fn cmd_confirm_blender_installation_location(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: String,
+    directory_path: String,
+) -> Result<BlenderInstallationLocation, String> {
+    match BlenderInstallationLocationServiceImpl
+        .confirm_blender_installation_location(app, state, id, directory_path)
+        .await
+    {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}

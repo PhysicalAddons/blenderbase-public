@@ -1,0 +1,208 @@
+.install_blender_panel {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+
+    .cds--btn.install_blender_panel__back {
+        gap: 12px;
+        padding-right: 15px;
+        color: var(--bb-link);
+    }
+
+    .install_blender_panel__toolbar {
+        gap: 0;
+        // Release / Daily / Patch: plain blocks in the toolbar band, the active one filled white.
+        .build_type_switch {
+            display: flex;
+            flex-shrink: 0;
+            .cds--btn.build_type_switch__option {
+                min-width: 96px;
+                height: 48px;
+                padding: 0 16px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: var(--bb-field);
+                color: var(--bb-text);
+                border: none;
+                border-radius: 0;
+                &:hover {
+                    background: var(--bb-field-hover);
+                }
+                &:focus:not(:focus-visible) {
+                    box-shadow: none;
+                }
+            }
+            .cds--btn.build_type_switch__option--selected,
+            .cds--btn.build_type_switch__option--selected:hover {
+                background: var(--bb-text);
+                color: var(--bb-on-emphasis);
+            }
+            .cds--btn + .cds--btn {
+                border-left: 1px solid var(--bb-divider);
+            }
+        }
+        .install_blender_panel__filters {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            min-width: 0;
+            border-left: 1px solid var(--bb-divider);
+            .cds--search {
+                flex-grow: 1;
+                min-width: 0;
+            }
+            .cds--btn {
+                background: var(--bb-field);
+                border-left: 1px solid var(--bb-divider);
+                &:hover {
+                    background: var(--bb-field-hover);
+                }
+                &:focus:not(:focus-visible) {
+                    border-color: transparent;
+                    border-left-color: var(--bb-divider);
+                    box-shadow: none;
+                }
+            }
+            // Bare spinner in the refresh button's slot; the footer status line carries the words.
+            .install_blender_panel__fetching {
+                width: 48px;
+                min-height: 48px;
+                padding: 0;
+                justify-content: center;
+                background: var(--bb-field);
+                border-left: 1px solid var(--bb-divider);
+                .cds--inline-loading__animation {
+                    margin: 0;
+                }
+            }
+            .cds--popover {
+                display: none;
+            }
+        }
+        @media screen and (max-width: 1056px) {
+            flex-wrap: wrap;
+        }
+    }
+
+    .install_blender_panel__list_header {
+        grid-template-columns: minmax(0, 1fr) 170px;
+        gap: 16px;
+        margin-left: 0;
+        margin-right: 0;
+        padding: 0 $home-column-inset 0 calc(#{$home-column-inset} + 16px);
+    }
+
+    .install_blender_panel__list {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        padding: 0 0 24px 0;
+        &::-webkit-scrollbar {
+            display: none;
+        }
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .install_blender_panel__empty {
+        padding: 24px calc(#{$home-column-inset} + 16px);
+        color: var(--bb-text-muted);
+        font-size: 14px;
+    }
+
+    .download_row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 170px;
+        align-items: center;
+        gap: 16px;
+        height: $home-row-height;
+        padding-left: calc(#{$home-column-inset} + 16px);
+        padding-right: $home-column-inset;
+        border-bottom: 1px solid var(--bb-border);
+        flex-shrink: 0;
+
+        .download_row__main {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .download_row__title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .download_row__version {
+            font-size: 20px;
+            line-height: 20px;
+            letter-spacing: -0.4px;
+            color: var(--bb-text);
+        }
+        .download_row__meta {
+            font-size: 12px;
+            line-height: 14px;
+            color: var(--bb-text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .download_row__action {
+            display: flex;
+            flex-direction: column;
+            .cds--btn.download_button {
+                width: 100%;
+                max-width: none;
+                background: var(--bb-field);
+                &:hover {
+                    background: var(--bb-field-hover);
+                    color: var(--bb-text);
+                }
+            }
+        }
+        .download_row__installed {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 48px;
+            padding: 0 15px;
+            color: var(--bb-text-muted);
+            font-size: 14px;
+            svg {
+                fill: currentColor;
+            }
+        }
+    }
+}
+
+// First-download prompt
+.location_prompt__text {
+    margin: 0 0 16px 0;
+    color: var(--bb-text-secondary);
+}
+.location_prompt__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    .location_prompt__path {
+        flex-grow: 1;
+        min-width: 0;
+        padding: 12px 16px;
+        background: var(--bb-field);
+        color: var(--bb-text);
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+.column_header__subtitle a {
+    color: var(--bb-link);
+    text-decoration: none;
+    &:hover {
+        color: var(--bb-link-hover);
+        text-decoration: underline;
+    }
+}
