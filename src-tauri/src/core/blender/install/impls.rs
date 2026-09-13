@@ -940,14 +940,27 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         // one of the confirmed installation locations. A stray or tampered row
         // must never be able to point `remove_dir_all` at an arbitrary folder.
         let version_dir = std::path::PathBuf::from(&b.installation_directory_path);
+        // Folders that are gone, or that live outside every confirmed location,
+        // are never touched on disk; the user is offered to drop the entry only.
         let canonical_version_dir = match version_dir.canonicalize() {
             Ok(v) => v,
-            Err(e) => {
-                return Err(format!(
-                    "Failed delete_blender_version: cannot resolve {}: {}",
-                    version_dir.display(),
-                    e
-                ))
+            Err(_) => {
+                let remove_entry = instance_native_ask_dialog_window(
+                    app.clone(),
+                    format!(
+                        "The folder of this Blender version no longer exists:\n{}\n\nRemove the version from the list?",
+                        version_dir.display()
+                    ),
+                    tauri_plugin_dialog::MessageDialogKind::Warning,
+                )
+                .await;
+                if !remove_entry {
+                    return Ok(());
+                }
+                return r
+                    .delete(id)
+                    .await
+                    .map_err(|e| format!("Failed delete_blender_version: {:?}", e));
             }
         };
         let locations = match state
@@ -964,10 +977,22 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
             .filter_map(|l| std::path::PathBuf::from(&l.directory_path).canonicalize().ok())
             .any(|root| canonical_version_dir != root && canonical_version_dir.starts_with(&root));
         if !inside_location {
-            return Err(format!(
-                "Failed delete_blender_version: {} is not inside a confirmed Blender installation location, refusing to delete it",
-                version_dir.display()
-            ));
+            let remove_entry = instance_native_ask_dialog_window(
+                app.clone(),
+                format!(
+                    "This Blender version is outside your installation locations, so Blenderbase will not delete its files:\n{}\n\nRemove the version from the list only? The folder stays where it is.",
+                    version_dir.display()
+                ),
+                tauri_plugin_dialog::MessageDialogKind::Warning,
+            )
+            .await;
+            if !remove_entry {
+                return Ok(());
+            }
+            return r
+                .delete(id)
+                .await
+                .map_err(|e| format!("Failed delete_blender_version: {:?}", e));
         }
         let confirmation = instance_native_ask_dialog_window(
             app.clone(),
