@@ -15,12 +15,12 @@ use crate::{
 pub async fn cmd_insert_blender_installation_location(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<Option<BlenderInstallationLocation>, String> {
     match BlenderInstallationLocationServiceImpl
         .insert_blender_installation_location(app, state)
         .await
     {
-        Ok(_) => Ok(()),
+        Ok(v) => Ok(v),
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }

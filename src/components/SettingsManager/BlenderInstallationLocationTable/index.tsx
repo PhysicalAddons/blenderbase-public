@@ -40,7 +40,11 @@ const BlenderInstallationLocationTable = () => {
 
 	const handleAddBlenderInstallationPath = async () => {
 		try {
-			await settingsService.insertBlenderInstallationLocation();
+			const added = await settingsService.insertBlenderInstallationLocation();
+			if (!added) {
+				// The folder picker was cancelled: nothing changed, nothing to report.
+				return;
+			}
 			await reloadLocations();
 			// A new location may already hold Blender versions: rescan the disk.
 			await refreshInstalledBuilds();

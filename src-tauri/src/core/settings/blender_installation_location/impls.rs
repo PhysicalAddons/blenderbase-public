@@ -2,7 +2,7 @@ use tauri::AppHandle;
 
 use crate::{
     core::{
-        get_directory_from_file_explorer, get_permission_details, instance_native_ok_dialog_window,
+        get_directory_from_file_explorer, get_permission_details,
         PermissionDetails,
     },
     database::BlenderInstallationLocation,
@@ -19,7 +19,7 @@ pub trait TBlenderInstallationLocationService {
         &self,
         app: AppHandle,
         state: tauri::State<'_, AppState>,
-    ) -> Result<(), String>;
+    ) -> Result<Option<BlenderInstallationLocation>, String>;
     async fn set_blender_installation_location_as_default(
         &self,
         app: AppHandle,
@@ -114,21 +114,24 @@ impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceI
         }
         Ok(())
     }
+    /// Opens the folder picker and registers the chosen folder. Returns the
+    /// registered location, the existing one when that folder was already
+    /// known, or `None` when the user cancelled the picker (not an error).
     async fn insert_blender_installation_location(
         &self,
         app: AppHandle,
         state: tauri::State<'_, AppState>,
-    ) -> Result<(), String> {
+    ) -> Result<Option<BlenderInstallationLocation>, String> {
         let blr = state.blender_installation_location_repository();
         let repo_directory_path_option = match get_directory_from_file_explorer(app.clone()).await {
             Ok(v) => v,
-            Err(_) => return Ok(()),
+            Err(_) => return Ok(None),
         };
         let repo_directory_path = match repo_directory_path_option {
             Some(v) => v,
-            None => return Ok(()),
+            None => return Ok(None),
         };
-        let results = match blr
+        let mut results = match blr
             .fetch(
                 None,
                 None,
@@ -141,7 +144,7 @@ impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceI
             Err(e) => return Err(format!("Failed insert blender installation location: {:?}", e)),
         };
         if !results.is_empty() {
-            return Ok(());
+            return Ok(Some(results.remove(0)));
         }
         let existing_entries = match blr.fetch(None, None, None, None).await {
             Ok(v) => v,
@@ -174,7 +177,7 @@ impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceI
             modified: chrono::Utc::now().to_rfc3339(),
         };
         match blr.insert(&entry).await {
-            Ok(_) => Ok(()),
+            Ok(_) => Ok(Some(entry)),
             Err(e) => return Err(format!("Failed insert blender installation location: {:?}", e)),
         }
     }
@@ -247,20 +250,9 @@ impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceI
             Err(e) => return Err(format!("Failed fetch blender installation locations: {:?}", e)),
         };
         results.sort_by(|a, b| b.directory_path.cmp(&a.directory_path));
-        match is_default {
-            Some(v) => {
-                if results.is_empty() && v == true {
-                    instance_native_ok_dialog_window(
-                        app.clone(),
-                        format!("Please set a default Blender installation location in the Settings tab"),
-                        tauri_plugin_dialog::MessageDialogKind::Error,
-                    )
-                    .await;
-                    return Err(format!("'Missing default Blender installation location"));
-                }
-            }
-            None => {}
-        }
+        // An empty result is a normal answer, not an error: the UI decides
+        // what to do about a missing default (it asks for a folder in place).
+        let _ = app;
         Ok(results)
     }
 

@@ -28,8 +28,9 @@ export class SettingsService {
         return await invoke<IBlenderInstallationLocation>("cmd_confirm_blender_installation_location", { id, directoryPath });
     }
 
-    public async insertBlenderInstallationLocation(): Promise<void> {
-        await invoke<void>("cmd_insert_blender_installation_location");
+    /** Opens the folder picker. Resolves to the registered location, or null when the picker was cancelled. */
+    public async insertBlenderInstallationLocation(): Promise<IBlenderInstallationLocation | null> {
+        return await invoke<IBlenderInstallationLocation | null>("cmd_insert_blender_installation_location");
     }
 
     public async setBlenderInstallationLocationAsDefault(id: string, isDefault: boolean): Promise<void> {

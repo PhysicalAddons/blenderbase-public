@@ -242,13 +242,30 @@ const InstallBlenderPanel = () => {
 		}
 	};
 
-	/** Downloads right away, or asks where to install first if the location was never confirmed. */
+	/**
+	 * Downloads right away, or asks where to install first if the location was never confirmed.
+	 * With no location at all, the folder picker opens directly: choosing a folder registers
+	 * it, confirms it and starts the download; cancelling simply does nothing.
+	 */
 	const processDownload = async (build: IDownloadableBlenderVersion, buttonId: string) => {
 		try {
 			const locations: IBlenderInstallationLocation[] = await settingsService.fetchBlenderInstallationPaths(null, null, null, true);
-			const location = locations[0];
+			let location = locations[0];
 			if (!location) {
-				postStatusError("No installation location is set. Add one in Settings.");
+				const picked = await settingsService.insertBlenderInstallationLocation();
+				if (!picked) {
+					return;
+				}
+				if (!picked.is_default) {
+					// The toggle takes the current state; passing false makes this the default.
+					await settingsService.setBlenderInstallationLocationAsDefault(picked.id, picked.is_default);
+				}
+				const confirmed = picked.is_confirmed
+					? picked
+					: await settingsService.confirmBlenderInstallationLocation(picked.id, picked.directory_path);
+				setDownloadDirectory(confirmed.directory_path);
+				postStatus(`Blender versions will be installed in ${confirmed.directory_path}`);
+				await startDownload(build, buttonId, confirmed);
 				return;
 			}
 			if (!location.is_confirmed) {
