@@ -2,11 +2,16 @@ name: Sign check
 
 # Manual check of the Windows code-signing path (Azure login through OIDC,
 # SignTool plugin download, a signature from the blenderbase-public
-# certificate profile) without building or releasing anything. Run it from
-# the Actions tab after touching the signing setup or the Azure side.
+# certificate profile) without building or releasing anything. It runs on
+# its own when the signing files change on any branch, and can be started
+# from the Actions tab after changes on the Azure side.
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "scripts/**"
+      - ".github/workflows/sign-check.yaml"
 
 jobs:
   sign-check:
