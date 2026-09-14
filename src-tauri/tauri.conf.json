@@ -50,6 +50,38 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "template": "wix/main.wxs",
+        "fragmentPaths": [
+          "wix/ui/BrowseDlg.wxs",
+          "wix/ui/CancelDlg.wxs",
+          "wix/ui/Common.wxs",
+          "wix/ui/DiskCostDlg.wxs",
+          "wix/ui/ErrorDlg.wxs",
+          "wix/ui/ErrorProgressText.wxs",
+          "wix/ui/ExitDialog.wxs",
+          "wix/ui/FatalError.wxs",
+          "wix/ui/InstallDirDlg.wxs",
+          "wix/ui/InvalidDirDlg.wxs",
+          "wix/ui/LicenseAgreementDlg.wxs",
+          "wix/ui/MaintenanceTypeDlg.wxs",
+          "wix/ui/MaintenanceWelcomeDlg.wxs",
+          "wix/ui/OutOfDiskDlg.wxs",
+          "wix/ui/OutOfRbDiskDlg.wxs",
+          "wix/ui/PrepareDlg.wxs",
+          "wix/ui/ProgressDlg.wxs",
+          "wix/ui/ResumeDlg.wxs",
+          "wix/ui/UserExit.wxs",
+          "wix/ui/VerifyReadyDlg.wxs",
+          "wix/ui/WaitForCostingDlg.wxs",
+          "wix/ui/WelcomeDlg.wxs",
+          "wix/ui/WixUI_InstallDir.wxs"
+        ],
+        "bannerPath": "wix/banner.bmp",
+        "dialogImagePath": "wix/dialog.bmp"
+      }
+    }
   }
 }

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright (c) .NET Foundation and contributors. All rights reserved. Licensed under the Microsoft Reciprocal License. See LICENSE.TXT file in the project root for full license information. -->
+
+
+
+<!--
+First-time install dialog sequence:
+ - WixUI_WelcomeDlg
+ - WixUI_LicenseAgreementDlg
+ - WixUI_InstallDirDlg
+ - WixUI_VerifyReadyDlg
+ - WixUI_DiskCostDlg
+
+Maintenance dialog sequence:
+ - WixUI_MaintenanceWelcomeDlg
+ - WixUI_MaintenanceTypeDlg
+ - WixUI_InstallDirDlg
+ - WixUI_VerifyReadyDlg
+
+Patch dialog sequence:
+ - WixUI_WelcomeDlg
+ - WixUI_VerifyReadyDlg
+
+-->
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Fragment>
+        <UI Id="WixUI_InstallDir_Dark">
+            <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+            <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+            <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+            <!-- White variants for text drawn over the dark banner and dialog bitmaps. -->
+            <TextStyle Id="WixUI_Font_Normal_White" FaceName="Tahoma" Size="8" Red="255" Green="255" Blue="255" />
+            <TextStyle Id="WixUI_Font_Bigger_White" FaceName="Tahoma" Size="12" Red="255" Green="255" Blue="255" />
+            <TextStyle Id="WixUI_Font_Title_White" FaceName="Tahoma" Size="9" Bold="yes" Red="255" Green="255" Blue="255" />
+
+            <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+            <Property Id="WixUI_Mode" Value="InstallDir" />
+
+            <DialogRef Id="BrowseDlg_Dark" />
+            <DialogRef Id="DiskCostDlg_Dark" />
+            <DialogRef Id="ErrorDlg_Dark" />
+            <DialogRef Id="FatalError_Dark" />
+            <DialogRef Id="FilesInUse" />
+            <DialogRef Id="MsiRMFilesInUse" />
+            <DialogRef Id="PrepareDlg_Dark" />
+            <DialogRef Id="ProgressDlg_Dark" />
+            <DialogRef Id="ResumeDlg_Dark" />
+            <DialogRef Id="UserExit_Dark" />
+            
+            <Publish Dialog="BrowseDlg_Dark" Control="OK" Event="DoAction" Value="WixUIValidatePath_Dark" Order="3">1</Publish>
+            <Publish Dialog="BrowseDlg_Dark" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg_Dark" Order="4"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+
+            <Publish Dialog="ExitDialog_Dark" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+
+            <Publish Dialog="WelcomeDlg_Dark" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg_Dark">NOT Installed</Publish>
+            <Publish Dialog="WelcomeDlg_Dark" Control="Next" Event="NewDialog" Value="VerifyReadyDlg_Dark">Installed AND PATCH</Publish>
+
+            <Publish Dialog="LicenseAgreementDlg_Dark" Control="Back" Event="NewDialog" Value="WelcomeDlg_Dark">1</Publish>
+            <Publish Dialog="LicenseAgreementDlg_Dark" Control="Next" Event="NewDialog" Value="InstallDirDlg_Dark">LicenseAccepted = "1"</Publish>
+
+            <Publish Dialog="InstallDirDlg_Dark" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg_Dark">1</Publish>
+            <Publish Dialog="InstallDirDlg_Dark" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg_Dark" Control="Next" Event="DoAction" Value="WixUIValidatePath_Dark" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
+            <Publish Dialog="InstallDirDlg_Dark" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg_Dark" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+            <Publish Dialog="InstallDirDlg_Dark" Control="Next" Event="NewDialog" Value="VerifyReadyDlg_Dark" Order="4">WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"</Publish>
+            <Publish Dialog="InstallDirDlg_Dark" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg_Dark" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg_Dark" Order="2">1</Publish>
+            
+            <Publish Dialog="VerifyReadyDlg_Dark" Control="Back" Event="NewDialog" Value="InstallDirDlg_Dark" Order="1">NOT Installed</Publish>
+            <Publish Dialog="VerifyReadyDlg_Dark" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg_Dark" Order="2">Installed AND NOT PATCH</Publish>
+            <Publish Dialog="VerifyReadyDlg_Dark" Control="Back" Event="NewDialog" Value="WelcomeDlg_Dark" Order="2">Installed AND PATCH</Publish>
+
+            <Publish Dialog="MaintenanceWelcomeDlg_Dark" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg_Dark">1</Publish>
+
+            <Publish Dialog="MaintenanceTypeDlg_Dark" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg_Dark">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg_Dark" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg_Dark">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg_Dark" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg_Dark">1</Publish>
+
+            <Property Id="ARPNOMODIFY" Value="1" />
+        </UI>
+
+        <UIRef Id="WixUI_Common_Dark" />
+    </Fragment>
+</Wix>
