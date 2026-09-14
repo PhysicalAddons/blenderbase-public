@@ -11,7 +11,6 @@ import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { ThemePreference, useThemeStore } from '../../store/themeStore';
 import { postStatus, postStatusError } from '../../store/statusStore';
 import { usePagedScroll } from '../../utility/usePagedScroll';
-import RecentFilesToggle from '../RecentFiles/Actions/Button';
 
 const settingsService = new SettingsService();
 
@@ -65,7 +64,7 @@ const SettingsPanel = () => {
 	const [cooldownDraft, setCooldownDraft] = useState<string>("")
 	const [isCooldownInvalid, setIsCooldownInvalid] = useState<boolean>(false)
 	const listRef = useRef<HTMLDivElement>(null)
-	usePagedScroll(listRef, { rowSelector: '.settings_row, .settings_location_row' })
+	usePagedScroll(listRef, { rowSelector: '.settings_row, .settings_location_row, .settings_location_add' })
 
 	const { installedBuilds, refreshInstalledBuilds } = useBlenderManagerStore(
 		useShallow((s) => ({ installedBuilds: s.installedBuilds, refreshInstalledBuilds: s.refreshInstalledBuilds }))
@@ -289,17 +288,41 @@ const SettingsPanel = () => {
 		);
 	};
 
+	// The last row of the folder list adds a folder, so the action sits with the list it grows.
+	const renderAddLocation = () => (
+		<button
+			type="button"
+			className='settings_location_add'
+			title="Add an installation location"
+			onClick={() => void addLocation()}
+		>
+			<Add size={16} aria-hidden="true" />
+			<span>Add location</span>
+		</button>
+	);
+
 	const renderLocations = () => {
 		if (locations.length === 0) {
 			return (
-				<div className='settings_panel__empty'>
-					{hasLoadedLocations
-						? "No installation location yet. Use \"Add location\" to choose where Blender versions are installed."
-						: "Loading installation locations…"}
-				</div>
+				<>
+					<div className='settings_panel__empty'>
+						{hasLoadedLocations
+							? "No installation location yet. Add one to choose where Blender versions are installed."
+							: "Loading installation locations…"}
+					</div>
+					{hasLoadedLocations && renderAddLocation()}
+				</>
 			);
 		}
-		return locations.map((location) => (
+		return (
+			<>
+				{locations.map((location) => renderLocationRow(location))}
+				{renderAddLocation()}
+			</>
+		);
+	};
+
+	const renderLocationRow = (location: IBlenderInstallationLocation) => (
 			<div key={location.id} className='settings_location_row' title={location.directory_path}>
 				<div className='settings_location_row__main'>
 					<span className='settings_location_row__path'>{location.directory_path}</span>
@@ -330,8 +353,7 @@ const SettingsPanel = () => {
 					onClick={() => void removeLocation(location)}
 				/>
 			</div>
-		));
-	};
+	);
 
 	const renderLaunch = () => (
 		toggleRow(
@@ -458,21 +480,6 @@ const SettingsPanel = () => {
 						</Button>
 					))}
 				</div>
-				{activeSection === 'locations' && (
-					<div className='settings_panel__toolbar_actions'>
-						<Button
-							kind="ghost"
-							size="lg"
-							className='settings_panel__add'
-							renderIcon={Add}
-							title="Add an installation location"
-							onClick={() => void addLocation()}
-						>
-							Add location
-						</Button>
-					</div>
-				)}
-				<RecentFilesToggle placement='middle' />
 			</div>
 			{activeSection === 'locations' ? (
 				<div className='list_header settings_panel__list_header settings_panel__list_header--locations'>

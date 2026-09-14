@@ -25,18 +25,17 @@ $home-launcher-height: 56px;
         overflow: hidden;
     }
 
-    // While Install Blender or Settings is open the version list and Recent Files step back; the
-    // Blender header with its Install button, the title bar gear and the footer stay live as the way out.
+    // While Install Blender or Settings is open the version list steps back (the Recent Files
+    // column is not rendered at all); the Blender header with its Install button, the title bar
+    // gear and the footer stay live as the way out.
     .blender_column__list_header,
-    .blender_column__list,
-    .recent_files_panel {
+    .blender_column__list {
         transition: opacity motion.$duration-fast-02 cubic-bezier(0.2, 0, 0.38, 0.9);
     }
     &.home--installing,
     &.home--settings {
         .blender_column__list_header,
-        .blender_column__list,
-        .recent_files_panel {
+        .blender_column__list {
             opacity: 0.35;
             pointer-events: none;
         }

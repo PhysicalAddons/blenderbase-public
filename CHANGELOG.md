@@ -7,6 +7,10 @@ copied into the GitHub release by the release workflow, so keep the
 ## Unreleased
 
 ### Changed
+- In Settings, **Add location** is the last row of the folder list instead
+  of a block in the toolbar band.
+- The Recent Files column and its toggle are gone while Settings or Install
+  Blender is open; they return with the Addons view.
 - The Windows installer and executable are code-signed by SIA Physical
   Software (Azure Artifact Signing). SmartScreen may still warn on first run
   until the publisher has earned reputation.

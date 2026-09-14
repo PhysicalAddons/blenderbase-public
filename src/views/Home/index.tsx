@@ -60,7 +60,9 @@ const Home = () => {
                 <div className='home__main'>
                     {isSettingsOpen ? <SettingsPanel /> : isInstallBlenderOpen ? <InstallBlenderPanel /> : isEmpty ? <EmptyState /> : <AddonPanel />}
                 </div>
-                <RecentFiles />
+                {/* Settings and Install Blender take the middle column on their own; the Recent
+                    Files column and its toggle come back with the Addons view. */}
+                {!isSettingsOpen && !isInstallBlenderOpen && <RecentFiles />}
             </div>
             <LauncherBar />
         </>

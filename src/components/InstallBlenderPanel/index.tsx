@@ -18,7 +18,6 @@ import { postStatus, postStatusError } from '../../store/statusStore';
 import { BlenderService } from '../../services/blenderService';
 import { SettingsService } from '../../services/settingsService';
 import { useShallow } from 'zustand/react/shallow';
-import RecentFilesToggle from '../RecentFiles/Actions/Button';
 
 const blenderService = new BlenderService();
 const settingsService = new SettingsService();
@@ -408,7 +407,6 @@ const InstallBlenderPanel = () => {
 						/>
 					)}
 				</div>
-				<RecentFilesToggle placement='middle' />
 			</div>
 			<div className='list_header install_blender_panel__list_header'>
 				<span>Version</span>
