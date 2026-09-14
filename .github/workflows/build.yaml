@@ -19,6 +19,12 @@ jobs:
     name: build (${{ matrix.platform }})
     permissions:
       contents: write
+      # The Windows job signs the exe and MSI with Azure Artifact Signing and
+      # logs in to Azure with a GitHub OIDC token instead of a stored secret.
+      id-token: write
+    # Azure trusts tokens whose subject names this environment
+    # (repo:PhysicalAddons/blenderbase-public:environment:release).
+    environment: release
 
     strategy:
       fail-fast: false
@@ -64,6 +70,36 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      # Windows code signing: Azure Artifact Signing, account and profile in
+      # scripts/artifact-signing.json. AZURE_CLIENT_ID / AZURE_TENANT_ID /
+      # AZURE_SUBSCRIPTION_ID are repository variables (identifiers, not
+      # secrets); the app registration behind AZURE_CLIENT_ID has a federated
+      # credential for this repository's `release` environment and the
+      # "Artifact Signing Certificate Profile Signer" role on the account.
+      - name: Azure login (OIDC)
+        if: runner.os == 'Windows'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install signing tools
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/install-signing-tools.ps1
+
+      # Writes the Tauri config overlay that routes bundle.windows.signCommand
+      # to scripts/sign-windows.ps1; the path is passed as --config below so
+      # plain local builds stay unsigned.
+      - name: Enable signing in the Tauri build
+        if: runner.os == 'Windows'
+        id: signcfg
+        shell: pwsh
+        run: |
+          $cfg = ./scripts/sign-config.ps1
+          "config=--config $cfg" >> $env:GITHUB_OUTPUT
 
       # The release body comes from the CHANGELOG.md section whose heading
       # matches the tag (## 1.2.1 for v1.2.1). Falls back to a pointer at
@@ -122,4 +158,4 @@ jobs:
           # than 1.2.0 were signed with a key that is no longer available and
           # update by hand once.
           includeUpdaterJson: true
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ steps.signcfg.outputs.config }}

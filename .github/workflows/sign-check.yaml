@@ -1,0 +1,50 @@
+name: Sign check
+
+# Manual check of the Windows code-signing path (Azure login through OIDC,
+# SignTool plugin download, a signature from the blenderbase-public
+# certificate profile) without building or releasing anything. Run it from
+# the Actions tab after touching the signing setup or the Azure side.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sign-check:
+    runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install signing tools
+        shell: pwsh
+        run: ./scripts/install-signing-tools.ps1
+
+      # Any PE file will do as a signing target; the point is the round trip
+      # to the service and the subject on the resulting signature.
+      - name: Sign a sample file
+        shell: pwsh
+        run: |
+          Copy-Item "$env:WINDIR\System32\where.exe" sign-check.exe
+          ./scripts/sign-windows.ps1 sign-check.exe
+
+      - name: Show the signature
+        shell: pwsh
+        run: |
+          $sig = Get-AuthenticodeSignature sign-check.exe
+          "Status:  $($sig.Status)"
+          "Subject: $($sig.SignerCertificate.Subject)"
+          "Issuer:  $($sig.SignerCertificate.Issuer)"
+          "Expires: $($sig.SignerCertificate.NotAfter)"
+          if ($sig.Status -ne 'Valid') { throw "Signature status is $($sig.Status)" }
+          if ($sig.SignerCertificate.Subject -notlike '*SIA Physical Software*') { throw "Unexpected subject" }

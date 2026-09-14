@@ -1,0 +1,13 @@
+{
+  "Endpoint": "https://neu.codesigning.azure.net",
+  "CodeSigningAccountName": "physicaladdons-signing",
+  "CertificateProfileName": "blenderbase-public",
+  "ExcludeCredentials": [
+    "ManagedIdentityCredential",
+    "SharedTokenCacheCredential",
+    "VisualStudioCredential",
+    "VisualStudioCodeCredential",
+    "AzureDeveloperCliCredential",
+    "InteractiveBrowserCredential"
+  ]
+}

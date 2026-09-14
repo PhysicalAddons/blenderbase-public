@@ -4,6 +4,13 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## Unreleased
+
+### Changed
+- The Windows installer and executable are code-signed by SIA Physical
+  Software (Azure Artifact Signing). SmartScreen may still warn on first run
+  until the publisher has earned reputation.
+
 ## 1.2.6
 
 ### Added
