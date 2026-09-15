@@ -142,6 +142,7 @@ const LauncherBar = () => {
                     type="button"
                     className={`cds--btn cds--btn--primary cds--btn--lg launcher_bar__console_segment ${launchWithConsole ? "launcher_bar__console_segment--on" : ""}`}
                     aria-label={launchWithConsole ? "Launch with console: on" : "Launch with console: off"}
+                    title={launchWithConsole ? "Launch with console: on" : "Launch with console: off"}
                     aria-pressed={launchWithConsole}
                     disabled={selectedVersion === undefined}
                     onMouseEnter={showConsoleHint}
