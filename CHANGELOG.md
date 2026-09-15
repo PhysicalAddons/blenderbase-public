@@ -4,7 +4,7 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
-## Unreleased
+## 1.2.7
 
 ### Changed
 - In Settings, **Add location** is the last row of the folder list instead
@@ -14,6 +14,9 @@ copied into the GitHub release by the release workflow, so keep the
 - The Windows installer and executable are code-signed by SIA Physical
   Software (Azure Artifact Signing). SmartScreen may still warn on first run
   until the publisher has earned reputation.
+- New application icon.
+- **Windows installer** dressed in Blenderbase artwork: a dark banner and
+  welcome image with white wizard text, in place of the stock WiX pages.
 
 ## 1.2.6
 
