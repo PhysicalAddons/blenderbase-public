@@ -101,6 +101,20 @@ jobs:
           $cfg = ./scripts/sign-config.ps1
           "config=--config $cfg" >> $env:GITHUB_OUTPUT
 
+      # Signs a throwaway copy of where.exe through the same command Tauri will
+      # run (pwsh as a child process with piped output), so a signing problem
+      # fails the job here, in seconds, with the script's log, instead of after
+      # the ten-minute compile with Tauri's bare "failed to run pwsh".
+      - name: Sign preflight (as Tauri runs it)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Copy-Item "$env:WINDIR\System32\where.exe" "$env:RUNNER_TEMP\preflight.exe"
+          $script = (Resolve-Path scripts/sign-windows.ps1).Path
+          $target = "$env:RUNNER_TEMP\preflight.exe"
+          $js = "const r = require('child_process').spawnSync('pwsh', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', process.argv[1], process.argv[2]], { stdio: 'pipe', encoding: 'utf8' }); process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || ''); console.log('exit code', r.status, r.error ? String(r.error) : ''); process.exit(r.status === 0 ? 0 : 1);"
+          node -e $js -- $script $target
+
       # The release body comes from the CHANGELOG.md section whose heading
       # matches the tag (## 1.2.1 for v1.2.1). Falls back to a pointer at
       # the changelog when no section exists yet.
@@ -159,3 +173,9 @@ jobs:
           # update by hand once.
           includeUpdaterJson: true
           args: ${{ matrix.args }} ${{ steps.signcfg.outputs.config }}
+
+      - name: Signing log
+        if: failure() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Test-Path .signing-tools/sign-windows.log) { Get-Content .signing-tools/sign-windows.log } else { "no signing log" }

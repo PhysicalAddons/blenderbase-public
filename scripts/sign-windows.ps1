@@ -23,6 +23,18 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $toolsDir = Join-Path $root '.signing-tools'
 $minSignTool = [version]'10.0.22621.0'
+# Everything this script prints also goes here. Tauri runs the script with its
+# output captured and only reports "failed to run pwsh" on a non-zero exit, so
+# the log is the only way to see why a release build failed to sign.
+$logFile = Join-Path $toolsDir 'sign-windows.log'
+New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
+function Log([string]$line) {
+  Write-Host $line
+  Add-Content -Path $logFile -Value $line
+}
+Log ("=== {0} pid {1} host {2} {3}" -f (Get-Date -Format s), $PID, $PSVersionTable.PSEdition, $PSVersionTable.PSVersion)
+Log ("files: " + ($Files -join ', '))
+Log ("cwd: " + (Get-Location).Path)
 
 function Find-SignTool {
   if ($env:SIGNTOOL_PATH) { return $env:SIGNTOOL_PATH }
@@ -47,14 +59,15 @@ function Find-Dlib {
   return $dlib.FullName
 }
 
+try {
 $signTool = Find-SignTool
 $dlib = Find-Dlib
 $metadata = if ($env:ARTIFACT_SIGNING_METADATA) { $env:ARTIFACT_SIGNING_METADATA } else { Join-Path $PSScriptRoot 'artifact-signing.json' }
 if (-not (Test-Path $metadata)) { throw "Metadata file not found: $metadata" }
 
-Write-Host "SignTool: $signTool"
-Write-Host "Plugin:   $dlib"
-Write-Host "Metadata: $metadata"
+Log "SignTool: $signTool"
+Log "Plugin:   $dlib"
+Log "Metadata: $metadata"
 
 foreach ($file in $Files) {
   if (-not (Test-Path $file)) { throw "File to sign not found: $file" }
@@ -65,9 +78,15 @@ foreach ($file in $Files) {
   $ErrorActionPreference = 'Continue'
   # Certificates from the service live three days; the timestamp is what keeps
   # the signature valid after that.
-  & $signTool sign /v /fd SHA256 /tr 'http://timestamp.acs.microsoft.com' /td SHA256 /dlib $dlib /dmdf $metadata $file 2>&1 | ForEach-Object { "$_" }
+  & $signTool sign /v /fd SHA256 /tr 'http://timestamp.acs.microsoft.com' /td SHA256 /dlib $dlib /dmdf $metadata $file 2>&1 | ForEach-Object { Log "$_" }
   if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; throw "signtool sign failed for $file with exit code $LASTEXITCODE" }
-  & $signTool verify /pa /v $file 2>&1 | ForEach-Object { "$_" }
+  & $signTool verify /pa /v $file 2>&1 | ForEach-Object { Log "$_" }
   if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; throw "signtool verify failed for $file with exit code $LASTEXITCODE" }
   $ErrorActionPreference = 'Stop'
+  Log "Signed $file"
+}
+} catch {
+  Log ("ERROR: " + $_.Exception.Message)
+  Log ($_.ScriptStackTrace)
+  throw
 }
