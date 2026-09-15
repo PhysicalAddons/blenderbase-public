@@ -122,15 +122,36 @@ pub async fn http_get_as_string_with_client(
     client: reqwest::Client,
     url: String,
 ) -> Result<String, String> {
-    let response = match client.get(&url).send().await {
-        Ok(v) => v,
-        Err(e) => return Err(format!("Failed http get as string: {}", e)),
-    };
-    if !response.status().is_success() {
-        return Err(format!("Failed http get as string: {} returned {}", url, response.status()));
-    }
-    match response.text().await {
-        Ok(v) => Ok(v),
-        Err(e) => Err(format!("Failed http get as string: {}", e)),
+    // Mirrors rate-limit by IP: a burst of directory listings gets "429 Too
+    // Many Requests". Those (and 503) are retried with growing pauses, honouring
+    // Retry-After when the server sends one; anything else fails at once.
+    const ATTEMPTS: u32 = 4;
+    let mut attempt = 0u32;
+    loop {
+        attempt += 1;
+        let response = match client.get(&url).send().await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed http get as string: {}", e)),
+        };
+        let status = response.status();
+        if status.is_success() {
+            return match response.text().await {
+                Ok(v) => Ok(v),
+                Err(e) => Err(format!("Failed http get as string: {}", e)),
+            };
+        }
+        let retryable = status == reqwest::StatusCode::TOO_MANY_REQUESTS
+            || status == reqwest::StatusCode::SERVICE_UNAVAILABLE;
+        if !retryable || attempt >= ATTEMPTS {
+            return Err(format!("Failed http get as string: {} returned {}", url, status));
+        }
+        let retry_after = response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<u64>().ok())
+            .map(|s| s.min(30));
+        let wait = retry_after.unwrap_or(2u64.pow(attempt));
+        tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
     }
 }

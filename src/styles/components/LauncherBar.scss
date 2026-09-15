@@ -102,15 +102,32 @@
         }
         // Split button: the narrow segment on the left toggles "launch with
         // console"; the wide part launches and names the state under its label.
+        // Off: a grey block, clearly a separate switch. On: the same blue as the launch
+        // part, so the two read as one button with a hairline between them.
         .launcher_bar__console_segment {
             flex: 0 0 48px;
             width: 48px;
             min-width: 48px;
             padding: 0;
             justify-content: center;
-            border-right: 1px solid rgba(255, 255, 255, 0.35);
+            background: var(--bb-field);
+            color: var(--bb-text-muted);
+            border-right: none;
+            &:hover {
+                background: var(--bb-field-hover);
+                color: var(--bb-text);
+            }
             &.launcher_bar__console_segment--on {
-                background: var(--cds-button-primary-active);
+                background: var(--cds-button-primary);
+                color: var(--cds-text-on-color);
+                border-right: 1px solid rgba(255, 255, 255, 0.35);
+                &:hover {
+                    background: var(--cds-button-primary-hover);
+                }
+            }
+            &:disabled {
+                background: var(--bb-field);
+                color: var(--bb-text-faint);
             }
         }
         .launcher_bar__launch_main {

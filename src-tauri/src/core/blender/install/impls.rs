@@ -11,7 +11,7 @@ use crate::{
         probe_blender_build_info, resolve_blender_console_executable, sha256_of_file,
         validate_blender_executable, write_file,
         DownloadStatusKind, DownloadableBlenderVersion, OrderKind,
-        blender_executable_in, blender_version_dir_of,
+        blender_executable_for_entry, blender_executable_in, blender_version_dir_of, blender_version_dir_within,
         BLENDERBASE_DOWNLOAD_DATA, BLENDER_ORG_RELEASE_CHECKSUM_BASE,
         BLENDER_VERSION_VARIANT_REGEX,
         FORWARD_SLASH_DELIMETER, LTS, LTS_VERSION_ARR, PR, STABLE, PROJECTS_BLENDER_ORG_BLENDER_BLENDER_COMMIT,
@@ -205,7 +205,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 if !entry.path().is_dir() {
                     continue;
                 }
-                let executable_file_path = blender_executable_in(&entry.path());
+                let executable_file_path = blender_executable_for_entry(&entry.path());
                 if !executable_file_path.exists() {
                     continue;
                 }
@@ -297,7 +297,7 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
                 if !entry.path().is_dir() {
                     continue;
                 }
-                let executable_file_path = blender_executable_in(&entry.path());
+                let executable_file_path = blender_executable_for_entry(&entry.path());
                 if !executable_file_path.exists() {
                     continue;
                 }
@@ -559,11 +559,22 @@ impl TBlenderInstallService for BlenderInstallServiceImpl {
         }
         let download_status_type_completed = download_status_types.remove(0);
         // The version folder: the executable's parent on Windows/Linux, the
-        // folder holding `Blender.app` on macOS.
-        let parent_dir_buf: std::path::PathBuf = match blender_version_dir_of(&executable_file_path) {
-            Some(val) => val,
-            None => return Err(format!("Failed insert_blender_version: Failed to get file path parent")),
+        // folder holding `Blender.app` on macOS, or the bundle itself when it
+        // sits directly in the location (`/Applications/Blender.app`).
+        let location_dir: std::path::PathBuf = match state
+            .blender_installation_location_repository()
+            .fetch(Some(blender_installation_location_id.clone()), None, None, None)
+            .await
+        {
+            Ok(mut v) if !v.is_empty() => std::path::PathBuf::from(v.remove(0).directory_path),
+            Ok(_) => return Err(format!("Failed insert_blender_version: installation location not found")),
+            Err(e) => return Err(format!("Failed insert_blender_version: {:?}", e)),
         };
+        let parent_dir_buf: std::path::PathBuf =
+            match blender_version_dir_within(&executable_file_path, &location_dir) {
+                Some(val) => val,
+                None => return Err(format!("Failed insert_blender_version: Failed to get file path parent")),
+            };
         let parent_dir: &std::path::Path = parent_dir_buf.as_path();
         let dir_name = match parent_dir.file_name() {
             Some(val) => val.to_string_lossy().to_string(),

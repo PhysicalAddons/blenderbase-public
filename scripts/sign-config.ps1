@@ -20,7 +20,10 @@ $config = @{
   bundle = @{
     windows = @{
       signCommand = @{
-        cmd  = 'powershell'
+        # PowerShell 7, not Windows PowerShell 5.1: Tauri pipes the command's stderr,
+        # and 5.1 turns every stderr line a native tool writes into a terminating error
+        # under $ErrorActionPreference = 'Stop', so signtool's chatter failed the build.
+        cmd  = 'pwsh'
         args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $script, '%1')
       }
     }

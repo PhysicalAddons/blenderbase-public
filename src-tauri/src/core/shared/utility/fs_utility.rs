@@ -253,10 +253,18 @@ fn is_blender_executable_name(executable: &std::path::Path) -> bool {
     }
     #[cfg(target_os = "macos")]
     {
+        // Inside `<anything>.app/Contents/MacOS`: Blender's own bundle is `Blender.app`,
+        // but a copy in /Applications may have been renamed (`Blender 4.2.app`).
         let in_bundle = executable
             .parent()
-            .map(|p| p.ends_with("Blender.app/Contents/MacOS"))
-            .unwrap_or(false);
+            .map(|p| p.ends_with("Contents/MacOS"))
+            .unwrap_or(false)
+            && executable
+                .ancestors()
+                .nth(3)
+                .and_then(|b| b.extension())
+                .map(|e| e == "app")
+                .unwrap_or(false);
         file_name == "Blender" && in_bundle
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]

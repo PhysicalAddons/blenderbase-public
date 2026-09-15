@@ -61,6 +61,43 @@ static FILE_RELEASE_RE: LazyLock<regex::Regex> =
 
 pub struct BlenderDownloadServiceImpl;
 
+/// One scraped series folder: the stamp the index showed for it, and what it held.
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize)]
+struct CachedSeries {
+    stamp: String,
+    versions: Vec<DownloadableBlenderVersion>,
+}
+
+/// The release scrape kept between runs (`release-cache.json` in the app data
+/// folder). Unreadable or missing files just mean a full scrape.
+#[derive(Default, Debug, serde::Serialize, serde::Deserialize)]
+struct ReleaseCache {
+    series: std::collections::HashMap<String, CachedSeries>,
+}
+
+impl ReleaseCache {
+    fn load(path: &std::path::Path) -> Self {
+        std::fs::File::open(path)
+            .ok()
+            .and_then(|f| serde_json::from_reader(f).ok())
+            .unwrap_or_default()
+    }
+    fn save(&self, path: &std::path::Path) -> Result<(), String> {
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        }
+        let file = std::fs::File::create(path).map_err(|e| e.to_string())?;
+        serde_json::to_writer(file, self).map_err(|e| e.to_string())
+    }
+}
+
+fn release_cache_path() -> std::path::PathBuf {
+    let mut path = dirs::data_dir().unwrap_or_else(std::env::temp_dir);
+    path.push(crate::core::COM_PHYSICALADDONS_BLENDERBASE);
+    path.push("release-cache.json");
+    path
+}
+
 impl TBlenderDownloadService for BlenderDownloadServiceImpl {
     async fn get_downloadable_blender_version_data(
         &self,
@@ -231,57 +268,89 @@ impl BlenderDownloadServiceImpl {
         state: tauri::State<'_, AppState>,
         url: String,
     ) -> Result<Vec<DownloadableBlenderVersion>, String> {
+        // Be a light touch on the mirror. The top-level index (one small page)
+        // lists a modification stamp for every series folder; a series is only
+        // fetched again when that stamp differs from the one recorded with the
+        // last scrape, and the scrape is kept on disk so restarts do not start
+        // over. Repeated refreshes within a minute do not even fetch the index.
+        const INDEX_MIN_INTERVAL: std::time::Duration = std::time::Duration::from_secs(60);
+        if let Ok(recent) = state.release_scrape_cache.lock() {
+            if let Some((at, versions)) = recent.as_ref() {
+                if at.elapsed() < INDEX_MIN_INTERVAL {
+                    return Ok(versions.clone());
+                }
+            }
+        }
         let body = match http_get_as_string(state.clone(), url.clone()).await {
             Ok(v) => v,
             Err(e) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
         };
+        // (series folder URL, stamp shown for it in the index), oldest series first.
         let b3d_link_regex = &*B3D_LINK_RE;
-        let lines: Vec<&str> = body.lines().collect();
-        let mut series_urls: Vec<String> = Vec::new();
-        for line in lines {
-            if let Some(captures) = b3d_link_regex.captures(line.as_bytes()) {
-                // Accessing the first capture group (If "Blender3.6" counts as .get(0), then .get(1) is "3.6").
-                if let Some(version) = captures.get(1) {
-                    let version_str = match std::str::from_utf8(version.as_bytes()) {
-                        Ok(v) => v,
-                        Err(e) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
-                    };
-                    let version_float = match version_str.parse::<f32>() {
-                        Ok(v) => v,
-                        Err(e) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
-                    };
-                    if version_float < 3.1 {
-                        continue;
-                    }
-                    series_urls.push(format!("{}{}{}", url, BLENDER, version_str));
-                }
+        let timestamp_regex = &*TIMESTAMP_RE;
+        let mut series: Vec<(String, String)> = Vec::new();
+        for line in body.lines() {
+            let Some(row) = timestamp_regex.captures(line) else { continue };
+            let (Some(href), Some(stamp)) = (row.get(1), row.get(3)) else { continue };
+            let Some(link) = b3d_link_regex.captures(href.as_str().as_bytes()) else { continue };
+            let Some(version) = link.get(1) else { continue };
+            let version_str = match std::str::from_utf8(version.as_bytes()) {
+                Ok(v) => v,
+                Err(e) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
+            };
+            let version_float = match version_str.parse::<f32>() {
+                Ok(v) => v,
+                Err(e) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
+            };
+            if version_float < 3.1 {
+                continue;
+            }
+            series.push((format!("{}{}{}", url, BLENDER, version_str), stamp.as_str().to_string()));
+        }
+        let cache_path = release_cache_path();
+        let mut cache = ReleaseCache::load(&cache_path);
+        let mut chunks: Vec<(usize, Vec<DownloadableBlenderVersion>)> = Vec::new();
+        let mut pending: Vec<(usize, String, String)> = Vec::new();
+        for (index, (series_url, stamp)) in series.iter().enumerate() {
+            match cache.series.get(series_url) {
+                Some(entry) if entry.stamp == *stamp => chunks.push((index, entry.versions.clone())),
+                _ => pending.push((index, series_url.clone(), stamp.clone())),
             }
         }
-        // One directory page per series; fetching them one after another took most of the
-        // time, so they run concurrently with a small cap to stay polite to the mirror.
+        // Changed or unknown series, one at a time with a short pause between
+        // them: the mirror throttles even modest parallel bursts, and a first
+        // run is the only time more than a couple of series need reading.
+        // The fetch itself backs off if a 429 still comes.
         let client = state.http_client.clone();
-        let limiter = std::sync::Arc::new(tokio::sync::Semaphore::new(6));
-        let mut tasks = tokio::task::JoinSet::new();
-        for (index, series_url) in series_urls.into_iter().enumerate() {
-            let client = client.clone();
-            let limiter = limiter.clone();
-            tasks.spawn(async move {
-                let _permit = limiter.acquire_owned().await.ok();
-                (index, Self::scrape_release_blender_series(client, series_url).await)
-            });
-        }
-        let mut chunks: Vec<(usize, Vec<DownloadableBlenderVersion>)> = Vec::new();
-        while let Some(joined) = tasks.join_next().await {
-            match joined {
-                Ok((index, Ok(v))) => chunks.push((index, v)),
-                Ok((_, Err(e))) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
+        let mut changed = false;
+        let last = pending.len().saturating_sub(1);
+        for (n, (index, series_url, stamp)) in pending.into_iter().enumerate() {
+            match Self::scrape_release_blender_series(client.clone(), series_url.clone()).await {
+                Ok(v) => {
+                    cache.series.insert(series_url, CachedSeries { stamp, versions: v.clone() });
+                    changed = true;
+                    chunks.push((index, v));
+                }
                 Err(e) => return Err(format!("Failed scrape_release_blender_versions: {:?}", e)),
+            }
+            if n < last {
+                tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+            }
+        }
+        if changed {
+            // Series that vanished from the index are dropped with the rewrite.
+            cache.series.retain(|k, _| series.iter().any(|(u, _)| u == k));
+            if let Err(e) = cache.save(&cache_path) {
+                eprintln!("Could not write the release cache {}: {}", cache_path.display(), e);
             }
         }
         chunks.sort_by_key(|(index, _)| *index);
         let mut data: Vec<DownloadableBlenderVersion> = Vec::new();
         for (_, mut v) in chunks {
             data.append(&mut v);
+        }
+        if let Ok(mut recent) = state.release_scrape_cache.lock() {
+            *recent = Some((std::time::Instant::now(), data.clone()));
         }
         return Ok(data);
     }

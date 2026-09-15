@@ -79,6 +79,7 @@ async fn init_app_state() -> Result<AppState, String> {
         pool,
         http_client,
         action_timeouts: Mutex::new(action_timeouts),
+        release_scrape_cache: Mutex::new(None),
     })
 }
 

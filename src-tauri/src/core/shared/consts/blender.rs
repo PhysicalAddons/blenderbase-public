@@ -41,6 +41,44 @@ pub fn blender_version_dir_of(executable: &std::path::Path) -> Option<std::path:
     let depth = std::path::Path::new(BLENDER_LAUNCHER_EXE).components().count();
     executable.ancestors().nth(depth).map(|p| p.to_path_buf())
 }
+
+/// The executable to look for in one entry of an installation location.
+/// Usually a version folder (`<entry>/blender-launcher.exe`, `<entry>/Blender.app/...`),
+/// but on macOS the entry may be the app bundle itself: `/Applications/Blender.app`
+/// or a renamed `Blender 4.2.app` dropped in by hand.
+pub fn blender_executable_for_entry(entry_dir: &std::path::Path) -> std::path::PathBuf {
+    #[cfg(target_os = "macos")]
+    {
+        if entry_dir.extension().map(|e| e == "app").unwrap_or(false) {
+            return entry_dir.join("Contents/MacOS/Blender");
+        }
+    }
+    blender_executable_in(entry_dir)
+}
+
+/// The version folder for `executable` found inside `location_dir`. Like
+/// [`blender_version_dir_of`], except that on macOS an app bundle sitting
+/// directly in the location is its own version folder (deleting the version
+/// removes the bundle, never the location).
+pub fn blender_version_dir_within(
+    executable: &std::path::Path,
+    location_dir: &std::path::Path,
+) -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        // <bundle>.app/Contents/MacOS/Blender: the bundle is three levels up.
+        if let Some(bundle) = executable.ancestors().nth(3) {
+            let is_bundle = bundle.extension().map(|e| e == "app").unwrap_or(false);
+            let in_location = bundle.parent().map(|p| p == location_dir).unwrap_or(false);
+            if is_bundle && in_location {
+                return Some(bundle.to_path_buf());
+            }
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = location_dir;
+    blender_version_dir_of(executable)
+}
 // Release Blender versions
 //https://www.blender.org/about/website/
 pub const RELEASE_BLENDER_URL_EU: &str = "https://ftp.nluug.nl/pub/graphics/blender/release/"; //This is a mirror for EU. This is the official link: "https://download.blender.org/release/"

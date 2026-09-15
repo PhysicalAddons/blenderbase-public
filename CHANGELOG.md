@@ -17,6 +17,20 @@ copied into the GitHub release by the release workflow, so keep the
 - New application icon.
 - **Windows installer** dressed in Blenderbase artwork: a dark banner and
   welcome image with white wizard text, in place of the stock WiX pages.
+- The console segment of the Launch button is grey while off and joins the
+  blue launch part while on.
+- The release list is fetched with a lighter touch: one small index request
+  tells which Blender series changed since the last look, only those series
+  are read again, the result is kept on disk between runs, and repeated
+  refreshes within a minute do not contact the mirror at all. A "429 Too Many
+  Requests" answer is retried with a pause instead of failing the list.
+
+### Fixed
+- **macOS:** Blender installed in a chosen location as an app bundle
+  (`/Applications/Blender.app`, or a renamed copy such as `Blender 4.2.app`)
+  is found and registered; only version folders were scanned before.
+- The Discord icon and the Blenderbase logo link in the footer open the
+  browser again.
 
 ## 1.2.6
 

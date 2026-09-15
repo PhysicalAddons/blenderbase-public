@@ -59,10 +59,15 @@ Write-Host "Metadata: $metadata"
 foreach ($file in $Files) {
   if (-not (Test-Path $file)) { throw "File to sign not found: $file" }
   Write-Host "Signing $file"
+  # signtool writes progress to stderr. When the caller pipes stderr (Tauri does),
+  # Windows PowerShell 5.1 would turn those lines into terminating errors under
+  # 'Stop', so the native calls run under 'Continue' and are judged by exit code.
+  $ErrorActionPreference = 'Continue'
   # Certificates from the service live three days; the timestamp is what keeps
   # the signature valid after that.
-  & $signTool sign /v /fd SHA256 /tr 'http://timestamp.acs.microsoft.com' /td SHA256 /dlib $dlib /dmdf $metadata $file
-  if ($LASTEXITCODE -ne 0) { throw "signtool sign failed for $file with exit code $LASTEXITCODE" }
-  & $signTool verify /pa /v $file
-  if ($LASTEXITCODE -ne 0) { throw "signtool verify failed for $file with exit code $LASTEXITCODE" }
+  & $signTool sign /v /fd SHA256 /tr 'http://timestamp.acs.microsoft.com' /td SHA256 /dlib $dlib /dmdf $metadata $file 2>&1 | ForEach-Object { "$_" }
+  if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; throw "signtool sign failed for $file with exit code $LASTEXITCODE" }
+  & $signTool verify /pa /v $file 2>&1 | ForEach-Object { "$_" }
+  if ($LASTEXITCODE -ne 0) { $ErrorActionPreference = 'Stop'; throw "signtool verify failed for $file with exit code $LASTEXITCODE" }
+  $ErrorActionPreference = 'Stop'
 }
