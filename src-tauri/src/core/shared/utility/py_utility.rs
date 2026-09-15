@@ -116,12 +116,23 @@ pub fn resolve_blender_console_executable(path: &std::path::Path) -> std::path::
 pub struct BlenderBuildInfo {
     /// First line, e.g. `Blender 5.2.1 LTS` or `Blender 4.5.4 LTS Release Candidate`.
     pub title: String,
+    /// The number from the title (`5.2.1`), empty when the title has none.
+    pub version: String,
     pub build_date: String,
     pub commit_date: String,
     pub hash: String,
     pub branch: String,
     /// Derived from the title: lts / stable / candidate / beta / alpha.
     pub cycle: String,
+}
+
+/// The dotted number in a `--version` title: `Blender 4.5.1 LTS` gives `4.5.1`.
+pub fn version_in_title(title: &str) -> String {
+    title
+        .split_whitespace()
+        .find(|w| w.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) && w.contains('.'))
+        .map(|w| w.trim_end_matches(|c: char| !c.is_ascii_digit()).to_string())
+        .unwrap_or_default()
 }
 
 /// Runs `blender --version` (fast, no Python) and parses the build details.
@@ -161,6 +172,7 @@ pub async fn probe_blender_build_info(
     if info.title.is_empty() {
         return Err(String::from("Blender did not report its version"));
     }
+    info.version = version_in_title(&info.title);
     let lower = info.title.to_lowercase();
     info.cycle = if lower.contains("candidate") {
         "candidate"
@@ -175,4 +187,17 @@ pub async fn probe_blender_build_info(
     }
     .to_string();
     Ok(info)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::version_in_title;
+
+    #[test]
+    fn version_is_read_from_the_version_title() {
+        assert_eq!(version_in_title("Blender 4.5.1 LTS"), "4.5.1");
+        assert_eq!(version_in_title("Blender 5.3.0 Alpha"), "5.3.0");
+        assert_eq!(version_in_title("Blender 4.5.4 LTS Release Candidate"), "4.5.4");
+        assert_eq!(version_in_title("Blender"), "");
+    }
 }

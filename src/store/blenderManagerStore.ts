@@ -50,7 +50,9 @@ export const useBlenderManagerStore = create<IBlenderManagerStore>((set, get) =>
         // Versions installed without download data have no date or hash yet; ask each build
         // once (in the background) and refresh the list when the answers are in.
         const probed = get().probedDetailIds;
-        const missing = builds.filter((b) => (!b.hash || b.file_mtime === 0) && !probed.includes(b.id)).map((b) => b.id);
+        // No hash or date: never probed. No version: registered from a folder whose name has none
+        // (an app bundle, an MSI install); the probe reads it from Blender itself.
+        const missing = builds.filter((b) => (!b.hash || b.file_mtime === 0 || !(b.version ?? "").trim()) && !probed.includes(b.id)).map((b) => b.id);
         if (missing.length > 0) {
             set({ probedDetailIds: [...probed, ...missing] });
             postStatus(`Reading build details of ${missing.length} Blender ${missing.length === 1 ? "version" : "versions"}…`, true);

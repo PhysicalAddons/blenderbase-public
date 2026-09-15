@@ -4,6 +4,14 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## Unreleased
+
+### Fixed
+- A Blender registered from a folder whose name carries no version (an app
+  bundle in /Applications on macOS, an MSI install on Windows) showed an
+  empty version. The number now comes from Blender itself, read together
+  with the build details, and versions still missing it are read again once.
+
 ## 1.2.7
 
 ### Changed

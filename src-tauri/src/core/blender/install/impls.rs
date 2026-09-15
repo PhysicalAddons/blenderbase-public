@@ -1248,6 +1248,13 @@ impl BlenderInstallServiceImpl {
         if !info.cycle.is_empty() {
             blender_version.release_cycle = Some(info.cycle);
         }
+        // A version registered from a folder without a version in its name (an
+        // app bundle in /Applications, an MSI install) gets its number from Blender.
+        let has_version = blender_version.version.as_deref().map(|v| !v.trim().is_empty()).unwrap_or(false);
+        if !has_version && !info.version.is_empty() {
+            blender_version.series = Some(info.version.split('.').take(2).collect::<Vec<_>>().join("."));
+            blender_version.version = Some(info.version);
+        }
         if let Err(e) = state.blender_version_repository().update(&blender_version).await {
             eprintln!("refresh_blender_version_details: could not store details: {:?}", e);
         }
