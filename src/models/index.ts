@@ -238,3 +238,68 @@ export interface IAddon {
 
 /** Applies a changed setting; resolves with an error message when the backend refuses it. */
 export type SettingHandler = (appSetting: IAppSetting) => Promise<string | undefined>;
+
+/** A file of a setup, stored once under its SHA-256. */
+export interface ISetupBlob {
+    blob: string,
+    size: number,
+    name?: string,
+    format?: string,
+}
+
+export interface ISetupBlenderVersion {
+    version: string,
+    series: string,
+    channel: string,
+    branch?: string,
+    default: boolean,
+    custom_name?: string,
+}
+
+export interface ISetupRepository {
+    module: string,
+    name: string,
+    url: string,
+    needs_token: boolean,
+}
+
+/** core: bundled with Blender. repo: restored by id. file: installed from a file. manual: cannot be restored automatically. */
+export type SetupAddonSource = "core" | "repo" | "file" | "manual";
+
+export interface ISetupAddon {
+    source: SetupAddonSource,
+    module: string,
+    name: string,
+    version?: string,
+    enabled: boolean,
+    kind?: string,
+    repository?: string,
+    package?: string,
+    content_hash?: string,
+    file?: ISetupBlob,
+    reason?: string,
+}
+
+export interface ISetupSeries {
+    captured_with: string,
+    preferences?: ISetupBlob,
+    theme?: ISetupBlob,
+    keymap?: ISetupBlob,
+    repositories: ISetupRepository[],
+    addons: ISetupAddon[],
+}
+
+/** A Blender setup without machine-specific paths; one section per Blender series. */
+export interface ISetupManifest {
+    schema: number,
+    meta: { created: string, app_version: string, platform: string },
+    blender: ISetupBlenderVersion[],
+    series: Record<string, ISetupSeries>,
+}
+
+export interface ISetupBundleInfo {
+    file_path: string,
+    file_size: number,
+    manifest: ISetupManifest,
+    warnings: string[],
+}
