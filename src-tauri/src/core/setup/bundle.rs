@@ -151,8 +151,6 @@ pub fn read_bundle_manifest(file_path: &Path) -> Result<SetupManifest, String> {
 
 /// Copies one blob out of a bundle. The content is hashed on the way and the copy is removed
 /// again when it does not match its name, so nothing unverified is left for Blender to load.
-// Applying a setup is the next step to land; until then only the tests call this.
-#[allow(dead_code)]
 pub fn extract_bundle_blob(file_path: &Path, reference: &str, destination: &Path) -> Result<(), String> {
     let digest = blob_digest(reference).ok_or_else(|| format!("'{}' is not a blob reference", reference))?;
     let mut archive = open_bundle(file_path)?;
@@ -219,7 +217,7 @@ pub fn addon_content(main_python_file: &Path) -> Result<AddonContent, String> {
         .parent()
         .ok_or_else(|| format!("{} has no folder", main_python_file.display()))?;
     let mut files: Vec<(String, PathBuf)> = Vec::new();
-    collect_addon_files(directory, "", &mut files)?;
+    collect_files(directory, "", &mut files)?;
     files.sort_by(|a, b| a.0.cmp(&b.0));
     let mut size = 0u64;
     let mut hashes: Vec<(String, String)> = Vec::with_capacity(files.len());
@@ -248,7 +246,7 @@ pub fn pack_addon(main_python_file: &Path, is_extension: bool, work_directory: &
         .ok_or_else(|| format!("{} has no folder", main_python_file.display()))?;
     let folder_name = file_name_of(directory)?;
     let mut files: Vec<(String, PathBuf)> = Vec::new();
-    collect_addon_files(directory, "", &mut files)?;
+    collect_files(directory, "", &mut files)?;
     files.sort_by(|a, b| a.0.cmp(&b.0));
 
     std::fs::create_dir_all(work_directory)
@@ -309,7 +307,9 @@ fn is_stored_extension(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-fn collect_addon_files(directory: &Path, prefix: &str, found: &mut Vec<(String, PathBuf)>) -> Result<(), String> {
+/// Every file below `directory` as (`prefix`-relative name with forward slashes, path).
+/// Caches, repository folders and links are left out.
+pub(super) fn collect_files(directory: &Path, prefix: &str, found: &mut Vec<(String, PathBuf)>) -> Result<(), String> {
     let entries = std::fs::read_dir(directory).map_err(|e| format!("Could not read {}: {}", directory.display(), e))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("Could not read {}: {}", directory.display(), e))?;
@@ -331,7 +331,7 @@ fn collect_addon_files(directory: &Path, prefix: &str, found: &mut Vec<(String, 
             if SKIPPED_DIRECTORIES.iter().any(|s| s.eq_ignore_ascii_case(&name)) {
                 continue;
             }
-            collect_addon_files(&path, &relative, found)?;
+            collect_files(&path, &relative, found)?;
         } else if file_type.is_file() {
             let skipped = path
                 .extension()

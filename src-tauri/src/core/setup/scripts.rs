@@ -182,3 +182,101 @@ _out = getattr(sys, "__stdout__", None) or sys.stdout
 _out.write("__MARKER__" + json.dumps(result) + "\n")
 _out.flush()
 "#;
+
+/// Writes preferences, theme and keymap of a setup into one series and saves the user
+/// preferences. Every input is data from outside: preference names are looked up before they
+/// are set, the theme goes through Blender's own installer, and the keymap file is parsed as
+/// literals, never executed.
+pub const APPLY_SETUP_PY: &str = r#"
+import bpy, json, os, sys
+
+preferences_file = __PREFERENCES_FILE__
+theme_file = __THEME_FILE__
+keymap_file = __KEYMAP_FILE__
+keymap_name = __KEYMAP_NAME__
+report = {"preferences": {"set": 0, "skipped": []}, "theme": None, "keymap": None, "warnings": []}
+
+# Preferences: a value the running series does not know, or refuses, is skipped on its own.
+def _apply(struct, values, trail):
+    for pid, value in values.items():
+        where = trail + "." + pid
+        prop = struct.bl_rna.properties.get(pid)
+        if prop is None:
+            report["preferences"]["skipped"].append(where)
+            continue
+        try:
+            if isinstance(value, dict):
+                if prop.type == "POINTER" and getattr(struct, pid) is not None:
+                    _apply(getattr(struct, pid), value, where)
+                else:
+                    report["preferences"]["skipped"].append(where)
+                continue
+            if prop.is_readonly or prop.type in ("POINTER", "COLLECTION"):
+                report["preferences"]["skipped"].append(where)
+                continue
+            if prop.type == "STRING" and prop.subtype in ("FILE_PATH", "DIR_PATH", "FILE_NAME"):
+                report["preferences"]["skipped"].append(where)
+                continue
+            if prop.type == "ENUM" and prop.is_enum_flag:
+                value = set(value)
+            if getattr(struct, pid) != value and not (isinstance(value, list) and list(getattr(struct, pid)) == value):
+                setattr(struct, pid, value)
+                report["preferences"]["set"] += 1
+        except Exception as e:
+            report["preferences"]["skipped"].append("%s (%s)" % (where, e))
+
+prefs = bpy.context.preferences
+if preferences_file:
+    with open(preferences_file, "r", encoding="utf-8") as f:
+        groups = json.load(f)
+    for group, values in groups.items():
+        struct = getattr(prefs, group, None)
+        if struct is not None and isinstance(values, dict) and group in __PREFERENCE_GROUPS__:
+            _apply(struct, values, group)
+        else:
+            report["preferences"]["skipped"].append(group)
+
+# Theme: Blender's own installer, which only lets a theme file touch theme types.
+if theme_file:
+    try:
+        result = bpy.ops.preferences.theme_install(filepath=theme_file, overwrite=True)
+        report["theme"] = "FINISHED" in result
+        if not report["theme"]:
+            report["warnings"].append("theme: %s" % sorted(result))
+    except Exception as e:
+        report["warnings"].append("theme: %s" % e)
+
+# Keymap: a keyconfig file is Python, and this one comes from outside. It is never executed:
+# its two literal assignments are read as data, handed to Blender, and the preset Blender
+# runs on later starts is one Blender wrote itself from that data.
+if keymap_file:
+    try:
+        import ast
+        from bl_keymap_utils.io import keyconfig_import_from_data, keyconfig_export_as_data
+        with open(keymap_file, "r", encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+        found = {}
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                if node.targets[0].id in ("keyconfig_version", "keyconfig_data"):
+                    found[node.targets[0].id] = ast.literal_eval(node.value)
+        data = found.get("keyconfig_data")
+        if not isinstance(data, list):
+            raise ValueError("no keyconfig data")
+        version = found.get("keyconfig_version")
+        wm = bpy.context.window_manager
+        bpy.utils.keyconfig_init()
+        kc = keyconfig_import_from_data(keymap_name, data, keyconfig_version=tuple(version) if version else bpy.app.version)
+        wm.keyconfigs.active = kc
+        wm.keyconfigs.update()
+        target = bpy.utils.user_resource("SCRIPTS", path=os.path.join("presets", "keyconfig"), create=True)
+        keyconfig_export_as_data(wm, kc, os.path.join(target, keymap_name + ".py"), all_keymaps=False)
+        report["keymap"] = [km.name for km in kc.keymaps]
+    except Exception as e:
+        report["warnings"].append("keymap: %s" % e)
+
+bpy.ops.wm.save_userpref()
+_out = getattr(sys, "__stdout__", None) or sys.stdout
+_out.write("__MARKER__" + json.dumps(report) + "\n")
+_out.flush()
+"#;

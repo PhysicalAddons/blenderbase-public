@@ -8,6 +8,10 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
 use super::{
+    apply::{
+        apply_series, backups_directory, is_blender_running, undo_last_apply, SeriesApplyReport, SetupApplyOptions,
+        SetupTarget,
+    },
     bundle::{
         addon_content, pack_addon, read_bundle_manifest, AddonContent, SetupBundleWriter, SETUP_BUNDLE_EXTENSION,
     },
@@ -20,9 +24,9 @@ use super::{
 };
 use crate::{
     core::{
-        blender_config_root, extract_json_payload, py_string_literal,
-        resolve_blender_console_executable, run_blender_python, ADDON_KIND_ADDON, ADDON_KIND_CORE,
-        ADDON_KIND_EXTENSION, BLENDERBASE_JSON_MARKER,
+        extract_json_payload, py_string_literal, resolve_blender_console_executable,
+        run_blender_python_with_env, ADDON_KIND_ADDON, ADDON_KIND_CORE, ADDON_KIND_EXTENSION,
+        BLENDERBASE_JSON_MARKER,
     },
     database::BlenderVersion,
     AppState,
@@ -34,7 +38,7 @@ const CAPTURE_TIMEOUT_SECS: u64 = 120;
 const CONCURRENT_CAPTURES: usize = 3;
 /// Preference structs that mean the same on every computer. `filepaths` and `system` stay
 /// behind: folders, GPU and memory choices belong to the machine, not to the setup.
-const PORTABLE_PREFERENCE_GROUPS: [&str; 3] = ["view", "edit", "inputs"];
+pub(super) const PORTABLE_PREFERENCE_GROUPS: [&str; 3] = ["view", "edit", "inputs"];
 /// The repository Blender reserves for extensions that ship with an installation.
 const SYSTEM_REPOSITORY_SOURCE: &str = "SYSTEM";
 /// Event that carries one line of progress for the status bar while a setup is saved.
@@ -125,6 +129,19 @@ pub trait TSetupService {
         state: tauri::State<'_, AppState>,
         file_path: String,
     ) -> Result<SetupBundleInfo, String>;
+    async fn apply_setup_bundle(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        file_path: String,
+        options: SetupApplyOptions,
+    ) -> Result<Vec<SeriesApplyReport>, String>;
+    async fn undo_setup_apply(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        series: String,
+    ) -> Result<usize, String>;
 }
 
 pub struct SetupServiceImpl;
@@ -157,8 +174,11 @@ impl TSetupService for SetupServiceImpl {
         let progress: SetupProgress = Arc::new(move |message: String| {
             let _ = app.emit(SETUP_PROGRESS_EVENT, message);
         });
+        let mut blender: Vec<SetupBlenderVersion> = installed.iter().filter_map(Self::manifest_version).collect();
+        blender.sort_by(|a, b| compare_versions(&a.version, &b.version));
+        let targets = Self::series_targets(&installed);
         let outcome =
-            Self::export_into(app_version, &installed, &bundle_path, &work_directory, &options, progress).await;
+            Self::export_into(app_version, blender, targets, &bundle_path, &work_directory, &options, progress).await;
         let _ = std::fs::remove_dir_all(&work_directory);
         outcome
     }
@@ -185,12 +205,89 @@ impl TSetupService for SetupServiceImpl {
             Err(e) => Err(format!("Failed inspect_setup_bundle: {:?}", e)),
         }
     }
+
+    async fn apply_setup_bundle(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        file_path: String,
+        options: SetupApplyOptions,
+    ) -> Result<Vec<SeriesApplyReport>, String> {
+        let bundle_path = PathBuf::from(&file_path);
+        let manifest = {
+            let bundle_path = bundle_path.clone();
+            tokio::task::spawn_blocking(move || read_bundle_manifest(&bundle_path))
+                .await
+                .map_err(|e| format!("Failed apply_setup_bundle: {:?}", e))??
+        };
+        if is_blender_running().await {
+            return Err(String::from(
+                "Close Blender first: an open Blender overwrites its preferences when it quits",
+            ));
+        }
+        let targets = Self::series_targets(&Self::installed_blender_versions(&state).await?);
+        let progress: SetupProgress = Arc::new(move |message: String| {
+            let _ = app.emit(SETUP_PROGRESS_EVENT, message);
+        });
+        let work_directory =
+            std::env::temp_dir().join(format!("blenderbase-setup-{}", uuid::Uuid::new_v4()));
+        let mut reports = Vec::new();
+        for (series, section) in &manifest.series {
+            if let Some(chosen) = &options.series {
+                if !chosen.contains(series) {
+                    continue;
+                }
+            }
+            let outcome = match (targets.iter().find(|t| &t.series == series), backups_directory(series)) {
+                (Some(target), Some(backups)) => {
+                    apply_series(&bundle_path, section, target, &backups, &work_directory, &options, &progress).await
+                }
+                (None, _) => Err(format!("Blender {} is not installed", series)),
+                (_, None) => Err(String::from("Could not determine the app data directory")),
+            };
+            reports.push(match outcome {
+                Ok(report) => report,
+                Err(e) => SeriesApplyReport {
+                    series: series.clone(),
+                    skipped_reason: Some(e),
+                    ..SeriesApplyReport::default()
+                },
+            });
+        }
+        let _ = std::fs::remove_dir_all(&work_directory);
+        Ok(reports)
+    }
+
+    async fn undo_setup_apply(
+        &self,
+        _app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        series: String,
+    ) -> Result<usize, String> {
+        if !is_series(&series) {
+            return Err(format!("'{}' is not a Blender series", series));
+        }
+        if is_blender_running().await {
+            return Err(String::from(
+                "Close Blender first: an open Blender overwrites its preferences when it quits",
+            ));
+        }
+        let targets = Self::series_targets(&Self::installed_blender_versions(&state).await?);
+        let target = targets
+            .iter()
+            .find(|t| t.series == series)
+            .ok_or_else(|| format!("Blender {} is not installed", series))?;
+        let backups = backups_directory(&series)
+            .ok_or_else(|| String::from("Could not determine the app data directory"))?;
+        undo_last_apply(target, &backups).await
+    }
 }
 
 impl SetupServiceImpl {
     async fn export_into(
         app_version: String,
-        installed: &[BlenderVersion],
+        blender: Vec<SetupBlenderVersion>,
+        targets: Vec<SetupTarget>,
         bundle_path: &Path,
         work_directory: &Path,
         options: &SetupExportOptions,
@@ -201,10 +298,9 @@ impl SetupServiceImpl {
             app_version,
             platform: format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH),
         });
-        manifest.blender = installed.iter().filter_map(Self::manifest_version).collect();
-        manifest.blender.sort_by(|a, b| compare_versions(&a.version, &b.version));
+        manifest.blender = blender;
 
-        let captured = Self::capture_every_series(installed, work_directory, &progress).await;
+        let captured = Self::capture_every_series(targets, work_directory, &progress).await;
 
         let bundle_path = bundle_path.to_path_buf();
         let work_directory = work_directory.to_path_buf();
@@ -261,50 +357,62 @@ impl SetupServiceImpl {
         }
     }
 
-    /// Runs the capture script once per series that has a configuration folder. The versions
-    /// of one series share that folder, so the newest of them speaks for the series.
-    async fn capture_every_series(
-        installed: &[BlenderVersion],
-        work_directory: &Path,
-        progress: &SetupProgress,
-    ) -> Vec<(String, Result<CapturedSeries, String>)> {
-        let mut readers: BTreeMap<String, &BlenderVersion> = BTreeMap::new();
+    /// The versions of one series share its configuration folder, so the newest of them
+    /// speaks for the series, both when a setup is read and when one is applied.
+    fn series_targets(installed: &[BlenderVersion]) -> Vec<SetupTarget> {
+        let mut newest: BTreeMap<String, SetupTarget> = BTreeMap::new();
         for version in installed {
             let Some(series) = version.series.as_deref().filter(|s| is_series(s)) else {
                 continue;
             };
-            let newer = match readers.get(series) {
-                Some(current) => {
-                    compare_versions(
-                        version.version.as_deref().unwrap_or_default(),
-                        current.version.as_deref().unwrap_or_default(),
-                    ) == std::cmp::Ordering::Greater
-                }
-                None => true,
-            };
-            if newer {
-                readers.insert(series.to_string(), version);
-            }
-        }
-
-        let limit = Arc::new(tokio::sync::Semaphore::new(CONCURRENT_CAPTURES));
-        let mut runs = tokio::task::JoinSet::new();
-        for (series, version) in readers {
-            // A series that was never started has nothing of the user's in it yet.
-            let has_configuration = blender_config_root()
-                .map(|root| root.join(&series).join("config").is_dir())
-                .unwrap_or(false);
-            let Some(executable) = version.executable_file_path.clone().filter(|_| has_configuration) else {
+            let Some(executable) = version.executable_file_path.as_deref().filter(|p| !p.is_empty()) else {
                 continue;
             };
-            let out_directory = work_directory.join(&series);
+            let number = version.version.clone().unwrap_or_default();
+            let is_newer = newest
+                .get(series)
+                .map(|current| compare_versions(&number, &current.version) == std::cmp::Ordering::Greater)
+                .unwrap_or(true);
+            if is_newer {
+                newest.insert(
+                    series.to_string(),
+                    SetupTarget {
+                        series: series.to_string(),
+                        version: number,
+                        executable: resolve_blender_console_executable(Path::new(executable)),
+                        user_resources: None,
+                    },
+                );
+            }
+        }
+        newest.into_values().collect()
+    }
+
+    /// Runs the capture script once per series that has a configuration folder.
+    async fn capture_every_series(
+        targets: Vec<SetupTarget>,
+        work_directory: &Path,
+        progress: &SetupProgress,
+    ) -> Vec<(String, Result<CapturedSeries, String>)> {
+        let limit = Arc::new(tokio::sync::Semaphore::new(CONCURRENT_CAPTURES));
+        let mut runs = tokio::task::JoinSet::new();
+        for target in targets {
+            // A series that was never started has nothing of the user's in it yet.
+            let has_configuration = target
+                .series_directory()
+                .map(|directory| directory.join("config").is_dir())
+                .unwrap_or(false);
+            if !has_configuration {
+                continue;
+            }
+            let out_directory = work_directory.join(&target.series);
             let limit = limit.clone();
             let progress = progress.clone();
             runs.spawn(async move {
                 let _permit = limit.acquire_owned().await;
-                progress(format!("Reading the setup of Blender {}…", series));
-                let outcome = Self::capture_series(Path::new(&executable), &out_directory).await;
-                (series, outcome)
+                progress(format!("Reading the setup of Blender {}…", target.series));
+                let outcome = Self::capture_series(&target, &out_directory).await;
+                (target.series, outcome)
             });
         }
         let mut captured = Vec::new();
@@ -317,7 +425,7 @@ impl SetupServiceImpl {
         captured
     }
 
-    async fn capture_series(executable: &Path, out_directory: &Path) -> Result<CapturedSeries, String> {
+    async fn capture_series(target: &SetupTarget, out_directory: &Path) -> Result<CapturedSeries, String> {
         std::fs::create_dir_all(out_directory)
             .map_err(|e| format!("Could not create {}: {}", out_directory.display(), e))?;
         let groups = format!(
@@ -332,8 +440,8 @@ impl SetupServiceImpl {
             .replace("__MARKER__", BLENDERBASE_JSON_MARKER)
             .replace("__OUT_DIR__", &py_string_literal(&out_directory.to_string_lossy()))
             .replace("__PREFERENCE_GROUPS__", &groups);
-        let executable = resolve_blender_console_executable(executable);
-        let stdout = run_blender_python(&executable, &script, CAPTURE_TIMEOUT_SECS).await?;
+        let stdout =
+            run_blender_python_with_env(&target.executable, &script, CAPTURE_TIMEOUT_SECS, &target.envs()).await?;
         let payload = extract_json_payload(&stdout)?;
         match serde_json::Deserializer::from_str(payload.trim())
             .into_iter::<CapturedSeries>()
@@ -574,57 +682,113 @@ mod tests {
         assert_eq!(compare_versions("5.3.0-alpha", "5.3.0"), Equal);
     }
 
-    /// The whole export against a real Blender: `BLENDERBASE_TEST_BLENDER` names the executable.
-    /// Reads the configuration of that build's series and changes nothing in it.
+    /// Changes a few preferences, a theme colour and two shortcuts in an isolated user folder.
+    const TWEAK_PY: &str = r#"
+import bpy
+p = bpy.context.preferences
+p.view.show_splash = False
+p.view.ui_scale = 1.2
+p.inputs.use_mouse_emulate_3_button = True
+p.edit.undo_steps = 64
+p.inputs.walk_navigation.walk_speed = 4.5
+p.themes[0].view_3d.space.gradients.high_gradient = (0.1, 0.2, 0.3)
+wm = bpy.context.window_manager
+bpy.utils.keyconfig_init()
+wm.keyconfigs.update()
+km = wm.keyconfigs.user.keymaps["3D View"]
+for kmi in km.keymap_items:
+    if kmi.idname == "view3d.view_selected":
+        kmi.type = "F9"
+        kmi.ctrl = True
+        break
+km.keymap_items.new("view3d.view_all", "F10", "PRESS", shift=True)
+wm.keyconfigs.update()
+bpy.ops.wm.save_userpref()
+print("__MARKER__" + '{"ok": true}')
+"#;
+
+    /// The whole round trip against a real Blender, named by `BLENDERBASE_TEST_BLENDER`, in
+    /// isolated user folders: change a configuration, save it as a setup, apply the setup to
+    /// an empty configuration, save that again, and compare. The user's own profile is never
+    /// read or written.
     #[tokio::test]
     #[ignore = "needs an installed Blender; set BLENDERBASE_TEST_BLENDER"]
-    async fn a_real_blender_setup_exports_and_reads_back() {
+    async fn a_setup_survives_the_trip_to_an_empty_configuration() {
         let executable = std::env::var("BLENDERBASE_TEST_BLENDER").expect("BLENDERBASE_TEST_BLENDER");
-        // The registered path may be the Windows launcher stub; the export resolves it on its own.
+        // The registered path may be the Windows launcher stub.
         let console = resolve_blender_console_executable(Path::new(&executable));
         let info = crate::core::probe_blender_build_info(&console, 30).await.unwrap();
         let series = info.version.split('.').take(2).collect::<Vec<_>>().join(".");
-        let installed = vec![BlenderVersion {
-            version: Some(info.version.clone()),
-            series: Some(series.clone()),
-            release_cycle: Some(info.cycle.clone()),
-            executable_file_path: Some(executable),
-            is_default: true,
-            ..BlenderVersion::default()
-        }];
-        let dir = std::env::temp_dir().join(format!("blenderbase-setup-real-{}", uuid::Uuid::new_v4()));
-        let bundle_path = dir.join("real.bbsetup");
-        std::fs::create_dir_all(&dir).unwrap();
-        let options = SetupExportOptions { include_addon_files: std::env::var("BLENDERBASE_TEST_ADDON_FILES").is_ok() };
+        let dir = std::env::temp_dir().join(format!("blenderbase-setup-trip-{}", uuid::Uuid::new_v4()));
+        let target_in = |name: &str| SetupTarget {
+            series: series.clone(),
+            version: info.version.clone(),
+            executable: console.clone(),
+            user_resources: Some(dir.join(name)),
+        };
+        let (source, destination) = (target_in("source"), target_in("destination"));
+        for target in [&source, &destination] {
+            std::fs::create_dir_all(target.series_directory().unwrap().join("config")).unwrap();
+        }
+        let tweak = TWEAK_PY.replace("__MARKER__", BLENDERBASE_JSON_MARKER);
+        run_blender_python_with_env(&console, &tweak, 120, &source.envs()).await.unwrap();
 
         let progress: SetupProgress = Arc::new(|message: String| println!("  {}", message));
-        let started = std::time::Instant::now();
-        let exported =
-            SetupServiceImpl::export_into(String::from("test"), &installed, &bundle_path, &dir.join("work"), &options, progress)
+        let options = SetupExportOptions::default();
+        let export = |target: SetupTarget, name: &'static str| {
+            let (dir, progress, options) = (dir.clone(), progress.clone(), options.clone());
+            async move {
+                SetupServiceImpl::export_into(
+                    String::from("test"),
+                    Vec::new(),
+                    vec![target],
+                    &dir.join(format!("{}.bbsetup", name)),
+                    &dir.join(format!("work-{}", name)),
+                    &options,
+                    progress,
+                )
                 .await
-                .unwrap();
-        println!("exported in {:.1} s", started.elapsed().as_secs_f32());
-        let section = exported.manifest.series.get(&series).expect("the series was captured");
-        assert_eq!(section.captured_with, info.version);
+                .unwrap()
+            }
+        };
+        let saved = export(source.clone(), "source").await;
+        let section = saved.manifest.series.get(&series).expect("the series was captured").clone();
         assert!(section.preferences.is_some() && section.theme.is_some());
+        assert!(section.keymap.is_some(), "changed shortcuts travel as a keymap");
         assert!(section.addons.iter().any(|a| a.source == SetupAddonSource::Core));
-        let json = serde_json::to_string(&exported.manifest).unwrap();
-        assert!(!json.contains(":\\") && !json.contains("/Users/") && !json.contains("/home/"), "no local path may leak into the manifest");
+        let json = serde_json::to_string(&saved.manifest).unwrap();
+        assert!(!json.contains(":\\\\") && !json.contains("/Users/") && !json.contains("/home/"), "no local path may leak into the manifest");
 
-        let read = read_bundle_manifest(&bundle_path).unwrap();
-        assert_eq!(read, exported.manifest);
-        println!(
-            "{} bytes, {} addons, {} blobs, warnings: {:?}",
-            exported.file_size,
-            section.addons.len(),
-            read.blob_references().len(),
-            exported.warnings
-        );
-        if std::env::var("BLENDERBASE_TEST_KEEP").is_ok() {
-            println!("kept at {}", bundle_path.display());
-        } else {
-            let _ = std::fs::remove_dir_all(&dir);
-        }
+        let report = apply_series(
+            &dir.join("source.bbsetup"),
+            &section,
+            &destination,
+            &dir.join("backups"),
+            &dir.join("work-apply"),
+            &SetupApplyOptions::default(),
+            &progress,
+        )
+        .await
+        .unwrap();
+        println!("{:?}", report);
+        assert!(report.preferences_set >= 5, "the five changed preferences are written");
+        assert!(report.preferences_skipped.is_empty() && report.warnings.is_empty());
+        assert!(report.theme_applied);
+        assert_eq!(report.keymaps_applied, vec![String::from("3D View")]);
+
+        let arrived = export(destination.clone(), "destination").await;
+        let arrived_section = arrived.manifest.series.get(&series).unwrap();
+        assert_eq!(arrived_section.preferences.as_ref().map(|b| &b.blob), section.preferences.as_ref().map(|b| &b.blob), "every portable preference arrived");
+        assert_eq!(arrived_section.theme.as_ref().map(|b| &b.blob), section.theme.as_ref().map(|b| &b.blob), "the theme arrived unchanged");
+        let keymap = arrived_section.keymap.as_ref().expect("the key configuration is saved again from the second computer");
+        assert_eq!(keymap.name.as_deref(), Some("Blenderbase_setup"));
+
+        // Undo puts the empty configuration back.
+        let restored = undo_last_apply(&destination, &dir.join("backups")).await.unwrap();
+        println!("undo restored {} files", restored);
+        let presets = destination.series_directory().unwrap().join("scripts").join("presets");
+        assert!(!presets.join("keyconfig").join("Blenderbase_setup.py").exists(), "undo removes the presets the setup added");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
