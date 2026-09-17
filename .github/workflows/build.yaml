@@ -115,6 +115,25 @@ jobs:
           $js = "const r = require('child_process').spawnSync('pwsh', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', process.argv[1], process.argv[2]], { stdio: 'pipe', encoding: 'utf8' }); process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || ''); console.log('exit code', r.status, r.error ? String(r.error) : ''); process.exit(r.status === 0 ? 0 : 1);"
           node -e $js -- $script $target
 
+      # macOS code signing and notarization: a Developer ID Application
+      # certificate (made by scripts/apple-certificate.sh) and an App Store
+      # Connect API key, all repository secrets. The script imports the
+      # certificate, proves it signs and that Apple accepts the API key, in
+      # seconds rather than after the compile, then hands the Tauri build
+      # APPLE_SIGNING_IDENTITY and APPLE_API_KEY / _ISSUER / _KEY_PATH through
+      # GITHUB_ENV. The variables are deliberately not set on the build step:
+      # a missing secret would reach Tauri as an empty string and fail the
+      # bundle, while here it just leaves the build unsigned.
+      - name: Enable macOS signing and notarization
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: bash scripts/apple-signing.sh
+
       # The release body comes from the CHANGELOG.md section whose heading
       # matches the tag (## 1.2.1 for v1.2.1). Falls back to a pointer at
       # the changelog when no section exists yet.
@@ -179,3 +198,18 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path .signing-tools/sign-windows.log) { Get-Content .signing-tools/sign-windows.log } else { "no signing log" }
+
+      # What Gatekeeper will say on a user's Mac: the app must carry a stapled
+      # notarization ticket and pass assessment as "Notarized Developer ID".
+      # Skipped while the build is unsigned.
+      - name: Verify macOS signature and notarization
+        if: runner.os == 'macOS' && env.APPLE_SIGNING_IDENTITY != ''
+        run: |
+          app="$(find src-tauri/target -type d -name 'Blenderbase.app' -path '*bundle/macos*' | head -n 1)"
+          echo "App: $app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          codesign --display --verbose=2 "$app" 2>&1 | grep -E '^(Authority|TeamIdentifier|Timestamp|Runtime)'
+          if [ -n "$APPLE_API_KEY_PATH" ]; then
+            xcrun stapler validate "$app"
+            spctl --assess --type execute --verbose=4 "$app"
+          fi

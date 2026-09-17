@@ -57,7 +57,7 @@ Download the installer for your platform from the [latest release](https://githu
 | macOS (Apple Silicon) | `Blenderbase_x.y.z_aarch64.dmg` |
 | Linux (x64) | `Blenderbase_x.y.z_amd64.AppImage` |
 
-The Windows installer and executable are signed by SIA Physical Software through Azure Artifact Signing. SmartScreen may still show a prompt on first run until the publisher has built up reputation. The macOS app is not yet signed; clear the quarantine flag once after copying it to Applications:
+The Windows installer and executable are signed by SIA Physical Software through Azure Artifact Signing. SmartScreen may still show a prompt on first run until the publisher has built up reputation. The macOS app in releases after 1.2.8 is signed with the Developer ID of Physical Software SIA and notarized by Apple, so it opens like any downloaded app. 1.2.8 and older are unsigned; for those, clear the quarantine flag once after copying the app to Applications:
 
 ```
 xattr -dr com.apple.quarantine /Applications/Blenderbase.app
@@ -85,7 +85,7 @@ Set these environment variables before building:
 
 If the checkout lives in a synced folder (Dropbox, OneDrive), point `CARGO_TARGET_DIR` and `VITE_CACHE_DIR` at a folder outside it, otherwise the sync client can lock build artifacts mid-write and break the build.
 
-Releases are built by GitHub Actions from a `v*` tag; the release notes are the matching section of [CHANGELOG.md](CHANGELOG.md). The Windows build is code-signed there through Azure Artifact Signing (`scripts/sign-windows.ps1`, wired into Tauri by `scripts/sign-config.ps1`); local builds are unsigned unless you pass that overlay and are logged in with `az login` under an identity that holds the Certificate Profile Signer role. The **Sign check** workflow exercises the signing path on its own.
+Releases are built by GitHub Actions from a `v*` tag; the release notes are the matching section of [CHANGELOG.md](CHANGELOG.md). The Windows build is code-signed there through Azure Artifact Signing (`scripts/sign-windows.ps1`, wired into Tauri by `scripts/sign-config.ps1`); local builds are unsigned unless you pass that overlay and are logged in with `az login` under an identity that holds the Certificate Profile Signer role. The macOS build is signed with a Developer ID Application certificate and notarized with an App Store Connect API key, both repository secrets prepared on the runner by `scripts/apple-signing.sh`; without them (a fork, say) it builds unsigned. `scripts/apple-certificate.sh` makes the certificate request and the `.p12` without a Mac. The **Sign check** workflow exercises both signing paths on their own.
 
 ## Notice
 

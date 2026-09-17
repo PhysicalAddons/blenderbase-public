@@ -1,10 +1,12 @@
 name: Sign check
 
-# Manual check of the Windows code-signing path (Azure login through OIDC,
-# SignTool plugin download, a signature from the blenderbase-public
-# certificate profile) without building or releasing anything. It runs on
-# its own when the signing files change on any branch, and can be started
-# from the Actions tab after changes on the Azure side.
+# Manual check of the code-signing paths without building or releasing
+# anything. Windows: Azure login through OIDC, SignTool plugin download, a
+# signature from the blenderbase-public certificate profile. macOS: the
+# Developer ID certificate imports and signs, the App Store Connect API key is
+# accepted, and a small signed binary comes back from notarization. It runs on
+# its own when the signing files change on any branch, and can be started from
+# the Actions tab after changes on the Azure or Apple side.
 
 on:
   workflow_dispatch:
@@ -15,6 +17,7 @@ on:
 
 jobs:
   sign-check:
+    name: Windows (Azure Artifact Signing)
     runs-on: windows-latest
     permissions:
       id-token: write
@@ -55,3 +58,27 @@ jobs:
           "Issuer:  $($cert.Issuer)"
           "Expires: $($cert.NotAfter)"
           if ($cert.Subject -notlike '*SIA Physical Software*') { throw "Unexpected subject" }
+
+  sign-check-macos:
+    name: macOS (Developer ID, notarization)
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    # Same environment as the release build, so secrets kept on the
+    # environment rather than the repository are visible here too.
+    environment: release
+    # A team's first notarization can sit in Apple's queue far longer than the
+    # usual few minutes; the script gives up after 45.
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import, sign and notarize a probe
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: bash scripts/apple-signing.sh --notarize

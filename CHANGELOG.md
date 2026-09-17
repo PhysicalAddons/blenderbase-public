@@ -4,6 +4,13 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## Unreleased
+
+### Changed
+- **macOS:** the app is signed with the Developer ID of Physical Software SIA
+  and notarized by Apple. It opens like any downloaded app; clearing the
+  quarantine flag with `xattr` is no longer needed.
+
 ## 1.2.8
 
 ### Fixed
