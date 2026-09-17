@@ -5,10 +5,12 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 use super::{
-    bundle::{pack_addon, read_bundle_manifest, SetupBundleWriter, SETUP_BUNDLE_EXTENSION},
+    bundle::{
+        addon_content, pack_addon, read_bundle_manifest, AddonContent, SetupBundleWriter, SETUP_BUNDLE_EXTENSION,
+    },
     manifest::{
         is_identifier, is_series, SetupAddon, SetupAddonSource, SetupBlenderVersion, SetupBlob,
         SetupManifest, SetupMeta, SetupRepository, SetupSeries, SETUP_ADDON_REASON_FILES_NOT_INCLUDED,
@@ -35,6 +37,12 @@ const CONCURRENT_CAPTURES: usize = 3;
 const PORTABLE_PREFERENCE_GROUPS: [&str; 3] = ["view", "edit", "inputs"];
 /// The repository Blender reserves for extensions that ship with an installation.
 const SYSTEM_REPOSITORY_SOURCE: &str = "SYSTEM";
+/// Event that carries one line of progress for the status bar while a setup is saved.
+pub const SETUP_PROGRESS_EVENT: &str = "setup-progress";
+
+/// Receives one line per step of a long run. Shared across the capture tasks and the
+/// blocking writer, hence the `Arc`.
+pub type SetupProgress = Arc<dyn Fn(String) + Send + Sync>;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct SetupExportOptions {
@@ -121,6 +129,14 @@ pub trait TSetupService {
 
 pub struct SetupServiceImpl;
 
+/// What turning one captured series into its manifest section needs besides the capture.
+struct SeriesStep<'a> {
+    series: &'a str,
+    pack_directory: &'a Path,
+    include_addon_files: bool,
+    progress: &'a SetupProgress,
+}
+
 impl TSetupService for SetupServiceImpl {
     async fn export_setup_bundle(
         &self,
@@ -138,7 +154,11 @@ impl TSetupService for SetupServiceImpl {
         let work_directory =
             std::env::temp_dir().join(format!("blenderbase-setup-{}", uuid::Uuid::new_v4()));
         let app_version = app.package_info().version.to_string();
-        let outcome = Self::export_into(app_version, &installed, &bundle_path, &work_directory, &options).await;
+        let progress: SetupProgress = Arc::new(move |message: String| {
+            let _ = app.emit(SETUP_PROGRESS_EVENT, message);
+        });
+        let outcome =
+            Self::export_into(app_version, &installed, &bundle_path, &work_directory, &options, progress).await;
         let _ = std::fs::remove_dir_all(&work_directory);
         outcome
     }
@@ -174,6 +194,7 @@ impl SetupServiceImpl {
         bundle_path: &Path,
         work_directory: &Path,
         options: &SetupExportOptions,
+        progress: SetupProgress,
     ) -> Result<SetupBundleInfo, String> {
         let mut manifest = SetupManifest::new(SetupMeta {
             created: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
@@ -183,7 +204,7 @@ impl SetupServiceImpl {
         manifest.blender = installed.iter().filter_map(Self::manifest_version).collect();
         manifest.blender.sort_by(|a, b| compare_versions(&a.version, &b.version));
 
-        let captured = Self::capture_every_series(installed, work_directory).await;
+        let captured = Self::capture_every_series(installed, work_directory, &progress).await;
 
         let bundle_path = bundle_path.to_path_buf();
         let work_directory = work_directory.to_path_buf();
@@ -202,7 +223,13 @@ impl SetupServiceImpl {
                 };
                 warnings.extend(captured.warnings.iter().map(|w| format!("Blender {}: {}", series, w)));
                 let pack_directory = work_directory.join(&series).join("packed");
-                match Self::series_section(captured, &mut writer, &pack_directory, include_addon_files, &mut warnings) {
+                let step = SeriesStep {
+                    series: &series,
+                    pack_directory: &pack_directory,
+                    include_addon_files,
+                    progress: &progress,
+                };
+                match Self::series_section(captured, &mut writer, &step, &mut warnings) {
                     Ok(section) => {
                         manifest.series.insert(series, section);
                     }
@@ -219,6 +246,7 @@ impl SetupServiceImpl {
                     None => String::from("No installed Blender version has a configuration to save yet"),
                 });
             }
+            progress(String::from("Writing the setup file…"));
             let file_size = writer.finish(&manifest)?;
             Ok(SetupBundleInfo {
                 file_path: bundle_path.to_string_lossy().to_string(),
@@ -238,6 +266,7 @@ impl SetupServiceImpl {
     async fn capture_every_series(
         installed: &[BlenderVersion],
         work_directory: &Path,
+        progress: &SetupProgress,
     ) -> Vec<(String, Result<CapturedSeries, String>)> {
         let mut readers: BTreeMap<String, &BlenderVersion> = BTreeMap::new();
         for version in installed {
@@ -270,8 +299,10 @@ impl SetupServiceImpl {
             };
             let out_directory = work_directory.join(&series);
             let limit = limit.clone();
+            let progress = progress.clone();
             runs.spawn(async move {
                 let _permit = limit.acquire_owned().await;
+                progress(format!("Reading the setup of Blender {}…", series));
                 let outcome = Self::capture_series(Path::new(&executable), &out_directory).await;
                 (series, outcome)
             });
@@ -318,8 +349,7 @@ impl SetupServiceImpl {
     fn series_section(
         captured: CapturedSeries,
         writer: &mut SetupBundleWriter,
-        pack_directory: &Path,
-        include_addon_files: bool,
+        step: &SeriesStep,
         warnings: &mut Vec<String>,
     ) -> Result<SetupSeries, String> {
         let mut section = SetupSeries {
@@ -373,6 +403,7 @@ impl SetupServiceImpl {
                 repository: None,
                 package: None,
                 content_hash: None,
+                content_size: None,
                 file: None,
                 reason: None,
             };
@@ -396,9 +427,10 @@ impl SetupServiceImpl {
                 if is_extension && is_identifier(&addon.package) {
                     entry.package = Some(addon.package.clone());
                 }
-                match Self::packed_addon_file(&addon, is_extension, include_addon_files, writer, pack_directory) {
-                    Ok((content_hash, file)) => {
-                        entry.content_hash = Some(content_hash);
+                match Self::addon_files(&addon, is_extension, writer, step) {
+                    Ok((content, file)) => {
+                        entry.content_hash = Some(content.content_hash);
+                        entry.content_size = Some(content.size);
                         if file.is_none() {
                             entry.reason = Some(String::from(SETUP_ADDON_REASON_FILES_NOT_INCLUDED));
                         }
@@ -433,34 +465,33 @@ impl SetupServiceImpl {
         }))
     }
 
-    /// The content hash is always taken, so a later save can tell whether the addon changed;
-    /// the packed file only goes into the bundle when the user asked for addon files.
-    fn packed_addon_file(
+    /// The content hash is always taken, so a later save can tell whether the addon changed.
+    /// The files are only packed, which is the slow part, when they go into the bundle.
+    fn addon_files(
         addon: &CapturedAddon,
         is_extension: bool,
-        include_addon_files: bool,
         writer: &mut SetupBundleWriter,
-        pack_directory: &Path,
-    ) -> Result<(String, Option<SetupBlob>), String> {
+        step: &SeriesStep,
+    ) -> Result<(AddonContent, Option<SetupBlob>), String> {
         let main_python_file = PathBuf::from(&addon.file);
         if !main_python_file.is_file() {
             return Err(String::from("its files could not be found"));
         }
-        let packed = pack_addon(&main_python_file, is_extension, pack_directory)?;
-        let file = if include_addon_files {
-            let (blob, size) = writer.add_blob_from_file(&packed.file_path)?;
-            let name = packed
-                .file_path
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string());
-            Some(SetupBlob { blob, size, name, format: None })
-        } else {
-            None
-        };
-        if packed.file_path.starts_with(pack_directory) {
+        if !step.include_addon_files {
+            (step.progress)(format!("Blender {}: checking {}…", step.series, addon.name));
+            return Ok((addon_content(&main_python_file)?, None));
+        }
+        (step.progress)(format!("Blender {}: packing {}…", step.series, addon.name));
+        let packed = pack_addon(&main_python_file, is_extension, step.pack_directory)?;
+        let (blob, size) = writer.add_blob_from_file(&packed.file_path)?;
+        let name = packed
+            .file_path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string());
+        if packed.file_path.starts_with(step.pack_directory) {
             let _ = std::fs::remove_file(&packed.file_path);
         }
-        Ok((packed.content_hash, file))
+        Ok((packed.content, Some(SetupBlob { blob, size, name, format: None })))
     }
 
     fn manifest_version(version: &BlenderVersion) -> Option<SetupBlenderVersion> {
@@ -566,9 +597,13 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let options = SetupExportOptions { include_addon_files: std::env::var("BLENDERBASE_TEST_ADDON_FILES").is_ok() };
 
-        let exported = SetupServiceImpl::export_into(String::from("test"), &installed, &bundle_path, &dir.join("work"), &options)
-            .await
-            .unwrap();
+        let progress: SetupProgress = Arc::new(|message: String| println!("  {}", message));
+        let started = std::time::Instant::now();
+        let exported =
+            SetupServiceImpl::export_into(String::from("test"), &installed, &bundle_path, &dir.join("work"), &options, progress)
+                .await
+                .unwrap();
+        println!("exported in {:.1} s", started.elapsed().as_secs_f32());
         let section = exported.manifest.series.get(&series).expect("the series was captured");
         assert_eq!(section.captured_with, info.version);
         assert!(section.preferences.is_some() && section.theme.is_some());

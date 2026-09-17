@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, NumberInput, Toggle } from '@carbon/react';
 import { Add, Star, StarFilled, TrashCan } from '@carbon/react/icons';
 import { getVersion } from '@tauri-apps/api/app';
+import { listen } from '@tauri-apps/api/event';
 import { ask, open, save } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
 import { IAppSetting, IBlenderInstallationLocation, ISetupBundleInfo } from '../../models';
@@ -306,6 +307,8 @@ const SettingsPanel = () => {
 		}
 		setIsSavingSetup(true);
 		postStatus("Reading the setup from every Blender series…", true);
+		// The backend names each step (series being read, addon being packed) as it goes.
+		const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
 		try {
 			const info = await setupService.exportSetupBundle(filePath, includeAddonFiles);
 			info.warnings.forEach((w) => console.warn(w));
@@ -314,6 +317,7 @@ const SettingsPanel = () => {
 			console.error(e);
 			postStatusError(`Saving the setup failed: ${errorText(e)}`);
 		} finally {
+			stopListening();
 			setIsSavingSetup(false);
 		}
 	};

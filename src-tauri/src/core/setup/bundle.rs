@@ -18,6 +18,10 @@ const MANIFEST_SIZE_LIMIT: u64 = 16 * 1024 * 1024;
 /// Folders and files of an installed addon that are rebuilt on the target machine.
 const SKIPPED_DIRECTORIES: [&str; 3] = ["__pycache__", ".git", ".vs"];
 const SKIPPED_EXTENSIONS: [&str; 2] = ["pyc", "pyo"];
+/// Formats that are compressed already: deflating them again costs time and saves nothing.
+const STORED_EXTENSIONS: [&str; 16] = [
+    "png", "jpg", "jpeg", "webp", "gif", "exr", "mp4", "mov", "mp3", "ogg", "zip", "7z", "gz", "xz", "zst", "whl",
+];
 
 /// Writes a bundle next to its final name and moves it into place on `finish`, so a failed
 /// export never leaves a half-written file behind.
@@ -49,11 +53,7 @@ impl SetupBundleWriter {
             .map_err(|e| format!("Could not read {}: {}", source.display(), e))?
             .len();
         if self.stored.insert(digest.clone()) {
-            // Archives are compressed already; everything else is text that shrinks well.
-            let is_archive = source
-                .extension()
-                .map(|e| e.to_string_lossy().eq_ignore_ascii_case("zip"))
-                .unwrap_or(false);
+            let is_archive = is_stored_extension(source);
             let mut file = std::fs::File::open(source)
                 .map_err(|e| format!("Could not read {}: {}", source.display(), e))?;
             self.zip
@@ -189,25 +189,58 @@ pub fn extract_bundle_blob(file_path: &Path, reference: &str, destination: &Path
 /// An installed addon turned back into an installable file.
 pub struct PackedAddon {
     pub file_path: PathBuf,
+    pub content: AddonContent,
+}
+
+/// What an installed addon consists of, without archiving it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AddonContent {
     /// Hash over relative paths and file contents; the same files give the same value no
     /// matter how or when they were archived.
     pub content_hash: String,
+    /// Bytes of all files together.
+    pub size: u64,
+}
+
+/// Hashes an installed addon in place. This is all a setup needs when the addon's files do
+/// not travel with it, and it is many times faster than packing them.
+pub fn addon_content(main_python_file: &Path) -> Result<AddonContent, String> {
+    if !is_addon_package(main_python_file) {
+        let size = std::fs::metadata(main_python_file)
+            .map_err(|e| format!("Could not read {}: {}", main_python_file.display(), e))?
+            .len();
+        let digest = sha256_of_path(main_python_file)?;
+        return Ok(AddonContent {
+            content_hash: content_hash_of(&[(file_name_of(main_python_file)?, digest)]),
+            size,
+        });
+    }
+    let directory = main_python_file
+        .parent()
+        .ok_or_else(|| format!("{} has no folder", main_python_file.display()))?;
+    let mut files: Vec<(String, PathBuf)> = Vec::new();
+    collect_addon_files(directory, "", &mut files)?;
+    files.sort_by(|a, b| a.0.cmp(&b.0));
+    let mut size = 0u64;
+    let mut hashes: Vec<(String, String)> = Vec::with_capacity(files.len());
+    for (relative, path) in files {
+        size += std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        hashes.push((relative, sha256_of_path(&path)?));
+    }
+    Ok(AddonContent {
+        content_hash: content_hash_of(&hashes),
+        size,
+    })
 }
 
 /// Packs an addon for the bundle. A single-file addon is used as is. A package folder becomes
 /// a zip: an extension with its files at the root, a legacy addon inside a folder of its name,
 /// which is the layout Blender's installers expect for each.
 pub fn pack_addon(main_python_file: &Path, is_extension: bool, work_directory: &Path) -> Result<PackedAddon, String> {
-    let is_package = main_python_file
-        .file_name()
-        .map(|n| n.to_string_lossy().eq_ignore_ascii_case("__init__.py"))
-        .unwrap_or(false);
-    if !is_package {
-        let digest = sha256_of_path(main_python_file)?;
-        let name = file_name_of(main_python_file)?;
+    if !is_addon_package(main_python_file) {
         return Ok(PackedAddon {
             file_path: main_python_file.to_path_buf(),
-            content_hash: content_hash_of(&[(name, digest)]),
+            content: addon_content(main_python_file)?,
         });
     }
     let directory = main_python_file
@@ -225,6 +258,7 @@ pub fn pack_addon(main_python_file: &Path, is_extension: bool, work_directory: &
         .map_err(|e| format!("Could not create {}: {}", zip_path.display(), e))?;
     let mut zip = zip::ZipWriter::new(zip_file);
     let mut hashes: Vec<(String, String)> = Vec::with_capacity(files.len());
+    let mut total_size = 0u64;
     for (relative, path) in &files {
         let entry_name = if is_extension {
             relative.clone()
@@ -232,7 +266,8 @@ pub fn pack_addon(main_python_file: &Path, is_extension: bool, work_directory: &
             format!("{}/{}", folder_name, relative)
         };
         let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-        zip.start_file(entry_name, entry_options(false, size))
+        total_size += size;
+        zip.start_file(entry_name, entry_options(is_stored_extension(path), size))
             .map_err(|e| format!("Could not pack {}: {}", path.display(), e))?;
         let mut source = std::fs::File::open(path).map_err(|e| format!("Could not read {}: {}", path.display(), e))?;
         let mut hasher = Sha256::new();
@@ -253,8 +288,25 @@ pub fn pack_addon(main_python_file: &Path, is_extension: bool, work_directory: &
     zip.finish().map_err(|e| format!("Could not pack {}: {}", directory.display(), e))?;
     Ok(PackedAddon {
         file_path: zip_path,
-        content_hash: content_hash_of(&hashes),
+        content: AddonContent {
+            content_hash: content_hash_of(&hashes),
+            size: total_size,
+        },
     })
+}
+
+/// A package is a folder with an `__init__.py`; anything else is a single-file addon.
+fn is_addon_package(main_python_file: &Path) -> bool {
+    main_python_file
+        .file_name()
+        .map(|n| n.to_string_lossy().eq_ignore_ascii_case("__init__.py"))
+        .unwrap_or(false)
+}
+
+fn is_stored_extension(path: &Path) -> bool {
+    path.extension()
+        .map(|e| STORED_EXTENSIONS.iter().any(|s| e.to_string_lossy().eq_ignore_ascii_case(s)))
+        .unwrap_or(false)
 }
 
 fn collect_addon_files(directory: &Path, prefix: &str, found: &mut Vec<(String, PathBuf)>) -> Result<(), String> {
@@ -311,8 +363,11 @@ fn entry_options(stored: bool, size: u64) -> zip::write::SimpleFileOptions {
     } else {
         zip::CompressionMethod::Deflated
     };
+    // Addon folders run to hundreds of megabytes: the fastest deflate level keeps an export
+    // to seconds and still halves the Python and text that make up most of the rest.
     zip::write::SimpleFileOptions::default()
         .compression_method(method)
+        .compression_level(if stored { None } else { Some(1) })
         .last_modified_time(zip::DateTime::default())
         .large_file(size >= u32::MAX as u64)
 }
@@ -439,7 +494,9 @@ mod tests {
 
         let legacy = pack_addon(&addon.join("__init__.py"), false, &dir.join("w1")).unwrap();
         let again = pack_addon(&addon.join("__init__.py"), false, &dir.join("w2")).unwrap();
-        assert_eq!(legacy.content_hash, again.content_hash);
+        assert_eq!(legacy.content, again.content);
+        assert_eq!(addon_content(&addon.join("__init__.py")).unwrap(), legacy.content, "hashing in place agrees with packing");
+        assert_eq!(legacy.content.size, ("bl_info = {}".len() + "pass".len()) as u64);
         assert_eq!(std::fs::read(&legacy.file_path).unwrap(), std::fs::read(&again.file_path).unwrap());
 
         let names = |path: &Path| -> Vec<String> {
@@ -449,7 +506,7 @@ mod tests {
         assert_eq!(names(&legacy.file_path), vec!["my_addon/__init__.py", "my_addon/ui/panel.py"]);
         let extension = pack_addon(&addon.join("__init__.py"), true, &dir.join("w3")).unwrap();
         assert_eq!(names(&extension.file_path), vec!["__init__.py", "ui/panel.py"]);
-        assert_eq!(extension.content_hash, legacy.content_hash, "the layout does not change the content hash");
+        assert_eq!(extension.content, legacy.content, "the layout does not change the content hash");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

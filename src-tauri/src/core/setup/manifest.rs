@@ -128,6 +128,9 @@ pub struct SetupAddon {
     /// Hash over the addon's files, independent of how they are archived.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content_hash: Option<String>,
+    /// Bytes of the addon's files, so a preview can say what restoring it would take.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_size: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<SetupBlob>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -356,6 +359,7 @@ mod tests {
                         repository: Some(String::from("blender_org")),
                         package: Some(String::from("example_tools")),
                         content_hash: None,
+                        content_size: None,
                         file: None,
                         reason: None,
                     },
@@ -369,6 +373,7 @@ mod tests {
                         repository: None,
                         package: None,
                         content_hash: Some("c".repeat(64)),
+                        content_size: Some(20),
                         file: Some(SetupBlob {
                             blob: digest('b'),
                             size: 20,

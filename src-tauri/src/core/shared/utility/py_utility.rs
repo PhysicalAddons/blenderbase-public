@@ -30,9 +30,24 @@ pub async fn run_blender_python(
     script: &str,
     timeout_secs: u64,
 ) -> Result<String, String> {
+    run_blender_python_with_env(executable_file_path, script, timeout_secs, &[]).await
+}
+
+/// Environment variable that points Blender at another user folder (`config`, `scripts`,
+/// `extensions` directly inside it) instead of the per-series one in the user's profile.
+pub const BLENDER_USER_RESOURCES: &str = "BLENDER_USER_RESOURCES";
+
+/// [`run_blender_python`] with extra environment variables for the Blender process.
+pub async fn run_blender_python_with_env(
+    executable_file_path: &std::path::Path,
+    script: &str,
+    timeout_secs: u64,
+    envs: &[(String, String)],
+) -> Result<String, String> {
     let executable_file_path = background_executable(executable_file_path);
     let mut command = tokio::process::Command::new(&executable_file_path);
     command
+        .envs(envs.iter().map(|(k, v)| (k.as_str(), v.as_str())))
         .arg("--background")
         .arg("--python-exit-code")
         .arg("1")

@@ -100,7 +100,8 @@ try:
     wm.keyconfigs.update()
     modified = [km.name for km in wm.keyconfigs.user.keymaps if km.is_user_modified]
     keymap = {"name": wm.keyconfigs.active.name, "modified": modified, "file": None}
-    if modified:
+    # A key configuration other than the default carries its bindings itself, changed or not.
+    if modified or wm.keyconfigs.active.name != "Blender":
         from bl_keymap_utils.io import keyconfig_export_as_data
         path = os.path.join(out_dir, "keymap.py")
         keyconfig_export_as_data(wm, wm.keyconfigs.active, path, all_keymaps=False)
