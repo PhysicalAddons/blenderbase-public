@@ -55,11 +55,10 @@ fn yes() -> bool {
     true
 }
 
+/// What to take from one series of a setup.
 #[derive(Debug, Clone, Deserialize)]
-pub struct SetupApplyOptions {
-    /// Series to apply; every series of the setup when absent.
-    #[serde(default)]
-    pub series: Option<Vec<String>>,
+pub struct SeriesApplyChoice {
+    pub series: String,
     #[serde(default = "yes")]
     pub preferences: bool,
     #[serde(default = "yes")]
@@ -68,10 +67,17 @@ pub struct SetupApplyOptions {
     pub keymap: bool,
 }
 
-impl Default for SetupApplyOptions {
-    fn default() -> Self {
-        Self { series: None, preferences: true, theme: true, keymap: true }
+impl SeriesApplyChoice {
+    pub fn everything(series: &str) -> Self {
+        Self { series: series.to_string(), preferences: true, theme: true, keymap: true }
     }
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct SetupApplyOptions {
+    /// The series to apply and what of each; every series with everything when empty.
+    #[serde(default)]
+    pub choices: Vec<SeriesApplyChoice>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -118,7 +124,7 @@ pub async fn apply_series(
     target: &SetupTarget,
     backups_directory: &Path,
     work_directory: &Path,
-    options: &SetupApplyOptions,
+    choice: &SeriesApplyChoice,
     progress: &SetupProgress,
 ) -> Result<SeriesApplyReport, String> {
     let series_directory = target
@@ -147,9 +153,9 @@ pub async fn apply_series(
         .and_then(|t| t.name.clone())
         .unwrap_or_default();
     let files = [
-        (wanted(options.preferences, &section.preferences), String::from("preferences.json")),
-        (wanted(options.theme, &section.theme), format!("{}.xml", restored_theme_name(&theme_name))),
-        (wanted(options.keymap, &section.keymap), String::from("keymap.py")),
+        (wanted(choice.preferences, &section.preferences), String::from("preferences.json")),
+        (wanted(choice.theme, &section.theme), format!("{}.xml", restored_theme_name(&theme_name))),
+        (wanted(choice.keymap, &section.keymap), String::from("keymap.py")),
     ];
     let mut extracted: Vec<String> = Vec::new();
     for (blob, file_name) in files {

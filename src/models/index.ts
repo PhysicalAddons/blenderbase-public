@@ -303,3 +303,24 @@ export interface ISetupBundleInfo {
     manifest: ISetupManifest,
     warnings: string[],
 }
+
+/** What to take from one series of a setup when applying it. */
+export interface ISeriesApplyChoice {
+    series: string,
+    preferences: boolean,
+    theme: boolean,
+    keymap: boolean,
+}
+
+export interface ISeriesApplyReport {
+    series: string,
+    /** Empty when the series was not applied; `skipped_reason` says why. */
+    applied_with: string,
+    skipped_reason: string | null,
+    backup_path: string | null,
+    preferences_set: number,
+    preferences_skipped: string[],
+    theme_applied: boolean,
+    keymaps_applied: string[],
+    warnings: string[],
+}

@@ -9,8 +9,8 @@ use tauri::{AppHandle, Emitter};
 
 use super::{
     apply::{
-        apply_series, backups_directory, is_blender_running, undo_last_apply, SeriesApplyReport, SetupApplyOptions,
-        SetupTarget,
+        apply_series, backups_directory, is_blender_running, undo_last_apply, SeriesApplyChoice, SeriesApplyReport,
+        SetupApplyOptions, SetupTarget,
     },
     bundle::{
         addon_content, pack_addon, read_bundle_manifest, AddonContent, SetupBundleWriter, SETUP_BUNDLE_EXTENSION,
@@ -233,14 +233,17 @@ impl TSetupService for SetupServiceImpl {
             std::env::temp_dir().join(format!("blenderbase-setup-{}", uuid::Uuid::new_v4()));
         let mut reports = Vec::new();
         for (series, section) in &manifest.series {
-            if let Some(chosen) = &options.series {
-                if !chosen.contains(series) {
-                    continue;
+            let choice = if options.choices.is_empty() {
+                SeriesApplyChoice::everything(series)
+            } else {
+                match options.choices.iter().find(|c| &c.series == series) {
+                    Some(c) => c.clone(),
+                    None => continue,
                 }
-            }
+            };
             let outcome = match (targets.iter().find(|t| &t.series == series), backups_directory(series)) {
                 (Some(target), Some(backups)) => {
-                    apply_series(&bundle_path, section, target, &backups, &work_directory, &options, &progress).await
+                    apply_series(&bundle_path, section, target, &backups, &work_directory, &choice, &progress).await
                 }
                 (None, _) => Err(format!("Blender {} is not installed", series)),
                 (_, None) => Err(String::from("Could not determine the app data directory")),
@@ -653,6 +656,19 @@ impl SetupServiceImpl {
     }
 }
 
+/// The first argument that names an existing setup file. Anything else on the command
+/// line (flags, other files) is ignored.
+pub fn setup_file_argument(args: impl Iterator<Item = String>) -> Option<String> {
+    args.map(PathBuf::from)
+        .find(|p| {
+            p.extension()
+                .map(|e| e.to_string_lossy().eq_ignore_ascii_case(SETUP_BUNDLE_EXTENSION))
+                .unwrap_or(false)
+                && p.is_file()
+        })
+        .map(|p| p.to_string_lossy().to_string())
+}
+
 /// Orders `4.5.10` after `4.5.2`; anything that is not a number counts as zero.
 pub fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
     let numbers = |v: &str| -> Vec<u64> {
@@ -765,7 +781,7 @@ print("__MARKER__" + '{"ok": true}')
             &destination,
             &dir.join("backups"),
             &dir.join("work-apply"),
-            &SetupApplyOptions::default(),
+            &SeriesApplyChoice::everything(&series),
             &progress,
         )
         .await
@@ -788,6 +804,19 @@ print("__MARKER__" + '{"ok": true}')
         println!("undo restored {} files", restored);
         let presets = destination.series_directory().unwrap().join("scripts").join("presets");
         assert!(!presets.join("keyconfig").join("Blenderbase_setup.py").exists(), "undo removes the presets the setup added");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn only_an_existing_setup_file_counts_as_a_startup_argument() {
+        let dir = std::env::temp_dir().join(format!("blenderbase-setup-arg-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("mine.BBSETUP");
+        std::fs::write(&file, b"x").unwrap();
+        let missing = dir.join("gone.bbsetup").to_string_lossy().to_string();
+        let args = vec![String::from("--flag"), missing, String::from("notes.txt"), file.to_string_lossy().to_string()];
+        assert_eq!(setup_file_argument(args.into_iter()), Some(file.to_string_lossy().to_string()));
+        assert_eq!(setup_file_argument(vec![String::from("--flag")].into_iter()), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

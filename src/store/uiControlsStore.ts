@@ -7,6 +7,8 @@ interface IUiControlsStore {
     isInstallBlenderOpen: boolean,
     /** Whether the middle column shows the Settings panel. Never open together with Install Blender. */
     isSettingsOpen: boolean,
+    /** Whether the middle column shows a setup file to restore. Takes the column like Settings. */
+    isRestoreSetupOpen: boolean,
     /** The Blender version highlighted in the left column. Falls back to the default version when null. */
     selectedBlenderVersionId: string | null,
     /** Versions that finished installing during this session and have not been selected or launched yet. */
@@ -17,6 +19,7 @@ interface IUiControlsStore {
     setIsSidebarExpanded: (v: boolean) => void,
     setIsInstallBlenderOpen: (v: boolean) => void,
     setIsSettingsOpen: (v: boolean) => void,
+    setIsRestoreSetupOpen: (v: boolean) => void,
     setSelectedBlenderVersionId: (id: string | null) => void,
     addNewlyInstalledBlenderId: (id: string) => void,
     clearNewlyInstalledBlenderId: (id: string) => void,
@@ -36,6 +39,7 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
     isSidebarExpanded: false,
     isInstallBlenderOpen: false,
     isSettingsOpen: false,
+    isRestoreSetupOpen: false,
     selectedBlenderVersionId: null,
     newlyInstalledBlenderIds: [],
     launchWithConsole: readLaunchWithConsole(),
@@ -48,9 +52,22 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         set({ launchWithConsole: v });
     },
     setIsSidebarExpanded: (v) => set({ isSidebarExpanded: v }),
-    // The middle column shows one of the two; opening either closes the other.
-    setIsInstallBlenderOpen: (v) => set((state) => ({ isInstallBlenderOpen: v, isSettingsOpen: v ? false : state.isSettingsOpen })),
-    setIsSettingsOpen: (v) => set((state) => ({ isSettingsOpen: v, isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen })),
+    // The middle column shows one of the three; opening one closes the others.
+    setIsInstallBlenderOpen: (v) => set((state) => ({
+        isInstallBlenderOpen: v,
+        isSettingsOpen: v ? false : state.isSettingsOpen,
+        isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
+    })),
+    setIsSettingsOpen: (v) => set((state) => ({
+        isSettingsOpen: v,
+        isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
+        isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
+    })),
+    setIsRestoreSetupOpen: (v) => set((state) => ({
+        isRestoreSetupOpen: v,
+        isSettingsOpen: v ? false : state.isSettingsOpen,
+        isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
+    })),
     setSelectedBlenderVersionId: (id) => set((state) => ({
         selectedBlenderVersionId: id,
         newlyInstalledBlenderIds: id === null

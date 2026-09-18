@@ -3,8 +3,8 @@ use tauri::AppHandle;
 
 use crate::{
     core::{
-        format_command_error, SeriesApplyReport, SetupApplyOptions, SetupBundleInfo, SetupExportOptions,
-        SetupServiceImpl, TSetupService, COLON_SEPERATOR,
+        format_command_error, setup_file_argument, SeriesApplyReport, SetupApplyOptions, SetupBundleInfo,
+        SetupExportOptions, SetupServiceImpl, TSetupService, COLON_SEPERATOR,
     },
     AppState,
 };
@@ -70,4 +70,12 @@ pub async fn cmd_undo_setup_apply(
         Ok(v) => Ok(v),
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
+}
+
+/// The setup file this process was started with, when a `.bbsetup` was opened with the app
+/// (double-click once the installer registers the extension, or "Open with"). The frontend
+/// asks once at startup and shows the file in the restore view.
+#[tauri::command]
+pub async fn cmd_startup_setup_file() -> Result<Option<String>, String> {
+    Ok(setup_file_argument(std::env::args().skip(1)))
 }

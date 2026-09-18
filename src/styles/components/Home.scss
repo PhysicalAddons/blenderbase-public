@@ -376,4 +376,13 @@ $home-launcher-height: 56px;
             color: var(--bb-primary-text);
         }
     }
+    // Second way in: the same block, filled like the toolbar buttons instead of blue.
+    .cds--btn.empty_state__button--secondary {
+        background: var(--bb-field);
+        color: var(--bb-text);
+        &:hover {
+            background: var(--bb-field-hover);
+            color: var(--bb-text);
+        }
+    }
 }

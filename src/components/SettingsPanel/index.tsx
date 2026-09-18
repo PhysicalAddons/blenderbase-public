@@ -10,6 +10,8 @@ import { AppSettingCode } from '../../enums';
 import { SettingsService } from '../../services/settingsService';
 import { SetupService } from '../../services/setupService';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
+import { useSetupRestoreStore } from '../../store/setupRestoreStore';
+import { SETUP_FILE_FILTER } from '../../constants';
 import { ThemePreference, useThemeStore } from '../../store/themeStore';
 import { postStatus, postStatusError } from '../../store/statusStore';
 import { usePagedScroll } from '../../utility/usePagedScroll';
@@ -36,8 +38,6 @@ const THEME_OPTIONS: ThemeOption[] = [
 ];
 
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
-
-const SETUP_FILE_FILTER = [{ name: "Blenderbase setup", extensions: ["bbsetup"] }];
 
 const formatSetupSize = (bytes: number): string => {
 	const kb = bytes / 1024;
@@ -101,6 +101,7 @@ const SettingsPanel = () => {
 	const { preference, setPreference } = useThemeStore(
 		useShallow((s) => ({ preference: s.preference, setPreference: s.setPreference }))
 	)
+	const openSetup = useSetupRestoreStore((s) => s.open)
 
 	const settingByCode = (code: AppSettingCode): IAppSetting | undefined =>
 		appSettings.find((s) => s.code === code);
@@ -322,14 +323,14 @@ const SettingsPanel = () => {
 		}
 	};
 
+	// The file opens in its own view, where each series can be ticked and applied.
 	const inspectSetup = async () => {
 		try {
 			const selected = await open({ multiple: false, directory: false, title: "Open a setup file", filters: SETUP_FILE_FILTER });
 			if (typeof selected !== "string" || selected.length === 0) {
 				return;
 			}
-			const info = await setupService.inspectSetupBundle(selected);
-			postStatus(`Setup from ${info.manifest.meta.platform || "another computer"}: ${describeSetup(info)}`);
+			await openSetup(selected);
 		} catch (e) {
 			console.error(e);
 			postStatusError(`Opening the setup file failed: ${errorText(e)}`);
@@ -537,7 +538,7 @@ const SettingsPanel = () => {
 					onToggle={(checked) => setIncludeAddonFiles(checked)}
 				/>
 			</SettingsRow>
-			<SettingsRow id="setting-setup-open" label="Open a setup file" description="Checks a .bbsetup file and shows what it holds">
+			<SettingsRow id="setting-setup-open" label="Restore from a setup file" description="Opens a .bbsetup file and shows what it would apply">
 				<Button
 					kind="tertiary"
 					size="md"

@@ -22,3 +22,5 @@ export const JOIN_THE_COMMUNITY_SENTANCE_CASE = "Join the community";
 export const DISCORD_COM_INVITE = "https://discord.com/invite/4pseCn9pys";
 export const STATUS_OFF = "off"
 export const STATUS_ON = "on"
+/** File-picker filter for Blenderbase setup files. */
+export const SETUP_FILE_FILTER = [{ name: "Blenderbase setup", extensions: ["bbsetup"] }];
