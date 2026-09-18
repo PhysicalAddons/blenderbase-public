@@ -114,8 +114,7 @@ const RestoreSetupPanel = () => {
 					disabled={isBusy || !present || !target || report !== undefined}
 					onToggle={(checked: boolean) => setChoice(series, { [key]: checked })}
 				/>
-				{!present && <span className='restore_row__absent'>not saved</span>}
-				{present && note && <span className='restore_row__absent'>{note}</span>}
+				{(!present || note) && <span className='restore_row__absent'>{note ?? "not saved"}</span>}
 			</div>
 		);
 		return (
