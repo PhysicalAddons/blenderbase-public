@@ -25,8 +25,8 @@ use super::{
 use crate::{
     core::{
         extract_json_payload, py_string_literal, resolve_blender_console_executable,
-        run_blender_python_with_env, ADDON_KIND_ADDON, ADDON_KIND_CORE, ADDON_KIND_EXTENSION,
-        BLENDERBASE_JSON_MARKER,
+        run_blender_python_with_env, run_blender_with_env, ADDON_KIND_ADDON, ADDON_KIND_CORE,
+        ADDON_KIND_EXTENSION, BLENDERBASE_JSON_MARKER,
     },
     database::BlenderVersion,
     AppState,
@@ -719,6 +719,15 @@ for kmi in km.keymap_items:
         break
 km.keymap_items.new("view3d.view_all", "F10", "PRESS", shift=True)
 wm.keyconfigs.update()
+import addon_utils
+if bpy.app.version >= (4, 2, 0):
+    bpy.ops.extensions.repo_refresh_all()
+addon_utils.modules(refresh=True)
+for module in ("bb_trip_legacy", "bl_ext.user_default.bb_trip_ext"):
+    try:
+        bpy.ops.preferences.addon_enable(module=module)
+    except Exception as e:
+        print("Blenderbase test: could not enable", module, e)
 bpy.ops.wm.save_userpref()
 print("__MARKER__" + '{"ok": true}')
 "#;
@@ -746,11 +755,40 @@ print("__MARKER__" + '{"ok": true}')
         for target in [&source, &destination] {
             std::fs::create_dir_all(target.series_directory().unwrap().join("config")).unwrap();
         }
+        // Two addons of the source: a legacy package and, from 4.2 on, an extension.
+        let source_directory = source.series_directory().unwrap();
+        let legacy = source_directory.join("scripts").join("addons").join("bb_trip_legacy");
+        std::fs::create_dir_all(&legacy).unwrap();
+        std::fs::write(
+            legacy.join("__init__.py"),
+            "bl_info = {\"name\": \"BB Trip Legacy\", \"version\": (1, 0, 0), \"blender\": (3, 0, 0), \"category\": \"Development\"}\ndef register():\n    pass\ndef unregister():\n    pass\n",
+        )
+        .unwrap();
+        let has_extensions = compare_versions(&info.version, "4.2.0") != std::cmp::Ordering::Less;
+        if has_extensions {
+            let extension = source_directory.join("extensions").join("user_default").join("bb_trip_ext");
+            std::fs::create_dir_all(&extension).unwrap();
+            std::fs::write(
+                extension.join("blender_manifest.toml"),
+                "schema_version = \"1.0.0\"\nid = \"bb_trip_ext\"\nversion = \"1.0.0\"\nname = \"BB Trip Extension\"\ntagline = \"Round trip test\"\nmaintainer = \"test\"\ntype = \"add-on\"\nblender_version_min = \"4.2.0\"\nlicense = [\"SPDX:GPL-3.0-or-later\"]\n",
+            )
+            .unwrap();
+            std::fs::write(extension.join("__init__.py"), "def register():\n    pass\ndef unregister():\n    pass\n").unwrap();
+        }
         let tweak = TWEAK_PY.replace("__MARKER__", BLENDERBASE_JSON_MARKER);
         run_blender_python_with_env(&console, &tweak, 120, &source.envs()).await.unwrap();
+        // With the network allowed, one small extension of extensions.blender.org travels by id.
+        let online = std::env::var("BLENDERBASE_TEST_ONLINE").is_ok() && has_extensions;
+        if online {
+            let args: Vec<String> = ["--online-mode", "--command", "extension", "install", "--sync", "--enable", "blender_org.matwerk_picker"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
+            run_blender_with_env(&console, &args, 600, &source.envs()).await.unwrap();
+        }
 
         let progress: SetupProgress = Arc::new(|message: String| println!("  {}", message));
-        let options = SetupExportOptions::default();
+        let options = SetupExportOptions { include_addon_files: true };
         let export = |target: SetupTarget, name: &'static str| {
             let (dir, progress, options) = (dir.clone(), progress.clone(), options.clone());
             async move {
@@ -772,6 +810,14 @@ print("__MARKER__" + '{"ok": true}')
         assert!(section.preferences.is_some() && section.theme.is_some());
         assert!(section.keymap.is_some(), "changed shortcuts travel as a keymap");
         assert!(section.addons.iter().any(|a| a.source == SetupAddonSource::Core));
+        let packed = |module: &str| section.addons.iter().find(|a| a.module == module).and_then(|a| a.file.as_ref()).is_some();
+        assert!(packed("bb_trip_legacy"), "the legacy addon is packed into the bundle");
+        if has_extensions {
+            assert!(packed("bl_ext.user_default.bb_trip_ext"), "the extension is packed into the bundle");
+        }
+        if online {
+            assert!(section.addons.iter().any(|a| a.source == SetupAddonSource::Repo && a.package.as_deref() == Some("matwerk_picker")));
+        }
         let json = serde_json::to_string(&saved.manifest).unwrap();
         assert!(!json.contains(":\\\\") && !json.contains("/Users/") && !json.contains("/home/"), "no local path may leak into the manifest");
 
@@ -788,9 +834,12 @@ print("__MARKER__" + '{"ok": true}')
         .unwrap();
         println!("{:?}", report);
         assert!(report.preferences_set >= 5, "the five changed preferences are written");
-        assert!(report.preferences_skipped.is_empty() && report.warnings.is_empty());
+        assert!(report.preferences_skipped.is_empty() && report.warnings.is_empty(), "{:?}", report.warnings);
         assert!(report.theme_applied);
         assert_eq!(report.keymaps_applied, vec![String::from("3D View")]);
+        assert!(report.addons_failed.is_empty(), "{:?}", report.addons_failed);
+        let expected_installed = 1 + usize::from(has_extensions) + usize::from(online);
+        assert_eq!(report.addons_installed.len(), expected_installed, "{:?}", report.addons_installed);
 
         let arrived = export(destination.clone(), "destination").await;
         let arrived_section = arrived.manifest.series.get(&series).unwrap();
@@ -798,6 +847,14 @@ print("__MARKER__" + '{"ok": true}')
         assert_eq!(arrived_section.theme.as_ref().map(|b| &b.blob), section.theme.as_ref().map(|b| &b.blob), "the theme arrived unchanged");
         let keymap = arrived_section.keymap.as_ref().expect("the key configuration is saved again from the second computer");
         assert_eq!(keymap.name.as_deref(), Some("Blenderbase_setup"));
+        let enabled = |module: &str| arrived_section.addons.iter().any(|a| a.module == module && a.enabled);
+        assert!(enabled("bb_trip_legacy"), "the legacy addon is installed and enabled on the second computer");
+        if has_extensions {
+            assert!(enabled("bl_ext.user_default.bb_trip_ext"), "the extension is installed and enabled on the second computer");
+        }
+        if online {
+            assert!(enabled("bl_ext.blender_org.matwerk_picker"), "the repository extension is installed by id");
+        }
 
         // Undo puts the empty configuration back.
         let restored = undo_last_apply(&destination, &dir.join("backups")).await.unwrap();

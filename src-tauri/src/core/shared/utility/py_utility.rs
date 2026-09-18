@@ -44,15 +44,29 @@ pub async fn run_blender_python_with_env(
     timeout_secs: u64,
     envs: &[(String, String)],
 ) -> Result<String, String> {
+    let args = [
+        String::from("--background"),
+        String::from("--python-exit-code"),
+        String::from("1"),
+        String::from("--python-expr"),
+        script.to_string(),
+    ];
+    run_blender_with_env(executable_file_path, &args, timeout_secs, envs).await
+}
+
+/// Runs Blender with the given arguments and no window (e.g. `--command extension ...`) and
+/// returns its stdout. A non-zero exit is reported with the last line Blender printed to stderr.
+pub async fn run_blender_with_env(
+    executable_file_path: &std::path::Path,
+    args: &[String],
+    timeout_secs: u64,
+    envs: &[(String, String)],
+) -> Result<String, String> {
     let executable_file_path = background_executable(executable_file_path);
     let mut command = tokio::process::Command::new(&executable_file_path);
     command
         .envs(envs.iter().map(|(k, v)| (k.as_str(), v.as_str())))
-        .arg("--background")
-        .arg("--python-exit-code")
-        .arg("1")
-        .arg("--python-expr")
-        .arg(script)
+        .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

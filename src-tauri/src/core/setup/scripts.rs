@@ -280,3 +280,109 @@ _out = getattr(sys, "__stdout__", None) or sys.stdout
 _out.write("__MARKER__" + json.dumps(report) + "\n")
 _out.flush()
 "#;
+
+/// Adds the setup's remote repositories, installs addons from files, and sets enabled states.
+/// Extensions of remote repositories are not touched here; the extension command line
+/// installs those in a separate run. The three inputs are JSON text.
+pub const RESTORE_ADDONS_PY: &str = r#"
+import bpy, addon_utils, json, os, sys, zipfile
+
+# The three inputs arrive as JSON text, so true/false/null need no translation.
+repositories = json.loads(__REPOSITORIES__)
+files = json.loads(__FILES__)
+states = json.loads(__STATES__)
+report = {"repositories_added": [], "installed": [], "failed": [], "enabled": [], "disabled": [], "missing": [], "warnings": []}
+
+prefs = bpy.context.preferences
+extensions = getattr(prefs, "extensions", None)
+
+# Remote repositories are matched by URL; a module name that is taken gets a suffix.
+if extensions is not None:
+    known_urls = set()
+    modules = set()
+    for repo in extensions.repos:
+        modules.add(repo.module)
+        if getattr(repo, "use_remote_url", False):
+            known_urls.add((repo.remote_url or "").rstrip("/"))
+    for wanted in repositories:
+        url = (wanted.get("url") or "").rstrip("/")
+        if not url or url in known_urls:
+            continue
+        module = wanted.get("module") or "repository"
+        base, n = module, 2
+        while module in modules:
+            module = "%s_%d" % (base, n)
+            n += 1
+        try:
+            extensions.repos.new(name=wanted.get("name") or module, module=module, remote_url=wanted["url"])
+            modules.add(module)
+            known_urls.add(url)
+            report["repositories_added"].append(module)
+        except Exception as e:
+            report["warnings"].append("repository %s: %s" % (wanted.get("name"), e))
+    if "user_default" not in modules:
+        try:
+            extensions.repos.new(name="User Default", module="user_default")
+        except Exception as e:
+            report["warnings"].append("user_default repository: %s" % e)
+    # The module that serves each remote URL here, for the command line that installs by id.
+    report["repositories"] = {}
+    for repo in extensions.repos:
+        if getattr(repo, "use_remote_url", False) and repo.remote_url:
+            report["repositories"][repo.remote_url.rstrip("/")] = repo.module
+elif repositories:
+    report["warnings"].append("this Blender has no extension repositories")
+
+def _is_extension_archive(path):
+    if not path.lower().endswith(".zip"):
+        return False
+    try:
+        with zipfile.ZipFile(path) as z:
+            return any(n.split("/")[-1] == "blender_manifest.toml" for n in z.namelist())
+    except Exception:
+        return False
+
+for entry in files:
+    path = entry["path"]
+    try:
+        if _is_extension_archive(path):
+            if bpy.app.version < (4, 2, 0):
+                raise RuntimeError("extensions need Blender 4.2 or newer")
+            result = bpy.ops.extensions.package_install_files(filepath=path, repo="user_default", enable_on_install=False)
+        else:
+            result = bpy.ops.preferences.addon_install(filepath=path, overwrite=True)
+        if "FINISHED" not in result:
+            raise RuntimeError("install did not finish: %s" % sorted(result))
+        report["installed"].append(entry["module"])
+    except Exception as e:
+        report["failed"].append({"module": entry["module"], "error": str(e)})
+
+# Extensions exist from 4.2 on; `bpy.ops.extensions` resolves in older versions too, so the
+# version decides, not the attribute.
+if bpy.app.version >= (4, 2, 0):
+    try:
+        bpy.ops.extensions.repo_refresh_all()
+    except Exception as e:
+        report["warnings"].append("repository refresh: %s" % e)
+addon_utils.modules(refresh=True)
+known = set(m.__name__ for m in addon_utils.modules(refresh=False))
+enabled_now = set(a.module for a in prefs.addons)
+for module, enabled in states.items():
+    if module not in known:
+        report["missing"].append(module)
+        continue
+    if enabled == (module in enabled_now):
+        continue
+    try:
+        result = bpy.ops.preferences.addon_enable(module=module) if enabled else bpy.ops.preferences.addon_disable(module=module)
+        if "FINISHED" not in result:
+            raise RuntimeError(sorted(result))
+        report["enabled" if enabled else "disabled"].append(module)
+    except Exception as e:
+        report["warnings"].append("%s: %s" % (module, e))
+
+bpy.ops.wm.save_userpref()
+_out = getattr(sys, "__stdout__", None) or sys.stdout
+_out.write("__MARKER__" + json.dumps(report) + "\n")
+_out.flush()
+"#;

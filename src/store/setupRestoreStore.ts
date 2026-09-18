@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
-import { ISeriesApplyChoice, ISeriesApplyReport, ISetupBundleInfo } from "../models";
+import { ISeriesApplyChoice, ISeriesApplyReport, ISetupBundleInfo, ISetupSeries } from "../models";
 import { SetupService } from "../services/setupService";
 import { postStatus, postStatusError } from "./statusStore";
 import { useUiControlsStore } from "./uiControlsStore";
@@ -28,6 +28,10 @@ const setupService = new SetupService();
 // Backend errors arrive as "cmd_name: reason"; the status line only needs the reason.
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^cmd_\w+: /, "");
 
+/** Addons a series can restore on its own: from a repository, or from a file the setup holds. */
+export const restorableAddons = (section: ISetupSeries) =>
+    section.addons.filter((a) => a.source === "repo" || (a.source === "file" && a.file !== undefined));
+
 export const useSetupRestoreStore = create<ISetupRestoreStore>((set, get) => ({
     info: null,
     choices: [],
@@ -41,6 +45,7 @@ export const useSetupRestoreStore = create<ISetupRestoreStore>((set, get) => ({
             preferences: Boolean(section.preferences),
             theme: Boolean(section.theme),
             keymap: Boolean(section.keymap),
+            addons: restorableAddons(section).length > 0,
         }));
         set({ info, choices, reports: [] });
         useUiControlsStore.getState().setIsRestoreSetupOpen(true);
@@ -57,7 +62,7 @@ export const useSetupRestoreStore = create<ISetupRestoreStore>((set, get) => ({
         if (!info) {
             return;
         }
-        const chosen = choices.filter((c) => c.preferences || c.theme || c.keymap);
+        const chosen = choices.filter((c) => c.preferences || c.theme || c.keymap || c.addons);
         if (chosen.length === 0) {
             postStatusError("Nothing is selected to apply");
             return;

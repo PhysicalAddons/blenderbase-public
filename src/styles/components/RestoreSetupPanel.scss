@@ -23,7 +23,7 @@ $restore-switch-width: 104px;
     .restore_panel__list_header,
     .restore_row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) $restore-switch-width $restore-switch-width $restore-switch-width minmax(120px, 160px) 48px;
+        grid-template-columns: minmax(0, 1fr) $restore-switch-width $restore-switch-width $restore-switch-width $restore-switch-width 48px;
         align-items: center;
     }
 
@@ -64,8 +64,7 @@ $restore-switch-width: 104px;
             background: var(--bb-row-hover);
         }
         // A series with no Blender here cannot be applied; the row steps back but stays legible.
-        &.restore_row--unavailable .restore_row__label,
-        &.restore_row--unavailable .restore_row__addons {
+        &.restore_row--unavailable .restore_row__label {
             color: var(--bb-text-muted);
         }
         &.restore_row--skipped .restore_row__meta {
@@ -115,13 +114,6 @@ $restore-switch-width: 104px;
             line-height: 12px;
             color: var(--bb-text-faint);
             white-space: nowrap;
-        }
-        .restore_row__addons {
-            font-size: 12px;
-            color: var(--bb-text-muted);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
         .restore_row__undo {
             display: flex;

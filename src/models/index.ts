@@ -310,6 +310,7 @@ export interface ISeriesApplyChoice {
     preferences: boolean,
     theme: boolean,
     keymap: boolean,
+    addons: boolean,
 }
 
 export interface ISeriesApplyReport {
@@ -322,5 +323,12 @@ export interface ISeriesApplyReport {
     preferences_skipped: string[],
     theme_applied: boolean,
     keymaps_applied: string[],
+    /** Names of addons installed from files or repositories. */
+    addons_installed: string[],
+    /** `name: reason` for each addon that could not be installed. */
+    addons_failed: string[],
+    /** `name (reason)` for each addon the user has to install by hand. */
+    addons_manual: string[],
+    repositories_added: string[],
     warnings: string[],
 }

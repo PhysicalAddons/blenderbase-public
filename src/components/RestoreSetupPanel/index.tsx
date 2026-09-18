@@ -4,7 +4,7 @@ import { ArrowLeft, Checkmark, Undo } from '@carbon/react/icons';
 import { useShallow } from 'zustand/react/shallow';
 import { IBlenderVersion, ISeriesApplyReport, ISetupSeries } from '../../models';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
-import { useSetupRestoreStore } from '../../store/setupRestoreStore';
+import { restorableAddons, useSetupRestoreStore } from '../../store/setupRestoreStore';
 import { blenderVersionLabel, parseVersion } from '../../utility';
 import { usePagedScroll } from '../../utility/usePagedScroll';
 
@@ -26,6 +26,15 @@ const describeReport = (report: ISeriesApplyReport): string => {
 	}
 	if (report.keymaps_applied.length > 0) {
 		parts.push(`keymap (${report.keymaps_applied.join(", ")})`);
+	}
+	if (report.addons_installed.length > 0) {
+		parts.push(plural(report.addons_installed.length, "addon installed", "addons installed"));
+	}
+	if (report.addons_failed.length > 0) {
+		parts.push(plural(report.addons_failed.length, "addon failed", "addons failed"));
+	}
+	if (report.addons_manual.length > 0) {
+		parts.push(`${report.addons_manual.length} to install by hand`);
 	}
 	const applied = parts.length > 0 ? `Applied with ${report.applied_with}: ${parts.join(" · ")}` : `Nothing to apply with ${report.applied_with}`;
 	return report.warnings.length > 0 ? `${applied} · ${plural(report.warnings.length, "warning", "warnings")}` : applied;
@@ -66,20 +75,21 @@ const RestoreSetupPanel = () => {
 	const rows = Object.entries(manifest.series)
 		.sort(([a], [b]) => parseVersion(b).localeCompare(parseVersion(a)));
 	const missingVersions = manifest.blender.filter((v) => !installedBuilds.some((b) => b.version === v.version));
-	const canApply = choices.some((c) => (c.preferences || c.theme || c.keymap) && targetOf(c.series) !== undefined);
+	const canApply = choices.some((c) => (c.preferences || c.theme || c.keymap || c.addons) && targetOf(c.series) !== undefined);
 
 	const savedOn = manifest.meta.created ? new Date(manifest.meta.created).toLocaleDateString() : "";
 	const subtitle = [fileName(info.file_path), savedOn ? `saved ${savedOn}` : "", manifest.meta.platform]
 		.filter((v) => v.length > 0)
 		.join(" · ");
 
+	// Core addons only carry an enabled state, so they are not counted as addons to restore.
 	const addonSummary = (section: ISetupSeries): string => {
-		const addons = section.addons.filter((a) => a.source !== "core");
-		if (addons.length === 0) {
-			return "none";
+		const listed = section.addons.filter((a) => a.source !== "core").length;
+		if (listed === 0) {
+			return "none saved";
 		}
-		const restorable = addons.filter((a) => a.source === "repo" || (a.source === "file" && a.file)).length;
-		return `${addons.length} listed, ${restorable} restorable`;
+		const restorable = restorableAddons(section).length;
+		return restorable === listed ? `${listed}` : `${restorable} of ${listed}`;
 	};
 
 	const renderRow = (series: string, section: ISetupSeries) => {
@@ -91,7 +101,7 @@ const RestoreSetupPanel = () => {
 			: target
 				? `Applies with Blender ${blenderVersionLabel(target)} · saved from ${section.captured_with}`
 				: `Blender ${series} is not installed · saved from ${section.captured_with}`;
-		const switchFor = (key: "preferences" | "theme" | "keymap", present: boolean, label: string) => (
+		const switchFor = (key: "preferences" | "theme" | "keymap" | "addons", present: boolean, label: string, note?: string) => (
 			<div className='restore_row__switch'>
 				<Toggle
 					id={`restore-${series}-${key}`}
@@ -105,6 +115,7 @@ const RestoreSetupPanel = () => {
 					onToggle={(checked: boolean) => setChoice(series, { [key]: checked })}
 				/>
 				{!present && <span className='restore_row__absent'>not saved</span>}
+				{present && note && <span className='restore_row__absent'>{note}</span>}
 			</div>
 		);
 		return (
@@ -116,7 +127,7 @@ const RestoreSetupPanel = () => {
 				{switchFor("preferences", Boolean(section.preferences), "Preferences")}
 				{switchFor("theme", Boolean(section.theme), section.theme?.name ? `Theme ${section.theme.name}` : "Theme")}
 				{switchFor("keymap", Boolean(section.keymap), "Keymap")}
-				<span className='restore_row__addons' title="Restoring addons is not built yet; the list is kept for it">{addonSummary(section)}</span>
+				{switchFor("addons", restorableAddons(section).length > 0, "Addons", addonSummary(section))}
 				<div className='restore_row__undo'>
 					{report && !report.skipped_reason && (
 						<Button
@@ -172,7 +183,7 @@ const RestoreSetupPanel = () => {
 				<span className='centered'>Preferences</span>
 				<span className='centered'>Theme</span>
 				<span className='centered'>Keymap</span>
-				<span>Addons</span>
+				<span className='centered'>Addons</span>
 				<span></span>
 			</div>
 			<div className='restore_panel__list' ref={listRef}>
