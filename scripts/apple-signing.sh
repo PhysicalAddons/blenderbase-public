@@ -100,9 +100,12 @@ if [ -n "$api_key" ] && [ -n "$api_issuer" ] && [ -n "$api_p8" ]; then
   printf '%s\n' "$api_p8" > "$key_path"
   chmod 600 "$key_path"
   # Cheapest authenticated call: lists earlier submissions, fails on a wrong
-  # key, key id or issuer.
-  xcrun notarytool history --key "$key_path" --key-id "$api_key" --issuer "$api_issuer" >/dev/null
+  # key, key id or issuer. The list is shown in the Sign check, where it tells
+  # whether a submission that outlasted an earlier run has been accepted since.
+  history="$(xcrun notarytool history --key "$key_path" --key-id "$api_key" --issuer "$api_issuer")"
   echo "Notarization key $api_key accepted by Apple."
+  # sed, not head: head closing the pipe early would fail the script under pipefail.
+  if [ "$check" = 1 ]; then printf '%s\n' "$history" | sed -n '1,40p'; fi
 elif [ "$check" = 1 ]; then
   echo "::error::APPLE_API_KEY, APPLE_API_ISSUER and APPLE_API_KEY_P8 must all be set."
   exit 1
