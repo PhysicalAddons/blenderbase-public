@@ -266,6 +266,24 @@ fn read_full(reader: &mut std::fs::File, buffer: &mut [u8]) -> std::io::Result<u
 /// One line per step for the status bar.
 pub type TransferProgress = std::sync::Arc<dyn Fn(String) + Send + Sync>;
 
+/// Sends a request, and once more on a fresh connection when the first attempt fails to
+/// send at all: a pooled connection the relay closed while a large file was being decrypted
+/// fails on its first reuse. Only requests without a large body come through here.
+async fn send_retrying(request: reqwest::RequestBuilder) -> Result<reqwest::Response, String> {
+    let again = request.try_clone();
+    match request.send().await {
+        Ok(response) => Ok(response),
+        Err(first) => {
+            if let Some(again) = again {
+                if let Ok(response) = again.send().await {
+                    return Ok(response);
+                }
+            }
+            Err(format!("Could not reach the transfer relay: {}", first))
+        }
+    }
+}
+
 async fn relay_error(response: reqwest::Response, what: &str) -> String {
     let status = response.status();
     let detail = response
@@ -309,11 +327,7 @@ pub async fn upload_transfer(
         });
     }
 
-    let started = client
-        .post(format!("{}/multipart", base))
-        .send()
-        .await
-        .map_err(|e| format!("Could not reach the transfer relay: {}", e))?;
+    let started = send_retrying(client.post(format!("{}/multipart", base))).await?;
     if !started.status().is_success() {
         return Err(relay_error(started, "The relay refused the upload").await);
     }
@@ -350,12 +364,12 @@ pub async fn upload_transfer(
         let part: serde_json::Value = response.json().await.map_err(|e| format!("Unreadable answer from the relay: {}", e))?;
         parts.push(serde_json::json!({ "partNumber": number, "etag": part.get("etag").and_then(|v| v.as_str()).unwrap_or_default() }));
     }
-    let completed = client
-        .post(format!("{}/multipart/{}/complete", base, upload_id))
-        .json(&serde_json::json!({ "parts": parts }))
-        .send()
-        .await
-        .map_err(|e| format!("Could not reach the transfer relay: {}", e))?;
+    let completed = send_retrying(
+        client
+            .post(format!("{}/multipart/{}/complete", base, upload_id))
+            .json(&serde_json::json!({ "parts": parts })),
+    )
+    .await?;
     if !completed.status().is_success() {
         return Err(relay_error(completed, "The relay could not finish the upload").await);
     }
@@ -374,11 +388,7 @@ pub async fn download_transfer(
     destination: &Path,
     progress: &TransferProgress,
 ) -> Result<u64, String> {
-    let response = client
-        .get(format!("{}/v1/transfers/{}", relay, keys.id))
-        .send()
-        .await
-        .map_err(|e| format!("Could not reach the transfer relay: {}", e))?;
+    let response = send_retrying(client.get(format!("{}/v1/transfers/{}", relay, keys.id))).await?;
     if !response.status().is_success() {
         return Err(relay_error(response, "The relay has nothing for this code").await);
     }
@@ -417,11 +427,7 @@ pub async fn download_transfer(
 
 /// Asks the relay to drop the object; the receiving computer does this once it has the file.
 pub async fn delete_transfer(client: &reqwest::Client, relay: &str, keys: &TransferKeys) -> Result<(), String> {
-    let response = client
-        .delete(format!("{}/v1/transfers/{}", relay, keys.id))
-        .send()
-        .await
-        .map_err(|e| format!("Could not reach the transfer relay: {}", e))?;
+    let response = send_retrying(client.delete(format!("{}/v1/transfers/{}", relay, keys.id))).await?;
     if response.status().is_success() {
         Ok(())
     } else {
