@@ -26,7 +26,7 @@ const DOCUMENTATION_HINT = 'How syncing works · opens the documentation in your
 const SECTIONS: { id: SyncSection, label: string, when: string }[] = [
 	{ id: 'network', label: 'Local network', when: 'Use Local network if your computers are on the same network. No internet needed' },
 	{ id: 'transfer', label: 'Transfer code', when: 'Use Transfer code if your computers are outside the local network. Requires an internet connection' },
-	{ id: 'folder', label: 'Sync folder', when: 'Use Sync folder if your computers share a cloud drive such as Dropbox, OneDrive, iCloud or Google Drive. Each one keeps up with the newest setup' },
+	{ id: 'folder', label: 'Sync folder', when: 'Use Sync folder if your computers share a cloud drive such as Dropbox, OneDrive, iCloud or Google Drive' },
 	{ id: 'file', label: 'Setup file', when: 'Use Setup file if you want to carry the setup yourself, on a USB stick, in an email or on any drive' },
 ];
 
