@@ -21,6 +21,7 @@ use super::{
         SETUP_ADDON_REASON_SYMLINK, SETUP_ADDON_REASON_SYSTEM_REPOSITORY, SETUP_PREFERENCES_FORMAT,
     },
     scripts::CAPTURE_SETUP_PY,
+    sync::{read_sync_status, sync_file_path, SetupSyncStatus},
 };
 use crate::{
     core::{
@@ -61,6 +62,8 @@ pub struct SetupExportOptions {
 pub struct SetupBundleInfo {
     pub file_path: String,
     pub file_size: u64,
+    /// The manifest's content hash: what a sync folder compares.
+    pub content_hash: String,
     pub manifest: SetupManifest,
     pub warnings: Vec<String>,
 }
@@ -142,6 +145,25 @@ pub trait TSetupService {
         state: tauri::State<'_, AppState>,
         series: String,
     ) -> Result<usize, String>;
+    async fn get_setup_sync(&self, app: AppHandle, state: tauri::State<'_, AppState>) -> Result<SetupSyncStatus, String>;
+    async fn set_setup_sync_folder(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        folder_path: Option<String>,
+    ) -> Result<SetupSyncStatus, String>;
+    async fn save_setup_to_sync_folder(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        options: SetupExportOptions,
+    ) -> Result<SetupBundleInfo, String>;
+    async fn mark_setup_synced(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        content_hash: String,
+    ) -> Result<SetupSyncStatus, String>;
 }
 
 pub struct SetupServiceImpl;
@@ -196,6 +218,7 @@ impl TSetupService for SetupServiceImpl {
             Ok(SetupBundleInfo {
                 file_path: path.to_string_lossy().to_string(),
                 file_size,
+                content_hash: manifest.content_hash()?,
                 manifest,
                 warnings: Vec::new(),
             })
@@ -284,6 +307,78 @@ impl TSetupService for SetupServiceImpl {
             .ok_or_else(|| String::from("Could not determine the app data directory"))?;
         undo_last_apply(target, &backups).await
     }
+
+    async fn get_setup_sync(&self, _app: AppHandle, state: tauri::State<'_, AppState>) -> Result<SetupSyncStatus, String> {
+        let sync = state
+            .setup_sync_repository()
+            .fetch()
+            .await
+            .map_err(|e| format!("Failed to read the sync folder setting: {:?}", e))?;
+        tokio::task::spawn_blocking(move || read_sync_status(&sync))
+            .await
+            .map_err(|e| format!("Failed get_setup_sync: {:?}", e))
+    }
+
+    async fn set_setup_sync_folder(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        folder_path: Option<String>,
+    ) -> Result<SetupSyncStatus, String> {
+        let folder_path = folder_path.unwrap_or_default().trim().to_string();
+        if !folder_path.is_empty() && !Path::new(&folder_path).is_dir() {
+            return Err(format!("{} is not a folder", folder_path));
+        }
+        state
+            .setup_sync_repository()
+            .set_folder(&folder_path)
+            .await
+            .map_err(|e| format!("Failed to save the sync folder: {:?}", e))?;
+        self.get_setup_sync(app, state).await
+    }
+
+    /// Saves the setup under the folder's fixed file name and records its hash as synced,
+    /// so this computer is not told about its own save.
+    async fn save_setup_to_sync_folder(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        options: SetupExportOptions,
+    ) -> Result<SetupBundleInfo, String> {
+        let sync = state
+            .setup_sync_repository()
+            .fetch()
+            .await
+            .map_err(|e| format!("Failed to read the sync folder setting: {:?}", e))?;
+        if sync.folder_path.trim().is_empty() {
+            return Err(String::from("Choose a sync folder first"));
+        }
+        if !Path::new(&sync.folder_path).is_dir() {
+            return Err(format!("The sync folder {} is not there", sync.folder_path));
+        }
+        let file_path = sync_file_path(&sync.folder_path).to_string_lossy().to_string();
+        let info = self.export_setup_bundle(app, state.clone(), file_path, options).await?;
+        state
+            .setup_sync_repository()
+            .mark_synced(&info.content_hash, &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+            .await
+            .map_err(|e| format!("Failed to record the sync: {:?}", e))?;
+        Ok(info)
+    }
+
+    async fn mark_setup_synced(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        content_hash: String,
+    ) -> Result<SetupSyncStatus, String> {
+        state
+            .setup_sync_repository()
+            .mark_synced(&content_hash, &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+            .await
+            .map_err(|e| format!("Failed to record the sync: {:?}", e))?;
+        self.get_setup_sync(app, state).await
+    }
 }
 
 impl SetupServiceImpl {
@@ -300,6 +395,7 @@ impl SetupServiceImpl {
             created: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
             app_version,
             platform: format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH),
+            device: whoami::devicename().unwrap_or_default(),
         });
         manifest.blender = blender;
 
@@ -350,6 +446,7 @@ impl SetupServiceImpl {
             Ok(SetupBundleInfo {
                 file_path: bundle_path.to_string_lossy().to_string(),
                 file_size,
+                content_hash: manifest.content_hash()?,
                 manifest,
                 warnings,
             })

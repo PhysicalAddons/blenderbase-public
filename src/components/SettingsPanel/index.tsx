@@ -11,6 +11,7 @@ import { SettingsService } from '../../services/settingsService';
 import { SetupService } from '../../services/setupService';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useSetupRestoreStore } from '../../store/setupRestoreStore';
+import { describeSyncFile, useSetupSyncStore } from '../../store/setupSyncStore';
 import { SETUP_FILE_FILTER } from '../../constants';
 import { ThemePreference, useThemeStore } from '../../store/themeStore';
 import { postStatus, postStatusError } from '../../store/statusStore';
@@ -102,6 +103,24 @@ const SettingsPanel = () => {
 		useShallow((s) => ({ preference: s.preference, setPreference: s.setPreference }))
 	)
 	const openSetup = useSetupRestoreStore((s) => s.open)
+	const { syncStatus, isSyncBusy, loadSync, setSyncFolder, saveToSyncFolder, openSyncFile } = useSetupSyncStore(
+		useShallow((s) => ({ syncStatus: s.status, isSyncBusy: s.isBusy, loadSync: s.load, setSyncFolder: s.setFolder, saveToSyncFolder: s.save, openSyncFile: s.openForApply }))
+	)
+	useEffect(() => {
+		void loadSync();
+	}, []);
+
+	const chooseSyncFolder = async () => {
+		try {
+			const selected = await open({ multiple: false, directory: true, title: "Choose the folder that keeps your setup in sync", defaultPath: syncStatus?.folder_path || undefined });
+			if (typeof selected === "string" && selected.length > 0) {
+				await setSyncFolder(selected);
+			}
+		} catch (e) {
+			console.error(e);
+			postStatusError(`Choosing the sync folder failed: ${errorText(e)}`);
+		}
+	};
 
 	const settingByCode = (code: AppSettingCode): IAppSetting | undefined =>
 		appSettings.find((s) => s.code === code);
@@ -537,6 +556,52 @@ const SettingsPanel = () => {
 					disabled={isSavingSetup}
 					onToggle={(checked) => setIncludeAddonFiles(checked)}
 				/>
+			</SettingsRow>
+			<SettingsRow id="setting-setup-sync-folder" label="Sync folder" description={syncStatus?.folder_path ? syncStatus.folder_path : "A folder inside Dropbox, OneDrive, iCloud or Google Drive keeps every computer in step"}>
+				{syncStatus?.folder_path && (
+					<Button
+						kind="ghost"
+						size="md"
+						className='settings_location_row__delete'
+						renderIcon={TrashCan}
+						iconDescription="Stop using this sync folder"
+						title="Stop using this sync folder"
+						hasIconOnly
+						disabled={isSyncBusy}
+						onClick={() => void setSyncFolder(null)}
+					/>
+				)}
+				<Button
+					kind="tertiary"
+					size="md"
+					className='settings_row__button'
+					disabled={isSyncBusy}
+					onClick={() => void chooseSyncFolder()}
+				>
+					{syncStatus?.folder_path ? "Change…" : "Choose…"}
+				</Button>
+			</SettingsRow>
+			<SettingsRow id="setting-setup-sync-save" label="Save setup to the sync folder" description={syncStatus?.folder_path ? "Writes this computer's setup to the folder; other computers are told it is newer" : "Choose a sync folder first"}>
+				<Button
+					kind="tertiary"
+					size="md"
+					className='settings_row__button'
+					disabled={isSyncBusy || isSavingSetup || !syncStatus?.folder_path || installedBuilds.length === 0}
+					onClick={() => void saveToSyncFolder(includeAddonFiles)}
+				>
+					{isSyncBusy ? "Saving…" : "Save now"}
+				</Button>
+			</SettingsRow>
+			<SettingsRow id="setting-setup-sync-apply" label="Setup in the sync folder" description={syncStatus?.folder_path ? describeSyncFile(syncStatus) : "Choose a sync folder first"}>
+				<Button
+					kind="tertiary"
+					size="md"
+					className='settings_row__button'
+					disabled={isSyncBusy || !syncStatus?.file}
+					onClick={() => void openSyncFile()}
+				>
+					Apply…
+				</Button>
 			</SettingsRow>
 			<SettingsRow id="setting-setup-open" label="Restore from a setup file" description="Opens a .bbsetup file and shows what it would apply">
 				<Button

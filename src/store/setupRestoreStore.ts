@@ -17,6 +17,7 @@ import { useBlenderManagerStore } from "./blenderManagerStore";
 import { useNetworkInformationStore } from "./networkInformationStore";
 import { postStatus, postStatusError } from "./statusStore";
 import { useUiControlsStore } from "./uiControlsStore";
+import { useSetupSyncStore } from "./setupSyncStore";
 
 export type MissingVersionState = "looking" | "ready" | "unavailable" | "downloading" | "installing" | "installed" | "failed";
 
@@ -252,6 +253,11 @@ export const useSetupRestoreStore = create<ISetupRestoreStore>((set, get) => ({
             const applied = reports.filter((r) => !r.skipped_reason).length;
             const skipped = reports.length - applied;
             postStatus(`Setup applied to ${applied} Blender ${applied === 1 ? "series" : "series"}${skipped > 0 ? `, ${skipped} skipped` : ""}`);
+            // Applying the sync folder's own file makes this computer current with it.
+            const syncFile = useSetupSyncStore.getState().status?.file;
+            if (applied > 0 && syncFile && syncFile.file_path === info.file_path) {
+                await useSetupSyncStore.getState().markSynced(info.content_hash);
+            }
         } catch (e) {
             console.error(e);
             postStatusError(`Applying the setup failed: ${errorText(e)}`);

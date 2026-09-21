@@ -292,7 +292,7 @@ export interface ISetupSeries {
 /** A Blender setup without machine-specific paths; one section per Blender series. */
 export interface ISetupManifest {
     schema: number,
-    meta: { created: string, app_version: string, platform: string },
+    meta: { created: string, app_version: string, platform: string, device: string },
     blender: ISetupBlenderVersion[],
     series: Record<string, ISetupSeries>,
 }
@@ -300,8 +300,31 @@ export interface ISetupManifest {
 export interface ISetupBundleInfo {
     file_path: string,
     file_size: number,
+    /** The manifest's content hash: what the sync folder compares. */
+    content_hash: string,
     manifest: ISetupManifest,
     warnings: string[],
+}
+
+export interface ISetupSyncFile {
+    file_path: string,
+    content_hash: string,
+    meta: { created: string, app_version: string, platform: string, device: string },
+    modified_at: string,
+    file_size: number,
+    blender_versions: number,
+    series: number,
+}
+
+/** What the sync folder holds, next to what this computer last saved there or applied from it. */
+export interface ISetupSyncStatus {
+    /** Empty when no folder is set. */
+    folder_path: string,
+    last_synced_hash: string,
+    last_synced_at: string,
+    file: ISetupSyncFile | null,
+    is_newer: boolean,
+    file_error: string | null,
 }
 
 /** What to take from one series of a setup when applying it. */

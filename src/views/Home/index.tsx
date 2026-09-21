@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 import { useUiControlsStore } from '../../store/uiControlsStore';
 import { postStatusError } from '../../store/statusStore';
 import { useSetupRestoreStore } from '../../store/setupRestoreStore';
+import { useSetupSyncStore } from '../../store/setupSyncStore';
 import { SetupService } from '../../services/setupService';
 import { useRescanOnFocus } from '../../utility/useRescanOnFocus';
 
@@ -41,10 +42,12 @@ const Home = () => {
     useEffect(() => {
         const { hasRefreshedInstalledBuilds, refreshInstalledBuilds, setInstalledBuilds } = useBlenderManagerStore.getState();
         const load = hasRefreshedInstalledBuilds ? setInstalledBuilds : refreshInstalledBuilds;
-        load().catch((e) => {
-            console.error(e);
-            postStatusError(`Loading installed Blender versions failed: ${e}`);
-        });
+        load()
+            .then(() => useSetupSyncStore.getState().checkForNews())
+            .catch((e) => {
+                console.error(e);
+                postStatusError(`Loading installed Blender versions failed: ${e}`);
+            });
         // A .bbsetup opened with the app goes straight to the restore view.
         if (!hasCheckedStartupFile) {
             hasCheckedStartupFile = true;

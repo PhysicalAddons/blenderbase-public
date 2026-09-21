@@ -4,10 +4,13 @@ import { useBlenderManagerStore } from '../store/blenderManagerStore';
 import { useAddonStore } from '../store/addonStore';
 import { useUiControlsStore } from '../store/uiControlsStore';
 import { useStatusStore } from '../store/statusStore';
+import { useSetupSyncStore } from '../store/setupSyncStore';
 import { resolveSelectedBlenderVersion } from '.';
 
 /** Installed versions are rescanned at most this often on refocus; alt-tabbing back and forth stays free. */
 const VERSIONS_RESCAN_INTERVAL_MS = 15_000;
+/** The sync folder's file is a small read, but a cloud drive may still be writing it; once a minute is plenty. */
+const SYNC_FOLDER_CHECK_INTERVAL_MS = 60_000;
 const RESCAN_MESSAGE = "Rescanning installed Blender versions…";
 
 /**
@@ -21,6 +24,7 @@ export const useRescanOnFocus = (): void => {
     useEffect(() => {
         // The startup scan has just run; a refocus within the interval is skipped.
         let lastVersionsScan = Date.now();
+        let lastSyncCheck = 0;
         let running = false;
 
         const rescan = async () => {
@@ -51,6 +55,10 @@ export const useRescanOnFocus = (): void => {
                 const addons = useAddonStore.getState();
                 if (selected && addons.launchedSinceReadIds.includes(selected.id) && !addons.isBusy) {
                     await addons.refreshAddons(selected.id);
+                }
+                if (Date.now() - lastSyncCheck >= SYNC_FOLDER_CHECK_INTERVAL_MS) {
+                    lastSyncCheck = Date.now();
+                    await useSetupSyncStore.getState().checkForNews();
                 }
             } finally {
                 running = false;

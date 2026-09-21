@@ -10,7 +10,7 @@ use crate::{
         AppSettingTypeRepository, AppState, BlendFileBlenderSeriesRepository, BlendFileRepository,
         BlenderInstallationLocationRepository, BlenderSeriesRepository,
         BlenderVersionBuildTypeRepository, BlenderVersionRepository, DownloadStatusTypeRepository,
-        InputValueTypeRepository, MeasurementUnitTypeRepository,
+        InputValueTypeRepository, MeasurementUnitTypeRepository, SetupSyncRepository,
     },
 };
 
@@ -55,6 +55,9 @@ impl AppState {
     }
     pub fn measurement_unit_type_repository(&self) -> MeasurementUnitTypeRepository<'_> {
         MeasurementUnitTypeRepository::new(&self.pool)
+    }
+    pub fn setup_sync_repository(&self) -> SetupSyncRepository<'_> {
+        SetupSyncRepository::new(&self.pool)
     }
 }
 

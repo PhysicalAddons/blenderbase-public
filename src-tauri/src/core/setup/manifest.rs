@@ -38,6 +38,9 @@ pub struct SetupMeta {
     pub app_version: String,
     #[serde(default)]
     pub platform: String,
+    /// The computer's name, so a sync folder can say where a setup came from.
+    #[serde(default)]
+    pub device: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -148,8 +151,6 @@ impl SetupManifest {
     }
 
     /// SHA-256 over everything except `meta`, so two captures of an unchanged setup agree.
-    // Change detection is not wired up yet; until then only the tests call this.
-    #[allow(dead_code)]
     pub fn content_hash(&self) -> Result<String, String> {
         #[derive(Serialize)]
         struct Content<'a> {
@@ -316,6 +317,7 @@ mod tests {
             created: String::from("2026-09-17T19:00:00Z"),
             app_version: String::from("1.2.8"),
             platform: String::from("windows-x86_64"),
+            device: String::from("Studio-PC"),
         });
         manifest.blender.push(SetupBlenderVersion {
             version: String::from("5.2.1"),

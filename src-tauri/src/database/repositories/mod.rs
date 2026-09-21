@@ -11,6 +11,7 @@ mod blender_version_repository;
 mod download_status_type_repository;
 mod input_value_type_repository;
 mod measurement_unit_type_repository;
+mod setup_sync_repository;
 
 pub use addon_repository::AddonRepository;
 pub use app_setting_action_type_repository::AppSettingActionTypeRepository;
@@ -25,3 +26,4 @@ pub use blender_version_repository::BlenderVersionRepository;
 pub use download_status_type_repository::DownloadStatusTypeRepository;
 pub use input_value_type_repository::InputValueTypeRepository;
 pub use measurement_unit_type_repository::MeasurementUnitTypeRepository;
+pub use setup_sync_repository::SetupSyncRepository;

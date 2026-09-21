@@ -11,6 +11,7 @@ mod blender_version_build_type;
 mod download_status_type;
 mod input_value_type;
 mod measurement_unit_type;
+mod setup_sync;
 
 pub use addon::Addon;
 pub use app_setting::AppSetting;
@@ -25,3 +26,4 @@ pub use blender_version_build_type::BlenderVersionBuildType;
 pub use download_status_type::DownloadStatusType;
 pub use input_value_type::InputValueType;
 pub use measurement_unit_type::MeasurementUnitType;
+pub use setup_sync::SetupSync;

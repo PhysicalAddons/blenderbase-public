@@ -283,7 +283,11 @@ pub async fn run() {
             cmd_inspect_setup_bundle,
             cmd_apply_setup_bundle,
             cmd_undo_setup_apply,
-            cmd_startup_setup_file
+            cmd_startup_setup_file,
+            cmd_get_setup_sync,
+            cmd_set_setup_sync_folder,
+            cmd_save_setup_to_sync_folder,
+            cmd_mark_setup_synced
         ])
         .run(tauri::generate_context!());
     if let Err(e) = app {
