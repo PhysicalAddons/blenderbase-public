@@ -287,7 +287,9 @@ pub async fn run() {
             cmd_get_setup_sync,
             cmd_set_setup_sync_folder,
             cmd_save_setup_to_sync_folder,
-            cmd_mark_setup_synced
+            cmd_mark_setup_synced,
+            cmd_send_setup_transfer,
+            cmd_receive_setup_transfer
         ])
         .run(tauri::generate_context!());
     if let Err(e) = app {

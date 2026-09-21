@@ -4,7 +4,7 @@ use tauri::AppHandle;
 use crate::{
     core::{
         format_command_error, setup_file_argument, SeriesApplyReport, SetupApplyOptions, SetupBundleInfo,
-        SetupExportOptions, SetupServiceImpl, SetupSyncStatus, TSetupService, COLON_SEPERATOR,
+        SetupExportOptions, SetupServiceImpl, SetupSyncStatus, TSetupService, TransferSent, COLON_SEPERATOR,
     },
     AppState,
 };
@@ -126,6 +126,35 @@ pub async fn cmd_mark_setup_synced(
     content_hash: String,
 ) -> Result<SetupSyncStatus, String> {
     match SetupServiceImpl.mark_setup_synced(app, state, content_hash).await {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
+
+#[named]
+#[tauri::command]
+pub async fn cmd_send_setup_transfer(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    options: Option<SetupExportOptions>,
+) -> Result<TransferSent, String> {
+    match SetupServiceImpl
+        .send_setup_transfer(app, state, options.unwrap_or_default())
+        .await
+    {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
+
+#[named]
+#[tauri::command]
+pub async fn cmd_receive_setup_transfer(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    code: String,
+) -> Result<SetupBundleInfo, String> {
+    match SetupServiceImpl.receive_setup_transfer(app, state, code).await {
         Ok(v) => Ok(v),
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }

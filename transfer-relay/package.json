@@ -1,0 +1,16 @@
+{
+  "name": "blenderbase-transfer-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Holds encrypted Blenderbase setup files for a few days so a transfer code can fetch them on another computer.",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "typecheck": "wrangler types && tsc --noEmit -p .",
+    "types": "wrangler types"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  }
+}

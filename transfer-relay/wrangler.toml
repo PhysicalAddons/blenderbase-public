@@ -1,0 +1,22 @@
+name = "blenderbase-transfer"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# Encrypted setup files, keyed by an id the app derives from the transfer code.
+[[r2_buckets]]
+binding = "TRANSFERS"
+bucket_name = "blenderbase-transfers"
+
+# Per-IP rate limit on every request: an id cannot be guessed at this pace anyway, this keeps a
+# misbehaving client from costing anything. Not simulated locally; the code treats it as optional.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }
+
+[vars]
+TTL_DAYS = "7"
+MAX_BYTES = "2147483648"
+
+[observability]
+enabled = true

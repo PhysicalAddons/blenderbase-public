@@ -22,12 +22,16 @@ use super::{
     },
     scripts::CAPTURE_SETUP_PY,
     sync::{read_sync_status, sync_file_path, SetupSyncStatus},
+    transfer::{
+        decrypt_file, delete_transfer, derive_keys, download_transfer, encrypt_file, generate_code, relay_url,
+        upload_transfer, TransferProgress,
+    },
 };
 use crate::{
     core::{
         extract_json_payload, py_string_literal, resolve_blender_console_executable,
         run_blender_python_with_env, ADDON_KIND_ADDON, ADDON_KIND_CORE, ADDON_KIND_EXTENSION,
-        BLENDERBASE_JSON_MARKER,
+        BLENDERBASE_JSON_MARKER, COM_PHYSICALADDONS_BLENDERBASE,
     },
     database::BlenderVersion,
     AppState,
@@ -55,6 +59,14 @@ pub struct SetupExportOptions {
     /// without the original download. They are only listed otherwise.
     #[serde(default)]
     pub include_addon_files: bool,
+}
+
+/// A setup handed to the relay: the code to type on the other computer.
+#[derive(Debug, Clone, Serialize)]
+pub struct TransferSent {
+    pub code: String,
+    pub size: u64,
+    pub expires: String,
 }
 
 /// What the frontend shows after an export, or before an import.
@@ -164,6 +176,18 @@ pub trait TSetupService {
         state: tauri::State<'_, AppState>,
         content_hash: String,
     ) -> Result<SetupSyncStatus, String>;
+    async fn send_setup_transfer(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        options: SetupExportOptions,
+    ) -> Result<TransferSent, String>;
+    async fn receive_setup_transfer(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        code: String,
+    ) -> Result<SetupBundleInfo, String>;
 }
 
 pub struct SetupServiceImpl;
@@ -378,6 +402,114 @@ impl TSetupService for SetupServiceImpl {
             .await
             .map_err(|e| format!("Failed to record the sync: {:?}", e))?;
         self.get_setup_sync(app, state).await
+    }
+
+    /// Saves the setup to a temporary file, encrypts it under a fresh code and hands it to the
+    /// relay. Only the code comes back; the files are removed again here.
+    async fn send_setup_transfer(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        options: SetupExportOptions,
+    ) -> Result<TransferSent, String> {
+        let work_directory = std::env::temp_dir().join(format!("blenderbase-transfer-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&work_directory)
+            .map_err(|e| format!("Could not create {}: {}", work_directory.display(), e))?;
+        let outcome = Self::send_from(self, app, state, options, &work_directory).await;
+        let _ = std::fs::remove_dir_all(&work_directory);
+        outcome
+    }
+
+    /// Fetches the transfer for a code, decrypts it into the app's transfers folder and reads it
+    /// like any setup file; the restore view opens it from there. The relay's copy is removed.
+    async fn receive_setup_transfer(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        code: String,
+    ) -> Result<SetupBundleInfo, String> {
+        let progress: TransferProgress = Arc::new(move |message: String| {
+            let _ = app.emit(SETUP_PROGRESS_EVENT, message);
+        });
+        progress(String::from("Checking the code…"));
+        let keys = tokio::task::spawn_blocking(move || derive_keys(&code))
+            .await
+            .map_err(|e| format!("Failed receive_setup_transfer: {:?}", e))??;
+        let directory = dirs::data_dir()
+            .ok_or_else(|| String::from("Could not determine the app data directory"))?
+            .join(COM_PHYSICALADDONS_BLENDERBASE)
+            .join("transfers");
+        std::fs::create_dir_all(&directory).map_err(|e| format!("Could not create {}: {}", directory.display(), e))?;
+        let encrypted = directory.join(format!("{}.part", &keys.id[..16]));
+        let relay = relay_url();
+        progress(String::from("Downloading…"));
+        download_transfer(&state.http_client, &relay, &keys, &encrypted, &progress).await?;
+        let stamp = chrono::Local::now().format("%Y-%m-%d %H%M%S").to_string();
+        let file_path = directory.join(format!("Transfer {}.bbsetup", stamp));
+        progress(String::from("Decrypting…"));
+        let decrypted = {
+            let (key, encrypted, file_path) = (keys.key, encrypted.clone(), file_path.clone());
+            tokio::task::spawn_blocking(move || decrypt_file(&key, &encrypted, &file_path))
+                .await
+                .map_err(|e| format!("Failed receive_setup_transfer: {:?}", e))?
+        };
+        let _ = std::fs::remove_file(&encrypted);
+        decrypted?;
+        let manifest = {
+            let file_path = file_path.clone();
+            tokio::task::spawn_blocking(move || read_bundle_manifest(&file_path))
+                .await
+                .map_err(|e| format!("Failed receive_setup_transfer: {:?}", e))??
+        };
+        // The file is here now; the relay does not need its copy any more.
+        if let Err(e) = delete_transfer(&state.http_client, &relay, &keys).await {
+            eprintln!("The relay kept its copy of the transfer: {}", e);
+        }
+        Ok(SetupBundleInfo {
+            file_path: file_path.to_string_lossy().to_string(),
+            file_size: std::fs::metadata(&file_path).map(|m| m.len()).unwrap_or(0),
+            content_hash: manifest.content_hash()?,
+            manifest,
+            warnings: Vec::new(),
+        })
+    }
+}
+
+impl SetupServiceImpl {
+    async fn send_from(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        options: SetupExportOptions,
+        work_directory: &Path,
+    ) -> Result<TransferSent, String> {
+        let bundle = work_directory.join("setup.bbsetup");
+        self.export_setup_bundle(app.clone(), state.clone(), bundle.to_string_lossy().to_string(), options)
+            .await?;
+        let progress: TransferProgress = Arc::new(move |message: String| {
+            let _ = app.emit(SETUP_PROGRESS_EVENT, message);
+        });
+        progress(String::from("Preparing the transfer…"));
+        let code = generate_code();
+        let keys = {
+            let code = code.clone();
+            tokio::task::spawn_blocking(move || derive_keys(&code))
+                .await
+                .map_err(|e| format!("Failed send_setup_transfer: {:?}", e))??
+        };
+        let encrypted = work_directory.join("setup.enc");
+        {
+            let (key, bundle, encrypted) = (keys.key, bundle.clone(), encrypted.clone());
+            tokio::task::spawn_blocking(move || encrypt_file(&key, &bundle, &encrypted))
+                .await
+                .map_err(|e| format!("Failed send_setup_transfer: {:?}", e))??;
+        }
+        let receipt = upload_transfer(&state.http_client, &relay_url(), &keys, &encrypted, &progress).await?;
+        Ok(TransferSent {
+            code,
+            size: receipt.size,
+            expires: receipt.expires,
+        })
     }
 }
 
