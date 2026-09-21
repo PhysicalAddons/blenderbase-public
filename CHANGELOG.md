@@ -4,6 +4,36 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## 1.3.0
+
+### Added
+- **Sync**: a new button in the title bar and a view that shares your Blender
+  setup across computers: the installed Blender versions and, per series,
+  preferences, theme, keymap and the addon list. Four ways, in order of
+  preference: **Local network** (turn on sharing on one computer, type its
+  six-digit PIN on the others; nothing leaves the network), **Transfer code**
+  (the setup travels encrypted through a relay under a code like
+  `brave-otter-4412`, kept up to 7 days and removed once received),
+  **Sync folder** (a folder in Dropbox, OneDrive, iCloud or Google Drive;
+  every computer is told when a newer setup was saved) and **Setup file**
+  (one `.bbsetup` file to carry yourself).
+- **What to share**: before sharing, choose which installed Blender versions
+  go and, per series, which parts and which addons. Series left out are not
+  read at all, so a small share is quick.
+- **Restore view**: a received or opened setup shows one row per Blender
+  series with switches for preferences, theme, keymap and addons. Each series
+  is backed up before it is applied and one click undoes it. Blender versions
+  the setup names and this computer lacks are listed there for download and
+  install.
+- Addons installed from a file can travel with the setup (**Include addon
+  files**); extensions are installed again by name on the other computer.
+- A `.bbsetup` file opened with Blenderbase (Open with) lands in the restore
+  view, and the first-run screen offers **Restore from a setup file**.
+
+### Changed
+- The README says what leaves the computer: nothing, unless you send a
+  transfer code, and then only the encrypted setup.
+
 ## 1.2.9
 
 ### Changed
