@@ -4,6 +4,8 @@ import { Add, Star, StarFilled, TrashCan } from '@carbon/react/icons';
 import { getVersion } from '@tauri-apps/api/app';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
+import DocumentationLink from '../DocumentationLink';
+import { DISCORD_COM_INVITE, GITHUB_REPOSITORY_URL, PHYSICAL_ADDONS_URL, SETTINGS_DOCUMENTATION_URL, WIKI_URL } from '../../constants';
 import { IAppSetting, IBlenderInstallationLocation } from '../../models';
 import { AppSettingCode } from '../../enums';
 import { SettingsService } from '../../services/settingsService';
@@ -14,13 +16,14 @@ import { usePagedScroll } from '../../utility/usePagedScroll';
 
 const settingsService = new SettingsService();
 
-type SettingsSection = 'locations' | 'launch' | 'updates' | 'appearance';
+type SettingsSection = 'locations' | 'launch' | 'updates' | 'appearance' | 'about';
 
 const SECTIONS: { id: SettingsSection, label: string }[] = [
 	{ id: 'locations', label: 'Locations' },
 	{ id: 'launch', label: 'Launch' },
 	{ id: 'updates', label: 'Updates' },
 	{ id: 'appearance', label: 'Appearance' },
+	{ id: 'about', label: 'About' },
 ];
 
 type ThemeOption = { id: ThemePreference, label: string };
@@ -441,6 +444,29 @@ const SettingsPanel = () => {
 		</SettingsRow>
 	);
 
+	// Who made it, where the documentation and the community are, and what it is built on.
+	const linkRow = (id: string, label: string, description: string, href: string, text: string) => (
+		<SettingsRow id={id} label={label} description={description}>
+			<Button kind="tertiary" size="md" className='settings_row__button' href={href} target="_blank" rel="noopener">
+				{text}
+			</Button>
+		</SettingsRow>
+	);
+	const renderAbout = () => (
+		<>
+			{linkRow("about-maker", appVersion ? `Blenderbase ${appVersion}` : "Blenderbase", "Made by Physical Software SIA, the team behind Physical Addons", PHYSICAL_ADDONS_URL, "Website")}
+			{linkRow("about-documentation", "Documentation", "The wiki explains every view, from installing Blender to sharing a setup", WIKI_URL, "Open")}
+			{linkRow("about-community", "Community", "Questions, feedback and help in the Blenderbase channels on Discord", DISCORD_COM_INVITE, "Open")}
+			{linkRow("about-source", "Source and issues", "The code, the changelog and the issue tracker on GitHub", GITHUB_REPOSITORY_URL, "Open")}
+			<SettingsRow id="about-built-with" label="Built with" description="Tauri, Rust, React and the Carbon Design System; Blender is driven through its own Python API">
+				<span />
+			</SettingsRow>
+			<SettingsRow id="about-blender" label="Blender" description="Blender is a trademark of the Blender Foundation. Blenderbase is not affiliated with it and uses its download servers with care">
+				<span />
+			</SettingsRow>
+		</>
+	);
+
 	const renderSection = () => {
 		switch (activeSection) {
 			case 'locations':
@@ -451,6 +477,8 @@ const SettingsPanel = () => {
 				return renderUpdates();
 			case 'appearance':
 				return renderAppearance();
+			case 'about':
+				return renderAbout();
 		}
 	};
 
@@ -458,7 +486,10 @@ const SettingsPanel = () => {
 		<div className='settings_panel'>
 			<div className='column_header'>
 				<div className='column_header__titles'>
-					<span className='column_header__title'>Settings</span>
+					<span className='column_header__title column_header__title_row'>
+						Settings
+						<DocumentationLink href={SETTINGS_DOCUMENTATION_URL} hint="How Settings work · opens the documentation in your browser" />
+					</span>
 					<span className='column_header__subtitle'>{appVersion ? `Blenderbase ${appVersion}` : ""}</span>
 				</div>
 			</div>

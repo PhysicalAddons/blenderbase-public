@@ -81,6 +81,33 @@ $home-launcher-height: 56px;
         color: var(--bb-text);
         white-space: nowrap;
     }
+    // A title with the small button that opens the documentation for the view.
+    .column_header__title_row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .column_header__info {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        color: var(--bb-text-muted);
+        cursor: pointer;
+        &:hover {
+            color: var(--bb-text);
+            background: var(--bb-field-hover);
+        }
+        &:focus-visible {
+            outline: 2px solid var(--bb-text);
+            outline-offset: -2px;
+        }
+    }
     .column_header__subtitle {
         font-size: 14px;
         line-height: 18px;

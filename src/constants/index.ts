@@ -20,8 +20,12 @@ export const FAILED_LOWERCASE = "failed";
 export const cmd_check_internet_connection_STATUS_SENTANCE_CASE = "Check internet connection status";
 export const JOIN_THE_COMMUNITY_SENTANCE_CASE = "Join the community";
 export const DISCORD_COM_INVITE = "https://discord.com/invite/4pseCn9pys";
-/** The wiki page that explains the four ways to share a setup; the Sync view links to it. */
-export const SYNC_DOCUMENTATION_URL = "https://github.com/PhysicalAddons/blenderbase-public/wiki/09.-Sync";
+export const GITHUB_REPOSITORY_URL = "https://github.com/PhysicalAddons/blenderbase-public";
+export const PHYSICAL_ADDONS_URL = "https://www.physicaladdons.com";
+/** The wiki: every view explained. The info buttons next to the column titles open its pages. */
+export const WIKI_URL = `${GITHUB_REPOSITORY_URL}/wiki`;
+export const SETTINGS_DOCUMENTATION_URL = `${WIKI_URL}/03.-Settings-Tab`;
+export const SYNC_DOCUMENTATION_URL = `${WIKI_URL}/09.-Sync`;
 export const STATUS_OFF = "off"
 export const STATUS_ON = "on"
 /** File-picker filter for Blenderbase setup files. */

@@ -5,7 +5,7 @@
 // Borrows the Settings panel's tab band and rows (it carries the `settings_panel` class);
 // this only adds the controls Settings has no use for.
 .sync_panel {
-    // The four tabs are one choice, and the label reads into them: "Move it by | Sync folder".
+    // The four tabs are one choice, and the label reads into them: "Share by: | Local network".
     .sync_panel__ways_label {
         padding: 0 16px 0 calc(#{$home-column-inset} + 16px);
         font-size: 14px;
@@ -22,33 +22,6 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-    }
-    // The title and the small button that opens the documentation, on one line.
-    .sync_panel__title_row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .sync_panel__info {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        border: none;
-        border-radius: 0;
-        background: transparent;
-        color: var(--bb-text-muted);
-        cursor: pointer;
-        &:hover {
-            color: var(--bb-text);
-            background: var(--bb-field-hover);
-        }
-        &:focus-visible {
-            outline: 2px solid var(--bb-text);
-            outline-offset: -2px;
-        }
     }
     // Two controls in one row (stop using the folder, then Change…): the row's hairline runs
     // through both, so they read as one block.

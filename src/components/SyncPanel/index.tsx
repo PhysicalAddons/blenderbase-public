@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, InlineLoading, TextInput, Toggle } from '@carbon/react';
-import { Copy, Information, TrashCan } from '@carbon/react/icons';
+import { Copy, TrashCan } from '@carbon/react/icons';
 import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
@@ -13,11 +13,10 @@ import { describeSyncFile, useSetupSyncStore } from '../../store/setupSyncStore'
 import { formatLanSize, formatPin, platformLabel, useSetupLanStore } from '../../store/setupLanStore';
 import { describeShare, exportOptions, useSetupShareStore } from '../../store/setupShareStore';
 import { SyncSection, useUiControlsStore } from '../../store/uiControlsStore';
-import { postStatus, postStatusError, useStatusStore } from '../../store/statusStore';
+import { postStatus, postStatusError } from '../../store/statusStore';
+import DocumentationLink from '../DocumentationLink';
 
 const setupService = new SetupService();
-
-const DOCUMENTATION_HINT = 'How syncing works · opens the documentation in your browser';
 
 /**
  * One way to share a setup: the tab label and the line under the tabs that says when it fits.
@@ -384,44 +383,13 @@ const SyncPanel = () => {
 
 	const section = SECTIONS.find((s) => s.id === activeSection) ?? SECTIONS[0];
 
-	// The documentation link explains itself in the status line, like the title-bar buttons;
-	// what was shown before the hover comes back on leave, unless something else posted meanwhile.
-	const statusBeforeHint = useRef<{ message: string, isBusy: boolean, isError: boolean } | null>(null);
-	const showDocumentationHint = () => {
-		const s = useStatusStore.getState();
-		if (s.isBusy) {
-			return;
-		}
-		statusBeforeHint.current = { message: s.message, isBusy: s.isBusy, isError: s.isError };
-		postStatus(DOCUMENTATION_HINT);
-	};
-	const hideDocumentationHint = () => {
-		const before = statusBeforeHint.current;
-		statusBeforeHint.current = null;
-		if (before && useStatusStore.getState().message === DOCUMENTATION_HINT) {
-			useStatusStore.getState().setStatus(before.message, before.isBusy, before.isError);
-		}
-	};
-
 	return (
 		<div className='settings_panel sync_panel'>
 			<div className='column_header'>
 				<div className='column_header__titles'>
-					<span className='column_header__title sync_panel__title_row'>
+					<span className='column_header__title column_header__title_row'>
 						Sync
-						<a
-							className='sync_panel__info'
-							href={SYNC_DOCUMENTATION_URL}
-							target='_blank'
-							rel='noopener'
-							aria-label='How syncing works (opens the documentation in your browser)'
-							onMouseEnter={showDocumentationHint}
-							onMouseLeave={hideDocumentationHint}
-							onFocus={showDocumentationHint}
-							onBlur={hideDocumentationHint}
-						>
-							<Information size={20} />
-						</a>
+						<DocumentationLink href={SYNC_DOCUMENTATION_URL} hint="How syncing works · opens the documentation in your browser" />
 					</span>
 					<span className='column_header__subtitle'>Share your Blender setup across other computers</span>
 				</div>
