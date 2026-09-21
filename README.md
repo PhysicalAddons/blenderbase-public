@@ -38,7 +38,7 @@ Blenderbase runs on **Windows 10/11**, **macOS (Apple Silicon)** and **Linux**. 
 
 ## How it works
 
-Blenderbase keeps a local SQLite database, generated on first start, with the metadata it needs: installed Blender versions, their addons, recent `.blend` files and the list of downloadable builds. The name comes from `Blender` + `database`. Nothing is sent anywhere; the only network requests are the Blender Foundation download pages, the downloads themselves and the GitHub Releases check for updates.
+Blenderbase keeps a local SQLite database, generated on first start, with the metadata it needs: installed Blender versions, their addons, recent `.blend` files and the list of downloadable builds. The name comes from `Blender` + `database`. Nothing is sent anywhere unless you ask for it: the only network requests are the Blender Foundation download pages, the downloads themselves, the GitHub Releases check for updates and, when you send a transfer code, the encrypted setup going to and from the relay.
 
 Downloadable builds are read from:
 - https://ftp.nluug.nl/pub/graphics/blender/release/ (Stable and LTS, the European mirror)
@@ -46,6 +46,17 @@ Downloadable builds are read from:
 - https://builder.blender.org/download/patch/
 
 Only versions from `3.1` onwards are listed, to keep the load on Blender Foundation servers small.
+
+## Moving your setup to another computer
+
+A setup is what makes your Blender yours: the Blender versions you have installed and, for every series, its preferences, theme, keymap and addon list. The Sync view (the arrows button in the title bar) moves it to another computer in one of four ways. All four end in the same restore view, where you tick per series what to apply. The other computer backs up its own configuration first, and one click undoes the apply.
+
+- **Sync folder**: pick a folder inside Dropbox, OneDrive, iCloud or Google Drive. Every computer saves its setup there and is told when another one saved a newer setup.
+- **Local network**: two computers on the same network hand the setup over directly, no internet needed. Turn on sharing on one and type the six-digit PIN it shows on the other. Nothing leaves the network. The first time, your system may ask to allow Blenderbase through the firewall.
+- **Transfer code**: for a computer somewhere else. The setup is encrypted on your computer under a code like `brave-otter-4412`, parked on a relay for up to 7 days and removed once it is received. The relay holds only ciphertext and cannot tell which file belongs to which code.
+- **Setup file**: one `.bbsetup` file to carry yourself, on a USB stick, in an email, on any drive.
+
+Blender versions the other computer lacks are downloaded there from the Blender Foundation servers, for that computer's own system. Addons from the extensions platform are installed again by name; addons installed from a file travel with the setup when "Include addon files" is on.
 
 ## Installing
 

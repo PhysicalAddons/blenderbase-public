@@ -5,6 +5,51 @@
 // Borrows the Settings panel's tab band and rows (it carries the `settings_panel` class);
 // this only adds the controls Settings has no use for.
 .sync_panel {
+    // The four tabs are one choice, and the label reads into them: "Move it by | Sync folder".
+    .sync_panel__ways_label {
+        padding: 0 16px 0 calc(#{$home-column-inset} + 16px);
+        font-size: 14px;
+        color: var(--bb-text-muted);
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    // When the selected way fits, and where every way ends: under the tabs, above the rows.
+    .sync_panel__way {
+        padding: 12px $home-column-inset 0 calc(#{$home-column-inset} + 16px);
+        font-size: 12px;
+        line-height: 16px;
+        color: var(--bb-text-muted);
+        .sync_panel__way_fit {
+            color: var(--bb-text);
+        }
+    }
+    // The title and the small button that opens the documentation, on one line.
+    .sync_panel__title_row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sync_panel__info {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        color: var(--bb-text-muted);
+        cursor: pointer;
+        &:hover {
+            color: var(--bb-text);
+            background: var(--bb-field-hover);
+        }
+        &:focus-visible {
+            outline: 2px solid var(--bb-text);
+            outline-offset: -2px;
+        }
+    }
     // Two controls in one row (stop using the folder, then Change…): the row's hairline runs
     // through both, so they read as one block.
     .settings_row__control .cds--btn.settings_location_row__delete {

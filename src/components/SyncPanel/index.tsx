@@ -1,29 +1,34 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, InlineLoading, TextInput, Toggle } from '@carbon/react';
-import { Copy, TrashCan } from '@carbon/react/icons';
+import { Copy, Information, TrashCan } from '@carbon/react/icons';
 import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
 import { ILanPeer, ISetupBundleInfo } from '../../models';
-import { SETUP_FILE_FILTER } from '../../constants';
+import { SETUP_FILE_FILTER, SYNC_DOCUMENTATION_URL } from '../../constants';
 import { SetupService } from '../../services/setupService';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useSetupRestoreStore } from '../../store/setupRestoreStore';
 import { describeSyncFile, useSetupSyncStore } from '../../store/setupSyncStore';
 import { formatLanSize, formatPin, platformLabel, useSetupLanStore } from '../../store/setupLanStore';
-import { postStatus, postStatusError } from '../../store/statusStore';
+import { postStatus, postStatusError, useStatusStore } from '../../store/statusStore';
 
 const setupService = new SetupService();
 
+const DOCUMENTATION_HINT = 'How syncing works · opens the documentation in your browser';
+
 type SyncSection = 'folder' | 'network' | 'transfer' | 'file';
 
-/** One way to move a setup: the tab label and the one-line explanation under the title. */
-const SECTIONS: { id: SyncSection, label: string, subtitle: string }[] = [
-	{ id: 'folder', label: 'Sync folder', subtitle: "A shared folder in a cloud drive keeps every computer's setup in step" },
-	{ id: 'network', label: 'Local network', subtitle: 'Computers running Blenderbase on this network hand the setup over directly' },
-	{ id: 'transfer', label: 'Transfer code', subtitle: 'Send the setup through an encrypted relay to a computer that shares no folder' },
-	{ id: 'file', label: 'Setup file', subtitle: 'One .bbsetup file to carry yourself: a USB stick, an email, any drive' },
+/** One way to move a setup: the tab label and the line under the tabs that says when it fits. */
+const SECTIONS: { id: SyncSection, label: string, when: string }[] = [
+	{ id: 'folder', label: 'Sync folder', when: 'For your own computers: a folder in a cloud drive keeps every one of them in step' },
+	{ id: 'network', label: 'Local network', when: 'For two computers on the same network, no internet needed: the setup goes straight across' },
+	{ id: 'transfer', label: 'Transfer code', when: 'For a computer somewhere else: the setup goes through an encrypted relay under a short code' },
+	{ id: 'file', label: 'Setup file', when: 'For anything else: one .bbsetup file to carry on a USB stick, in an email, on any drive' },
 ];
+
+/** The four ways are four roads to one place; said once, under whichever is selected. */
+const SAME_DESTINATION = 'Whichever way, the setup opens in the restore view on the other computer, where you choose what to apply.';
 
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^cmd_\w+: /, "");
 
@@ -382,17 +387,52 @@ const SyncPanel = () => {
 
 	const section = SECTIONS.find((s) => s.id === activeSection) ?? SECTIONS[0];
 
+	// The documentation link explains itself in the status line, like the title-bar buttons;
+	// what was shown before the hover comes back on leave, unless something else posted meanwhile.
+	const statusBeforeHint = useRef<{ message: string, isBusy: boolean, isError: boolean } | null>(null);
+	const showDocumentationHint = () => {
+		const s = useStatusStore.getState();
+		if (s.isBusy) {
+			return;
+		}
+		statusBeforeHint.current = { message: s.message, isBusy: s.isBusy, isError: s.isError };
+		postStatus(DOCUMENTATION_HINT);
+	};
+	const hideDocumentationHint = () => {
+		const before = statusBeforeHint.current;
+		statusBeforeHint.current = null;
+		if (before && useStatusStore.getState().message === DOCUMENTATION_HINT) {
+			useStatusStore.getState().setStatus(before.message, before.isBusy, before.isError);
+		}
+	};
+
 	return (
 		<div className='settings_panel sync_panel'>
 			<div className='column_header'>
 				<div className='column_header__titles'>
-					<span className='column_header__title'>Sync</span>
-					<span className='column_header__subtitle'>{section.subtitle}</span>
+					<span className='column_header__title sync_panel__title_row'>
+						Sync
+						<a
+							className='sync_panel__info'
+							href={SYNC_DOCUMENTATION_URL}
+							target='_blank'
+							rel='noopener'
+							aria-label='How syncing works (opens the documentation in your browser)'
+							onMouseEnter={showDocumentationHint}
+							onMouseLeave={hideDocumentationHint}
+							onFocus={showDocumentationHint}
+							onBlur={hideDocumentationHint}
+						>
+							<Information size={20} />
+						</a>
+					</span>
+					<span className='column_header__subtitle'>The same Blender setup on another computer, moved one of four ways</span>
 				</div>
 				{isBusy && <InlineLoading className="column_header__loading" iconDescription="Working" />}
 			</div>
-			<div className='column_actions settings_panel__toolbar'>
-				<div className='build_type_switch' role="tablist" aria-label="Way to move the setup">
+			<div className='column_actions settings_panel__toolbar sync_panel__ways'>
+				<span className='sync_panel__ways_label' id="sync-ways-label">Move it by</span>
+				<div className='build_type_switch' role="tablist" aria-labelledby="sync-ways-label">
 					{SECTIONS.map((s) => (
 						<Button
 							key={s.id}
@@ -408,6 +448,9 @@ const SyncPanel = () => {
 					))}
 				</div>
 			</div>
+			<p className='sync_panel__way'>
+				<span className='sync_panel__way_fit'>{section.when}.</span> {SAME_DESTINATION}
+			</p>
 			<div className='list_header settings_panel__list_header'>
 				<span>Action</span>
 				<span></span>
