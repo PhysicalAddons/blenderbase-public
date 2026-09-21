@@ -268,7 +268,9 @@ const ShareSetupPanel = () => {
 				{groups.length === 0 ? (
 					<div className='share_panel__empty'>No installed Blender version to share yet.</div>
 				) : groups.map(renderRow)}
-				<div className='share_panel__option'>
+			</div>
+			{/* Under the list and outside it, so it stays in view however long the list is. */}
+			<div className='share_panel__option'>
 					<div className='share_panel__option_main'>
 						<span className='share_panel__option_label'>Include addon files</span>
 						<span className='share_panel__option_text'>Packs addons installed from a file, so they restore without the download. For your own computers only: a paid addon is licensed to you</span>
@@ -303,7 +305,6 @@ const ShareSetupPanel = () => {
 						The setup will carry the files of every addon that was installed from a file, paid addons included. Those files are licensed to you: put them on your own computers only. Handing them to a computer that is not yours is not allowed by most addon licences, and Blenderbase cannot tell who receives a setup.
 					</p>
 				</Modal>
-			</div>
 		</div>
 	)
 }
