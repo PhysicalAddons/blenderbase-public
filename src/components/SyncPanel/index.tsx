@@ -1,22 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Button, InlineLoading, TextInput, Toggle } from '@carbon/react';
-import { Copy, TrashCan } from '@carbon/react/icons';
-import { listen } from '@tauri-apps/api/event';
-import { open, save } from '@tauri-apps/plugin-dialog';
+import { ArrowLeft, Copy, Laptop, TrashCan } from '@carbon/react/icons';
+import { open } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
-import { ILanPeer, ISetupBundleInfo } from '../../models';
+import { ILanPeer } from '../../models';
 import { SETUP_FILE_FILTER, SYNC_DOCUMENTATION_URL } from '../../constants';
-import { SetupService } from '../../services/setupService';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useSetupRestoreStore } from '../../store/setupRestoreStore';
 import { describeSyncFile, useSetupSyncStore } from '../../store/setupSyncStore';
 import { formatLanSize, formatPin, platformLabel, useSetupLanStore } from '../../store/setupLanStore';
-import { describeShare, exportOptions, useSetupShareStore } from '../../store/setupShareStore';
 import { SyncSection, useUiControlsStore } from '../../store/uiControlsStore';
 import { postStatus, postStatusError } from '../../store/statusStore';
 import DocumentationLink from '../DocumentationLink';
-
-const setupService = new SetupService();
 
 /**
  * One way to share a setup: the tab label and the line under the tabs that says when it fits.
@@ -31,26 +26,9 @@ const SECTIONS: { id: SyncSection, label: string, when: string }[] = [
 
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^cmd_\w+: /, "");
 
-const formatSetupSize = (bytes: number): string => {
-	const kb = bytes / 1024;
-	return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(kb))} KB`;
-};
 
 const plural = (count: number, one: string, many: string): string => `${count} ${count === 1 ? one : many}`;
 
-/** One status line for a setup file: what it holds and how much of it restores on its own. */
-const describeSetup = (info: ISetupBundleInfo): string => {
-	const sections = Object.values(info.manifest.series);
-	const addons = sections.flatMap((s) => s.addons).filter((a) => a.source !== "core");
-	const manual = addons.filter((a) => a.source === "manual" || (a.source === "file" && !a.file)).length;
-	const parts = [
-		plural(info.manifest.blender.length, "Blender version", "Blender versions"),
-		plural(sections.length, "configuration", "configurations"),
-		plural(addons.length, "addon", "addons") + (manual > 0 ? ` (${manual} to install by hand)` : ""),
-		formatSetupSize(info.file_size),
-	];
-	return parts.join(" · ");
-};
 
 type RowProps = {
 	id: string,
@@ -79,24 +57,20 @@ const Row = ({ id, label, description, inactive = false, children }: RowProps) =
  * a transfer code, a setup file. Takes the middle column and the tab band like Settings.
  */
 const SyncPanel = () => {
-	const { activeSection, setActiveSection, setIsShareSetupOpen } = useUiControlsStore(
-		useShallow((s) => ({ activeSection: s.syncSection, setActiveSection: s.setSyncSection, setIsShareSetupOpen: s.setIsShareSetupOpen }))
+	const { activeSection, setActiveSection, openShareSetup, setIsSyncOpen } = useUiControlsStore(
+		useShallow((s) => ({ activeSection: s.syncSection, setActiveSection: s.setSyncSection, openShareSetup: s.openShareSetup, setIsSyncOpen: s.setIsSyncOpen }))
 	)
 	const installedBuilds = useBlenderManagerStore((s) => s.installedBuilds)
 	const openSetup = useSetupRestoreStore((s) => s.open)
-	const { syncStatus, isSyncBusy, loadSync, setSyncFolder, saveToSyncFolder, openSyncFile } = useSetupSyncStore(
-		useShallow((s) => ({ syncStatus: s.status, isSyncBusy: s.isBusy, loadSync: s.load, setSyncFolder: s.setFolder, saveToSyncFolder: s.save, openSyncFile: s.openForApply }))
+	const { syncStatus, isSyncBusy, loadSync, setSyncFolder, openSyncFile } = useSetupSyncStore(
+		useShallow((s) => ({ syncStatus: s.status, isSyncBusy: s.isBusy, loadSync: s.load, setSyncFolder: s.setFolder, openSyncFile: s.openForApply }))
 	)
-	const { sent, isSending, isReceiving, sendTransfer, receiveTransfer } = useSetupSyncStore(
-		useShallow((s) => ({ sent: s.sent, isSending: s.isSending, isReceiving: s.isReceiving, sendTransfer: s.send, receiveTransfer: s.receive }))
+	const { sent, isSending, isReceiving, isSavingFile, receiveTransfer } = useSetupSyncStore(
+		useShallow((s) => ({ sent: s.sent, isSending: s.isSending, isReceiving: s.isReceiving, isSavingFile: s.isSavingFile, receiveTransfer: s.receive }))
 	)
-	// One choice of what goes, for every tab; made in the What to share view.
-	const shareSelection = useSetupShareStore((s) => s.selection)
-	const shareOptions = exportOptions(shareSelection)
-	const [isSavingSetup, setIsSavingSetup] = useState<boolean>(false)
 	const [codeDraft, setCodeDraft] = useState<string>("")
-	const { lan, isStartingShare, isLanReceiving, refreshLan, browseLan, shareLan, stopLanShare, receiveLan } = useSetupLanStore(
-		useShallow((s) => ({ lan: s.status, isStartingShare: s.isStartingShare, isLanReceiving: s.isReceiving, refreshLan: s.refresh, browseLan: s.browse, shareLan: s.share, stopLanShare: s.stopShare, receiveLan: s.receive }))
+	const { lan, isStartingShare, isLanReceiving, refreshLan, browseLan, stopLanShare, receiveLan } = useSetupLanStore(
+		useShallow((s) => ({ lan: s.status, isStartingShare: s.isStartingShare, isLanReceiving: s.isReceiving, refreshLan: s.refresh, browseLan: s.browse, stopLanShare: s.stopShare, receiveLan: s.receive }))
 	)
 	// One PIN draft per computer on the network.
 	const [pinDrafts, setPinDrafts] = useState<Record<string, string>>({})
@@ -118,7 +92,7 @@ const SyncPanel = () => {
 		};
 	}, [activeSection]);
 
-	const isBusy = isSyncBusy || isSavingSetup || isSending || isReceiving || isStartingShare || isLanReceiving;
+	const isBusy = isSyncBusy || isSavingFile || isSending || isReceiving || isStartingShare || isLanReceiving;
 
 	const copyCode = async () => {
 		if (!sent) {
@@ -154,33 +128,6 @@ const SyncPanel = () => {
 		}
 	};
 
-	const saveSetup = async () => {
-		let filePath: string | null = null;
-		try {
-			filePath = await save({ title: "Save setup", defaultPath: "My Blender setup.bbsetup", filters: SETUP_FILE_FILTER });
-		} catch (e) {
-			console.error(e);
-			postStatusError(`Choosing where to save the setup failed: ${errorText(e)}`);
-		}
-		if (!filePath) {
-			return;
-		}
-		setIsSavingSetup(true);
-		postStatus("Reading the setup from every Blender series…", true);
-		// The backend names each step (series being read, addon being packed) as it goes.
-		const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
-		try {
-			const info = await setupService.exportSetupBundle(filePath, shareOptions);
-			info.warnings.forEach((w) => console.warn(w));
-			postStatus(`Setup saved: ${describeSetup(info)}`);
-		} catch (e) {
-			console.error(e);
-			postStatusError(`Saving the setup failed: ${errorText(e)}`);
-		} finally {
-			stopListening();
-			setIsSavingSetup(false);
-		}
-	};
 
 	// The file opens in its own view, where each series can be ticked and applied.
 	const restoreFromFile = async () => {
@@ -198,18 +145,9 @@ const SyncPanel = () => {
 
 	const folderSet = Boolean(syncStatus?.folder_path);
 
-	// The first row of every tab: what goes is one choice, whichever way it travels.
-	const renderWhatToShareRow = () => (
-		<Row id="sync-what" label="What to share" description={describeShare(shareSelection, installedBuilds)}>
-			<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => setIsShareSetupOpen(true)}>
-				Choose…
-			</Button>
-		</Row>
-	);
 
 	const renderFolder = () => (
 		<>
-			{renderWhatToShareRow()}
 			<Row id="sync-folder" label="Folder" description={folderSet ? syncStatus!.folder_path : "Choose a folder inside Dropbox, OneDrive, iCloud or Google Drive"}>
 				{folderSet && (
 					<Button
@@ -229,7 +167,7 @@ const SyncPanel = () => {
 				</Button>
 			</Row>
 			<Row id="sync-save" label="Save this computer's setup" description={folderSet ? "Writes the setup to the folder; other computers are told it is newer" : "Choose a folder first"} inactive={!folderSet}>
-				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || !folderSet || installedBuilds.length === 0} onClick={() => void saveToSyncFolder(shareOptions)}>
+				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || !folderSet || installedBuilds.length === 0} onClick={() => openShareSetup('folder')}>
 					{isSyncBusy ? "Saving…" : "Save now"}
 				</Button>
 			</Row>
@@ -244,7 +182,6 @@ const SyncPanel = () => {
 
 	const renderTransfer = () => (
 		<>
-			{renderWhatToShareRow()}
 			<Row id="sync-transfer-send" label={sent ? "Your transfer code" : "Send to another computer"} description={sentDescription()}>
 				{sent && (
 					<>
@@ -252,7 +189,7 @@ const SyncPanel = () => {
 						<Button kind="ghost" size="md" className='settings_location_row__delete' renderIcon={Copy} iconDescription="Copy the code" title="Copy the code" hasIconOnly onClick={() => void copyCode()} />
 					</>
 				)}
-				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => void sendTransfer(shareOptions)}>
+				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => openShareSetup('transfer')}>
 					{isSending ? "Sending…" : sent ? "Send again" : "Send…"}
 				</Button>
 			</Row>
@@ -282,10 +219,9 @@ const SyncPanel = () => {
 
 	const renderFile = () => (
 		<>
-			{renderWhatToShareRow()}
 			<Row id="sync-file-save" label="Save setup to a file" description="Blender versions, preferences, theme, keymaps and the addon list of every series">
-				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => void saveSetup()}>
-					{isSavingSetup ? "Saving…" : "Save…"}
+				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => openShareSetup('file')}>
+					{isSavingFile ? "Saving…" : "Save…"}
 				</Button>
 			</Row>
 			<Row id="sync-file-restore" label="Restore from a setup file" description="Opens a .bbsetup file and shows what it would apply; double-clicking one does the same">
@@ -319,7 +255,6 @@ const SyncPanel = () => {
 		const peers = lan?.peers ?? [];
 		return (
 			<>
-				{renderWhatToShareRow()}
 				<Row id="lan-share" label="Share this computer's setup" description={shareDescription()}>
 					{lan?.share && <code className='sync_panel__code'>{formatPin(lan.share.pin)}</code>}
 					<Toggle
@@ -329,11 +264,24 @@ const SyncPanel = () => {
 						aria-labelledby="lan-share-label"
 						toggled={Boolean(lan?.share)}
 						disabled={isBusy || (!lan?.share && installedBuilds.length === 0)}
-						onToggle={(checked) => void (checked ? shareLan(shareOptions) : stopLanShare())}
+						onToggle={(checked) => (checked ? openShareSetup('network') : void stopLanShare())}
 					/>
 				</Row>
-				{peers.map((peer) => (
-					<Row key={peer.id} id={`lan-peer-${peer.id}`} label={peer.device} description={peerDescription(peer)}>
+				<div className='sync_panel__peers'>
+					<div className='sync_panel__peers_header'>
+						<span>Computers on this network</span>
+						{peers.length === 0 && <InlineLoading className="sync_panel__looking" iconDescription="Looking" description="Looking…" />}
+					</div>
+					{peers.map((peer) => (
+					<div key={peer.id} className='settings_row sync_panel__peer'>
+						<div className='settings_row__main sync_panel__peer_main'>
+							<Laptop size={20} className='sync_panel__peer_icon' aria-hidden="true" />
+							<div className='sync_panel__peer_text'>
+								<span className='settings_row__label' id={`lan-peer-${peer.id}-label`}>{peer.device}</span>
+								<span className='settings_row__description' title={peerDescription(peer)}>{peerDescription(peer)}</span>
+							</div>
+						</div>
+						<div className='settings_row__control'>
 						{peer.share && (
 							<>
 								<TextInput
@@ -357,13 +305,15 @@ const SyncPanel = () => {
 								</Button>
 							</>
 						)}
-					</Row>
-				))}
-				{peers.length === 0 && (
-					<Row id="lan-empty" label="No other computer found yet" description="Open Sync › Local network there too, or turn on sharing there. The first time, Windows may ask to allow Blenderbase on the network">
-						<InlineLoading className="sync_panel__looking" iconDescription="Looking" description="Looking…" />
-					</Row>
-				)}
+						</div>
+					</div>
+					))}
+					{peers.length === 0 && (
+						<div className='sync_panel__peers_empty'>
+							No other computer found yet. Open Sync › Local network there too, or turn on sharing there. The first time, Windows may ask to allow Blenderbase on the network.
+						</div>
+					)}
+				</div>
 			</>
 		);
 	};
@@ -394,6 +344,9 @@ const SyncPanel = () => {
 					<span className='column_header__subtitle'>Share your Blender setup across other computers</span>
 				</div>
 				{isBusy && <InlineLoading className="column_header__loading" iconDescription="Working" />}
+				<Button kind="ghost" size="lg" className='column_header__back' title="Back to addons" onClick={() => setIsSyncOpen(false)}>
+					<ArrowLeft /> Back to Addons
+				</Button>
 			</div>
 			<div className='column_actions settings_panel__toolbar sync_panel__ways'>
 				<span className='sync_panel__ways_label' id="sync-ways-label">Share by:</span>

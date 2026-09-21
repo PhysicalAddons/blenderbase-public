@@ -13,7 +13,17 @@ copied into the GitHub release by the release workflow, so keep the
 - An info button next to the Settings and Sync titles opens the matching
   wiki page in your browser.
 
+- **Back to Addons** at the top right of Settings, Sync and What to share,
+  as in Install Blender; a click on the dimmed Blender list returns as well.
+
 ### Changed
+- **What to share** is no longer a row of its own: it opens when you turn on
+  sharing, send a transfer code, save to the sync folder or save a file, and
+  its first button goes on with that way.
+- Computers found on the local network sit in a box of their own under the
+  rows, so they read as things found rather than as more actions.
+- The Launch button steps back, dimmed, while Settings, Sync, What to share
+  or a restore has the middle column.
 - **macOS:** the app says why it needs access to the local network, so the
   permission prompt reads properly, and a refused local connection names
   the Local Network privacy setting instead of blaming a firewall.

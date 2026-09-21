@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
-import { ISetupExportOptions, ISetupSyncStatus, ITransferSent } from "../models";
+import { save } from "@tauri-apps/plugin-dialog";
+import { ISetupBundleInfo, ISetupExportOptions, ISetupSyncStatus, ITransferSent } from "../models";
+import { SETUP_FILE_FILTER } from "../constants";
 import { SetupService } from "../services/setupService";
 import { postStatus, postStatusError } from "./statusStore";
 import { useSetupRestoreStore } from "./setupRestoreStore";
@@ -33,11 +35,35 @@ interface ISetupSyncStore {
     send: (options: ISetupExportOptions) => Promise<void>,
     /** Fetches the transfer for a code and opens it in the restore view. */
     receive: (code: string) => Promise<void>,
+    /** Asks where, then writes the chosen parts of the setup to a .bbsetup file. */
+    saveToFile: (options: ISetupExportOptions) => Promise<void>,
+    isSavingFile: boolean,
 }
 
 const setupService = new SetupService();
 
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^cmd_\w+: /, "");
+
+const formatSetupSize = (bytes: number): string => {
+    const kb = bytes / 1024;
+    return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(kb))} KB`;
+};
+
+const plural = (count: number, one: string, many: string): string => `${count} ${count === 1 ? one : many}`;
+
+/** One status line for a setup file: what it holds and how much of it restores on its own. */
+export const describeSetup = (info: ISetupBundleInfo): string => {
+    const sections = Object.values(info.manifest.series);
+    const addons = sections.flatMap((s) => s.addons).filter((a) => a.source !== "core");
+    const manual = addons.filter((a) => a.source === "manual" || (a.source === "file" && !a.file)).length;
+    const parts = [
+        plural(info.manifest.blender.length, "Blender version", "Blender versions"),
+        plural(sections.length, "configuration", "configurations"),
+        plural(addons.length, "addon", "addons") + (manual > 0 ? ` (${manual} to install by hand)` : ""),
+        formatSetupSize(info.file_size),
+    ];
+    return parts.join(" · ");
+};
 
 /** "Saved 21/09/2026 on Studio-PC", or what stands in for it. */
 export const describeSyncFile = (status: ISetupSyncStatus): string => {
@@ -58,6 +84,34 @@ export const useSetupSyncStore = create<ISetupSyncStore>((set, get) => ({
     sent: null,
     isSending: false,
     isReceiving: false,
+    isSavingFile: false,
+    async saveToFile(options) {
+        let filePath: string | null = null;
+        try {
+            filePath = await save({ title: "Save setup", defaultPath: "My Blender setup.bbsetup", filters: SETUP_FILE_FILTER });
+        } catch (e) {
+            console.error(e);
+            postStatusError(`Choosing where to save the setup failed: ${errorText(e)}`);
+        }
+        if (!filePath) {
+            return;
+        }
+        set({ isSavingFile: true });
+        postStatus("Reading the setup from every Blender series…", true);
+        // The backend names each step (series being read, addon being packed) as it goes.
+        const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
+        try {
+            const info = await setupService.exportSetupBundle(filePath, options);
+            info.warnings.forEach((w) => console.warn(w));
+            postStatus(`Setup saved: ${describeSetup(info)}`);
+        } catch (e) {
+            console.error(e);
+            postStatusError(`Saving the setup failed: ${errorText(e)}`);
+        } finally {
+            stopListening();
+            set({ isSavingFile: false });
+        }
+    },
     async send(options) {
         set({ isSending: true, sent: null });
         postStatus("Reading the setup from every Blender series…", true);

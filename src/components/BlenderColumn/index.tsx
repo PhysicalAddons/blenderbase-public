@@ -117,8 +117,18 @@ const BlenderColumn = () => {
 			.filter((v) => v !== null && v !== undefined && v !== "")
 			.join(" · ");
 
+	// While Settings, Sync or What to share has the middle column, the list is dimmed and out of
+	// reach, so a click on it lands on the column itself: that click is the way back.
+	const isAsideOpen = useUiControlsStore((s) => s.isSettingsOpen || s.isSyncOpen || s.isShareSetupOpen)
+	const closeAsides = () => {
+		const controls = useUiControlsStore.getState();
+		controls.setIsSettingsOpen(false);
+		controls.setIsSyncOpen(false);
+		controls.setIsShareSetupOpen(false);
+	};
+
 	return (
-		<div className='blender_column'>
+		<div className='blender_column' onClick={(e) => { if (isAsideOpen && e.target === e.currentTarget) { closeAsides(); } }}>
 			<div className='column_header'>
 				<div className='column_header__titles'>
 					<span className='column_header__title'>Blender</span>

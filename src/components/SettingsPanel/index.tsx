@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, NumberInput, Toggle } from '@carbon/react';
-import { Add, Star, StarFilled, TrashCan } from '@carbon/react/icons';
+import { Add, ArrowLeft, Star, StarFilled, TrashCan } from '@carbon/react/icons';
 import { getVersion } from '@tauri-apps/api/app';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
 import DocumentationLink from '../DocumentationLink';
+import { useUiControlsStore } from '../../store/uiControlsStore';
 import { DISCORD_COM_INVITE, GITHUB_REPOSITORY_URL, PHYSICAL_ADDONS_URL, SETTINGS_DOCUMENTATION_URL, WIKI_URL } from '../../constants';
 import { IAppSetting, IBlenderInstallationLocation } from '../../models';
 import { AppSettingCode } from '../../enums';
@@ -58,6 +59,7 @@ const SettingsRow = ({ id, label, description, children }: RowProps) => (
 
 const SettingsPanel = () => {
 	const [activeSection, setActiveSection] = useState<SettingsSection>('locations')
+	const setIsSettingsOpen = useUiControlsStore((s) => s.setIsSettingsOpen)
 	const [appVersion, setAppVersion] = useState<string>("")
 	const [appSettings, setAppSettings] = useState<IAppSetting[]>([])
 	const [locations, setLocations] = useState<IBlenderInstallationLocation[]>([])
@@ -492,6 +494,9 @@ const SettingsPanel = () => {
 					</span>
 					<span className='column_header__subtitle'>{appVersion ? `Blenderbase ${appVersion}` : ""}</span>
 				</div>
+				<Button kind="ghost" size="lg" className='column_header__back' title="Back to addons" onClick={() => setIsSettingsOpen(false)}>
+					<ArrowLeft /> Back to Addons
+				</Button>
 			</div>
 			<div className='column_actions settings_panel__toolbar'>
 				<div className='build_type_switch' role="tablist" aria-label="Settings section">

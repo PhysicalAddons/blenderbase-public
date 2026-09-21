@@ -359,7 +359,7 @@ const InstallBlenderPanel = () => {
 				<Button
 					kind="ghost"
 					size="lg"
-					className='install_blender_panel__back'
+					className='column_header__back'
 					title="Back to addons"
 					onClick={() => setIsInstallBlenderOpen(false)}
 				>

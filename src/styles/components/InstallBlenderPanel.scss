@@ -7,12 +7,6 @@
     min-height: 0;
     overflow: hidden;
 
-    .cds--btn.install_blender_panel__back {
-        gap: 12px;
-        padding-right: 15px;
-        color: var(--bb-link);
-    }
-
     .install_blender_panel__toolbar {
         gap: 0;
         // The Release / Daily / Patch switch itself is styled in Home.scss (.build_type_switch).

@@ -2,6 +2,8 @@ import { create } from "zustand"
 
 /** The ways the Sync view offers, one tab each. */
 export type SyncSection = 'network' | 'transfer' | 'folder' | 'file';
+/** The way a share was started for; What to share opens as the step before it. */
+export type ShareIntent = SyncSection;
 
 interface IUiControlsStore {
     /** Whether the Recent Files column is shown. */
@@ -18,6 +20,8 @@ interface IUiControlsStore {
     isShareSetupOpen: boolean,
     /** The Sync view's tab, kept so a trip to What to share comes back to the same one. */
     syncSection: SyncSection,
+    /** Which way What to share was opened for; its button goes on with that way. */
+    shareIntent: ShareIntent | null,
     /** The Blender version highlighted in the left column. Falls back to the default version when null. */
     selectedBlenderVersionId: string | null,
     /** Versions that finished installing during this session and have not been selected or launched yet. */
@@ -32,6 +36,8 @@ interface IUiControlsStore {
     setIsSyncOpen: (v: boolean) => void,
     setIsShareSetupOpen: (v: boolean) => void,
     setSyncSection: (section: SyncSection) => void,
+    /** Opens What to share as the step before sharing one way. */
+    openShareSetup: (intent: ShareIntent) => void,
     setSelectedBlenderVersionId: (id: string | null) => void,
     addNewlyInstalledBlenderId: (id: string) => void,
     clearNewlyInstalledBlenderId: (id: string) => void,
@@ -55,6 +61,7 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
     isSyncOpen: false,
     isShareSetupOpen: false,
     syncSection: 'network',
+    shareIntent: null,
     selectedBlenderVersionId: null,
     newlyInstalledBlenderIds: [],
     launchWithConsole: readLaunchWithConsole(),
@@ -104,6 +111,15 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         isSyncOpen: v ? false : state.isSyncOpen,
     })),
     setSyncSection: (section) => set({ syncSection: section }),
+    openShareSetup: (intent) => set({
+        shareIntent: intent,
+        syncSection: intent,
+        isShareSetupOpen: true,
+        isSettingsOpen: false,
+        isInstallBlenderOpen: false,
+        isRestoreSetupOpen: false,
+        isSyncOpen: false,
+    }),
     setSelectedBlenderVersionId: (id) => set((state) => ({
         selectedBlenderVersionId: id,
         newlyInstalledBlenderIds: id === null

@@ -39,6 +39,10 @@ $home-launcher-height: 56px;
             opacity: 0.35;
             pointer-events: none;
         }
+        // A click on the dimmed list is a way back to the Addons view.
+        .blender_column {
+            cursor: pointer;
+        }
     }
     // In Settings the gear and Escape are the way out, so the Install Blender
     // block steps back with the rest of the column; it lights up again on hover
@@ -80,6 +84,13 @@ $home-launcher-height: 56px;
         letter-spacing: -0.4px;
         color: var(--bb-text);
         white-space: nowrap;
+    }
+    // "Back to Addons": the way out of a view that took the column, top right.
+    .cds--btn.column_header__back {
+        gap: 12px;
+        padding-right: 15px;
+        color: var(--bb-link);
+        flex-shrink: 0;
     }
     // A title with the small button that opens the documentation for the view.
     .column_header__title_row {

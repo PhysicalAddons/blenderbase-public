@@ -130,6 +130,12 @@
                 color: var(--bb-text-faint);
             }
         }
+        // A view has the middle column (Settings, Sync, What to share, a restore): the button
+        // steps back like the dimmed Blender list and takes no clicks.
+        &.launcher_bar__button--dimmed {
+            opacity: 0.35;
+            pointer-events: none;
+        }
         .launcher_bar__launch_main {
             flex: 1 1 auto;
             min-width: 0;

@@ -36,6 +36,8 @@ const LauncherBar = () => {
     const { selectedBlenderVersionId, clearNewlyInstalledBlenderId } = useUiControlsStore(
         useShallow((s) => ({ selectedBlenderVersionId: s.selectedBlenderVersionId, clearNewlyInstalledBlenderId: s.clearNewlyInstalledBlenderId }))
     )
+    // Settings, Sync, What to share or a restore has the middle column: launching waits.
+    const isAsideOpen = useUiControlsStore((s) => s.isSettingsOpen || s.isSyncOpen || s.isShareSetupOpen || s.isRestoreSetupOpen)
     const { launchWithConsole, setLaunchWithConsole } = useUiControlsStore(
         useShallow((s) => ({ launchWithConsole: s.launchWithConsole, setLaunchWithConsole: s.setLaunchWithConsole }))
     )
@@ -46,6 +48,9 @@ const LauncherBar = () => {
     const selectedVersion = resolveSelectedBlenderVersion(installedBuilds, selectedBlenderVersionId);
 
     const launchSelectedBlender = async () => {
+        if (isAsideOpen) {
+            return;
+        }
         if (selectedVersion === undefined) {
             postStatusError("No Blender version selected");
             return;
@@ -93,6 +98,9 @@ const LauncherBar = () => {
         }
     };
     const toggleConsole = () => {
+        if (isAsideOpen) {
+            return;
+        }
         const next = !launchWithConsole;
         setLaunchWithConsole(next);
         // The new state is a real status, not a hover hint: it stays after the pointer leaves.
@@ -137,7 +145,7 @@ const LauncherBar = () => {
                 ) : null}
                 <span className='launcher_bar__status_text'>{message || "Ready"}</span>
             </div>
-            <div className='launcher_bar__button'>
+            <div className={`launcher_bar__button ${isAsideOpen ? "launcher_bar__button--dimmed" : ""}`} aria-disabled={isAsideOpen}>
                 <button
                     type="button"
                     className={`cds--btn cds--btn--primary cds--btn--lg launcher_bar__console_segment ${launchWithConsole ? "launcher_bar__console_segment--on" : ""}`}

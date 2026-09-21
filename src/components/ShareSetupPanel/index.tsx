@@ -1,13 +1,15 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Button, InlineLoading, Modal, Toggle } from '@carbon/react';
-import { ArrowLeft, Checkmark, ChevronDown, Reset } from '@carbon/react/icons';
+import { ArrowLeft, Checkmark, ChevronDown, Close, Reset } from '@carbon/react/icons';
 import { useShallow } from 'zustand/react/shallow';
 import { IAddon, IBlenderVersion } from '../../models';
 import { AddonService } from '../../services/addonService';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
-import { describeShare, isEverything, seriesChoice, SharePart, useSetupShareStore } from '../../store/setupShareStore';
+import { describeShare, exportOptions, isEverything, seriesChoice, SharePart, useSetupShareStore } from '../../store/setupShareStore';
+import { useSetupLanStore } from '../../store/setupLanStore';
+import { useSetupSyncStore } from '../../store/setupSyncStore';
 import { postStatusError } from '../../store/statusStore';
-import { useUiControlsStore } from '../../store/uiControlsStore';
+import { ShareIntent, useUiControlsStore } from '../../store/uiControlsStore';
 import { blenderVersionLabel } from '../../utility';
 
 const addonService = new AddonService();
@@ -28,6 +30,14 @@ const kindLabel = (addon: IAddon): string => {
 
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^cmd_\w+: /, "");
 
+/** The button that goes on with the way the view was opened for. */
+const ACTIONS: Record<ShareIntent, { label: string, title: string }> = {
+	network: { label: 'Share on the local network', title: 'Reads the setup out and shows the PIN for the other computers' },
+	transfer: { label: 'Send with a transfer code', title: 'Reads the setup out, encrypts it and hands it to the relay' },
+	folder: { label: 'Save to the sync folder', title: 'Reads the setup out and writes it to the folder' },
+	file: { label: 'Save to a file…', title: 'Reads the setup out and writes it where you choose' },
+};
+
 /**
  * What to share: which installed Blender versions go, and per series which parts and which
  * addons. Laid out like the restore view, so both ends of a transfer look the same. Everything
@@ -38,9 +48,10 @@ const ShareSetupPanel = () => {
 	const { selection, setIncludeAddonFiles, setVersionIncluded, setSeriesPart, setAddonIncluded, reset } = useSetupShareStore(
 		useShallow((s) => ({ selection: s.selection, setIncludeAddonFiles: s.setIncludeAddonFiles, setVersionIncluded: s.setVersionIncluded, setSeriesPart: s.setSeriesPart, setAddonIncluded: s.setAddonIncluded, reset: s.reset }))
 	)
-	const { setIsShareSetupOpen, setIsSyncOpen } = useUiControlsStore(
-		useShallow((s) => ({ setIsShareSetupOpen: s.setIsShareSetupOpen, setIsSyncOpen: s.setIsSyncOpen }))
+	const { shareIntent, setIsShareSetupOpen, setIsSyncOpen } = useUiControlsStore(
+		useShallow((s) => ({ shareIntent: s.shareIntent, setIsShareSetupOpen: s.setIsShareSetupOpen, setIsSyncOpen: s.setIsSyncOpen }))
 	)
+	const action = ACTIONS[shareIntent ?? 'file']
 	/** The series whose addons are unfolded under its row. */
 	const [expanded, setExpanded] = useState<string | null>(null)
 	/** Turning on "Include addon files" first asks the user to own what the files are licensed for. */
@@ -64,6 +75,27 @@ const ShareSetupPanel = () => {
 	const close = () => {
 		setIsShareSetupOpen(false);
 		setIsSyncOpen(true);
+	};
+
+	// Goes on with the way this view was opened for; the Sync view shows the progress.
+	const confirm = () => {
+		const options = exportOptions(selection);
+		const intent = shareIntent ?? 'file';
+		close();
+		switch (intent) {
+			case 'network':
+				void useSetupLanStore.getState().share(options);
+				break;
+			case 'transfer':
+				void useSetupSyncStore.getState().send(options);
+				break;
+			case 'folder':
+				void useSetupSyncStore.getState().save(options);
+				break;
+			case 'file':
+				void useSetupSyncStore.getState().saveToFile(options);
+				break;
+		}
 	};
 
 	const loadAddons = async (series: string, versions: IBlenderVersion[]) => {
@@ -210,13 +242,19 @@ const ShareSetupPanel = () => {
 					<span className='column_header__title'>What to share</span>
 					<span className='column_header__subtitle'>{describeShare(selection, installedBuilds)}</span>
 				</div>
+				<Button kind="ghost" size="lg" className='column_header__back' title="Back to addons without sharing" onClick={() => setIsShareSetupOpen(false)}>
+					<ArrowLeft /> Back to Addons
+				</Button>
 			</div>
 			<div className='column_actions share_panel__toolbar'>
-				<Button kind="secondary" size="lg" className='install_button' title="Back to Sync" onClick={close}>
-					<ArrowLeft /> Done
+				<Button kind="secondary" size="lg" className='install_button' title={action.title} disabled={installedBuilds.length === 0} onClick={confirm}>
+					<Checkmark /> {action.label}
 				</Button>
 				<Button kind="secondary" size="lg" className='install_button' title="Tick everything again" disabled={isEverything(selection)} onClick={reset}>
 					<Reset /> Everything
+				</Button>
+				<Button kind="secondary" size="lg" className='install_button' title="Back to Sync without sharing" onClick={close}>
+					<Close /> Cancel
 				</Button>
 			</div>
 			<div className='list_header share_panel__list_header'>
