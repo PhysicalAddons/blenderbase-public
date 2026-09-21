@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { Button, Checkbox, InlineLoading, Toggle } from '@carbon/react';
+import { Button, InlineLoading, Toggle } from '@carbon/react';
 import { ArrowLeft, ChevronDown, ChevronUp, Reset } from '@carbon/react/icons';
 import { useShallow } from 'zustand/react/shallow';
 import { IAddon, IBlenderVersion } from '../../models';
@@ -100,17 +100,30 @@ const ShareSetupPanel = () => {
 			return <div className='share_addon--empty'>Blender {series} has no addons</div>;
 		}
 		const excluded = seriesChoice(selection, series).excluded_addons;
-		return addons.map((a) => (
-			<div key={a.id} className='share_addon'>
-				<Checkbox
-					id={`share-addon-${series}-${a.id}`}
-					labelText={a.name || addonKey(a)}
-					checked={!excluded.includes(addonKey(a))}
-					onChange={(_e: React.ChangeEvent<HTMLInputElement>, { checked }: { checked: boolean }) => setAddonIncluded(series, addonKey(a), checked)}
-				/>
-				<span className='share_addon__meta'>{kindLabel(a)}{a.version ? ` · ${a.version}` : ""}{a.is_enabled ? "" : " · disabled"}</span>
-			</div>
-		));
+		// The same switch the Addons panel uses for enabling, here for going or staying.
+		return addons.map((a) => {
+			const name = a.name || addonKey(a);
+			return (
+				<div key={a.id} className='share_addon'>
+					<div className='share_addon__main'>
+						<span className='share_addon__label'>{name}</span>
+						<span className='share_addon__meta'>{kindLabel(a)}{a.version ? ` · ${a.version}` : ""}{a.is_enabled ? "" : " · disabled in Blender"}</span>
+					</div>
+					<div className='share_addon__switch'>
+						<Toggle
+							id={`share-addon-${series}-${a.id}`}
+							size="sm"
+							hideLabel
+							labelA=""
+							labelB=""
+							labelText={`${name} of Blender ${series}`}
+							toggled={!excluded.includes(addonKey(a))}
+							onToggle={(checked: boolean) => setAddonIncluded(series, addonKey(a), checked)}
+						/>
+					</div>
+				</div>
+			);
+		});
 	};
 
 	const renderRow = ([series, versions]: [string, IBlenderVersion[]]) => {
@@ -154,15 +167,22 @@ const ShareSetupPanel = () => {
 					<div className='share_row__main'>
 						<span className='share_row__label'>Blender {series}</span>
 						<div className='share_row__versions'>
-							{versions.map((v) => (
-								<Checkbox
-									key={v.id}
-									id={`share-version-${v.id}`}
-									labelText={blenderVersionLabel(v)}
-									checked={!selection.excluded_version_ids.includes(v.id)}
-									onChange={(_e: React.ChangeEvent<HTMLInputElement>, { checked }: { checked: boolean }) => setVersionIncluded(v.id, checked)}
-								/>
-							))}
+							{versions.map((v) => {
+								const included = !selection.excluded_version_ids.includes(v.id);
+								const label = blenderVersionLabel(v);
+								return (
+									<button
+										key={v.id}
+										type="button"
+										className='share_row__version'
+										aria-pressed={included}
+										title={included ? `${label} goes · click to leave it out` : `${label} stays out · click to include it`}
+										onClick={() => setVersionIncluded(v.id, !included)}
+									>
+										{label}
+									</button>
+								);
+							})}
 						</div>
 					</div>
 					{switchFor('preferences', 'Preferences')}

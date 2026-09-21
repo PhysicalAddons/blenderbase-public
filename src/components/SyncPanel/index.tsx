@@ -24,7 +24,7 @@ const DOCUMENTATION_HINT = 'How syncing works · opens the documentation in your
  * In order of preference: the first tab is the one that opens.
  */
 const SECTIONS: { id: SyncSection, label: string, when: string }[] = [
-	{ id: 'network', label: 'Local network', when: 'Your computers are on the same network. Turn on sharing here and type the PIN on the other ones; no internet needed' },
+	{ id: 'network', label: 'Local network', when: 'If your computers are on the same network. Turn on sharing here and type the PIN on the other ones. No internet needed' },
 	{ id: 'transfer', label: 'Transfer code', when: 'Your computers are outside the local network. The setup travels encrypted through a relay under a short code. Requires an internet connection' },
 	{ id: 'folder', label: 'Sync folder', when: 'Your own computers, kept in step through a folder in Dropbox, OneDrive, iCloud or Google Drive' },
 	{ id: 'file', label: 'Setup file', when: 'A .bbsetup file you carry yourself, on a USB stick, in an email, on any drive' },
