@@ -21,7 +21,7 @@ use sha2::{Digest, Sha256};
 use super::wordlist::TRANSFER_WORDS;
 
 /// Where the relay lives; `BLENDERBASE_TRANSFER_RELAY` overrides it (local development).
-pub const TRANSFER_RELAY_DEFAULT: &str = "https://blenderbase-transfer.physicaladdons.workers.dev";
+pub const TRANSFER_RELAY_DEFAULT: &str = "https://blenderbase-transfer.blenderbase-transfer-relay.workers.dev";
 /// Words in a code, plus a four-digit number: 3 × log2(1296) + log2(10000) ≈ 44 bits.
 const CODE_WORDS: usize = 3;
 const CODE_NUMBER_DIGITS: usize = 4;

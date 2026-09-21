@@ -26,10 +26,12 @@ payment method; the free tier covers 10 GB and R2 has no egress charges).
 ```
 npx wrangler login
 npx wrangler r2 bucket create blenderbase-transfers
-npx wrangler r2 bucket lifecycle add blenderbase-transfers --expire-days 8
+npx wrangler r2 bucket lifecycle add blenderbase-transfers expire-after-8-days --expire-days 8 --abort-multipart-days 1
 npx wrangler deploy
 ```
 
-`wrangler deploy` prints the Worker's URL (`https://blenderbase-transfer.<account>.workers.dev`);
-that is the relay address the app ships with. The lifecycle rule is the backstop that removes
-objects the relay itself did not get to delete.
+`wrangler deploy` prints the Worker's URL (`https://blenderbase-transfer.<subdomain>.workers.dev`);
+that is the relay address the app ships with (`TRANSFER_RELAY_DEFAULT` in
+`src-tauri/src/core/setup/transfer.rs`). A freshly created workers.dev subdomain answers
+with TLS errors for a minute or two while its certificate is issued. The lifecycle rule is the
+backstop that removes objects the relay itself did not get to delete.
