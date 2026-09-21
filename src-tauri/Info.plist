@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged into the app bundle's Info.plist by the Tauri bundler on macOS. macOS 15 asks the user
+     for Local Network access the first time the app reaches an address on the local network, and
+     denies it silently to an app that carries no reason; this is the reason it shows. -->
+<plist version="1.0">
+<dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Blenderbase looks for other computers running Blenderbase on your network, so your Blender setup can be shared with them directly.</string>
+</dict>
+</plist>

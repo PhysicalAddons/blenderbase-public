@@ -321,10 +321,17 @@ impl LanHub {
             .map_err(|e| format!("Failed receive: {:?}", e))??;
         let target = SocketAddr::new(address, port);
         // A quick connection first: reqwest would wait the OS connect timeout on a firewalled peer.
+        // On a Mac, "No route to host" for a local address means this Mac has not allowed the app
+        // on the local network (a privacy setting), not that the other computer is unreachable.
+        let blame = if cfg!(target_os = "macos") {
+            "This Mac may not allow Blenderbase on the local network (System Settings › Privacy & Security › Local Network), or a firewall on that computer may be blocking it"
+        } else {
+            "A firewall on that computer may be blocking Blenderbase"
+        };
         match tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect(target)).await {
             Ok(Ok(_)) => {}
-            Ok(Err(e)) => return Err(format!("Could not reach {} at {}: {}. A firewall on that computer may be blocking Blenderbase", device, target, e)),
-            Err(_) => return Err(format!("Could not reach {} at {}: no answer. A firewall on that computer may be blocking Blenderbase", device, target)),
+            Ok(Err(e)) => return Err(format!("Could not reach {} at {}: {}. {}", device, target, e, blame)),
+            Err(_) => return Err(format!("Could not reach {} at {}: no answer. {}", device, target, blame)),
         }
         progress(format!("Receiving from {}…", device));
         let response = client
