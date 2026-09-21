@@ -34,5 +34,9 @@
         .cds--text-input__field-wrapper {
             height: $home-row-height;
         }
+        // A six-digit PIN needs less room than a transfer code.
+        &.sync_panel__code_input--pin {
+            width: 132px;
+        }
     }
 }

@@ -4,21 +4,23 @@ import { Copy, TrashCan } from '@carbon/react/icons';
 import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
-import { ISetupBundleInfo } from '../../models';
+import { ILanPeer, ISetupBundleInfo } from '../../models';
 import { SETUP_FILE_FILTER } from '../../constants';
 import { SetupService } from '../../services/setupService';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useSetupRestoreStore } from '../../store/setupRestoreStore';
 import { describeSyncFile, useSetupSyncStore } from '../../store/setupSyncStore';
+import { formatLanSize, formatPin, platformLabel, useSetupLanStore } from '../../store/setupLanStore';
 import { postStatus, postStatusError } from '../../store/statusStore';
 
 const setupService = new SetupService();
 
-type SyncSection = 'folder' | 'transfer' | 'file';
+type SyncSection = 'folder' | 'network' | 'transfer' | 'file';
 
 /** One way to move a setup: the tab label and the one-line explanation under the title. */
 const SECTIONS: { id: SyncSection, label: string, subtitle: string }[] = [
 	{ id: 'folder', label: 'Sync folder', subtitle: "A shared folder in a cloud drive keeps every computer's setup in step" },
+	{ id: 'network', label: 'Local network', subtitle: 'Computers running Blenderbase on this network hand the setup over directly' },
 	{ id: 'transfer', label: 'Transfer code', subtitle: 'Send the setup through an encrypted relay to a computer that shares no folder' },
 	{ id: 'file', label: 'Setup file', subtitle: 'One .bbsetup file to carry yourself: a USB stick, an email, any drive' },
 ];
@@ -50,12 +52,14 @@ type RowProps = {
 	id: string,
 	label: string,
 	description: string,
+	/** The step before this one is not done yet: the row waits, dimmed, until it is. */
+	inactive?: boolean,
 	children: React.ReactNode,
 }
 
 /** One action: label and description on the left, the control on the right; the Settings row look. */
-const Row = ({ id, label, description, children }: RowProps) => (
-	<div className='settings_row'>
+const Row = ({ id, label, description, inactive = false, children }: RowProps) => (
+	<div className={`settings_row${inactive ? " settings_row--inactive" : ""}`}>
 		<div className='settings_row__main'>
 			<span className='settings_row__label' id={`${id}-label`}>{label}</span>
 			<span className='settings_row__description' title={description}>{description}</span>
@@ -84,12 +88,30 @@ const SyncPanel = () => {
 	const [includeAddonFiles, setIncludeAddonFiles] = useState<boolean>(false)
 	const [isSavingSetup, setIsSavingSetup] = useState<boolean>(false)
 	const [codeDraft, setCodeDraft] = useState<string>("")
+	const { lan, isStartingShare, isLanReceiving, refreshLan, browseLan, shareLan, stopLanShare, receiveLan } = useSetupLanStore(
+		useShallow((s) => ({ lan: s.status, isStartingShare: s.isStartingShare, isLanReceiving: s.isReceiving, refreshLan: s.refresh, browseLan: s.browse, shareLan: s.share, stopLanShare: s.stopShare, receiveLan: s.receive }))
+	)
+	// One PIN draft per computer on the network.
+	const [pinDrafts, setPinDrafts] = useState<Record<string, string>>({})
 
 	useEffect(() => {
 		void loadSync();
 	}, []);
 
-	const isBusy = isSyncBusy || isSavingSetup || isSending || isReceiving;
+	// Other computers are looked for only while this tab shows; a share that is on keeps announcing without it.
+	useEffect(() => {
+		if (activeSection !== 'network') {
+			return;
+		}
+		void browseLan(true);
+		const timer = window.setInterval(() => void refreshLan(), 2000);
+		return () => {
+			window.clearInterval(timer);
+			void browseLan(false);
+		};
+	}, [activeSection]);
+
+	const isBusy = isSyncBusy || isSavingSetup || isSending || isReceiving || isStartingShare || isLanReceiving;
 
 	const copyCode = async () => {
 		if (!sent) {
@@ -170,15 +192,15 @@ const SyncPanel = () => {
 	const folderSet = Boolean(syncStatus?.folder_path);
 
 	// The last row of every tab: the same switch, since it shapes whatever is saved or sent.
-	const renderAddonFilesRow = () => (
-		<Row id="sync-addon-files" label="Include addon files" description="Packs addons installed from a file, so they restore without the download">
+	const renderAddonFilesRow = (inactive = false) => (
+		<Row id="sync-addon-files" label="Include addon files" description="Packs addons installed from a file, so they restore without the download" inactive={inactive}>
 			<Toggle
 				id="sync-addon-files"
 				size="sm"
 				hideLabel
 				aria-labelledby="sync-addon-files-label"
 				toggled={includeAddonFiles}
-				disabled={isBusy}
+				disabled={isBusy || inactive}
 				onToggle={(checked) => setIncludeAddonFiles(checked)}
 			/>
 		</Row>
@@ -204,17 +226,18 @@ const SyncPanel = () => {
 					{folderSet ? "Change…" : "Choose…"}
 				</Button>
 			</Row>
-			<Row id="sync-save" label="Save this computer's setup" description={folderSet ? "Writes the setup to the folder; other computers are told it is newer" : "Choose a folder first"}>
+			<Row id="sync-save" label="Save this computer's setup" description={folderSet ? "Writes the setup to the folder; other computers are told it is newer" : "Choose a folder first"} inactive={!folderSet}>
 				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || !folderSet || installedBuilds.length === 0} onClick={() => void saveToSyncFolder(includeAddonFiles)}>
 					{isSyncBusy ? "Saving…" : "Save now"}
 				</Button>
 			</Row>
-			<Row id="sync-apply" label="Setup in the folder" description={folderSet ? describeSyncFile(syncStatus!) : "Choose a folder first"}>
+			{/* Waits for a file to apply; a file that cannot be read stays readable, since the row carries the error. */}
+			<Row id="sync-apply" label="Setup in the folder" description={folderSet ? describeSyncFile(syncStatus!) : "Choose a folder first"} inactive={!folderSet || (!syncStatus?.file && !syncStatus?.file_error)}>
 				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || !syncStatus?.file} onClick={() => void openSyncFile()}>
 					Apply…
 				</Button>
 			</Row>
-			{renderAddonFilesRow()}
+			{renderAddonFilesRow(!folderSet)}
 		</>
 	);
 
@@ -272,10 +295,84 @@ const SyncPanel = () => {
 		</>
 	);
 
+	const shareDescription = (): string => {
+		if (isStartingShare) {
+			return "Reading the setup…";
+		}
+		const share = lan?.share;
+		if (!share) {
+			return "Other computers on this network can receive it with the PIN shown here";
+		}
+		const received = share.received_by.length > 0 ? ` · received by ${share.received_by.map((r) => r.device).join(", ")}` : "";
+		return `${plural(share.versions, "Blender version", "Blender versions")}, ${plural(share.series, "series", "series")} · ${formatLanSize(share.size)}${received}`;
+	};
+
+	const peerDescription = (peer: ILanPeer): string => {
+		const what = peer.share
+			? `sharing ${plural(peer.share.versions, "Blender version", "Blender versions")}, ${plural(peer.share.series, "series", "series")} · ${formatLanSize(peer.share.size)}`
+			: "not sharing a setup";
+		return `${platformLabel(peer.platform)} · Blenderbase ${peer.app_version} · ${what}`;
+	};
+
+	const renderNetwork = () => {
+		const peers = lan?.peers ?? [];
+		return (
+			<>
+				<Row id="lan-share" label="Share this computer's setup" description={shareDescription()}>
+					{lan?.share && <code className='sync_panel__code'>{formatPin(lan.share.pin)}</code>}
+					<Toggle
+						id="lan-share"
+						size="sm"
+						hideLabel
+						aria-labelledby="lan-share-label"
+						toggled={Boolean(lan?.share)}
+						disabled={isBusy || (!lan?.share && installedBuilds.length === 0)}
+						onToggle={(checked) => void (checked ? shareLan(includeAddonFiles) : stopLanShare())}
+					/>
+				</Row>
+				{peers.map((peer) => (
+					<Row key={peer.id} id={`lan-peer-${peer.id}`} label={peer.device} description={peerDescription(peer)}>
+						{peer.share && (
+							<>
+								<TextInput
+									id={`lan-pin-${peer.id}`}
+									className='sync_panel__code_input sync_panel__code_input--pin'
+									size="md"
+									hideLabel
+									labelText={`PIN shown on ${peer.device}`}
+									placeholder="PIN"
+									value={pinDrafts[peer.id] ?? ""}
+									disabled={isBusy}
+									onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPinDrafts({ ...pinDrafts, [peer.id]: e.target.value })}
+									onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+										if (e.key === "Enter" && (pinDrafts[peer.id] ?? "").trim().length > 0 && !isBusy) {
+											void receiveLan(peer.id, pinDrafts[peer.id]);
+										}
+									}}
+								/>
+								<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || (pinDrafts[peer.id] ?? "").trim().length === 0} onClick={() => void receiveLan(peer.id, pinDrafts[peer.id])}>
+									{isLanReceiving ? "Receiving…" : "Receive"}
+								</Button>
+							</>
+						)}
+					</Row>
+				))}
+				{peers.length === 0 && (
+					<Row id="lan-empty" label="No other computer found yet" description="Open Sync › Local network there too, or turn on sharing there. The first time, Windows may ask to allow Blenderbase on the network">
+						<InlineLoading className="sync_panel__looking" iconDescription="Looking" description="Looking…" />
+					</Row>
+				)}
+				{renderAddonFilesRow()}
+			</>
+		);
+	};
+
 	const renderSection = () => {
 		switch (activeSection) {
 			case 'folder':
 				return renderFolder();
+			case 'network':
+				return renderNetwork();
 			case 'transfer':
 				return renderTransfer();
 			case 'file':

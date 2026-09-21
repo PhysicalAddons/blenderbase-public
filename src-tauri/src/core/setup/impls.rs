@@ -20,6 +20,7 @@ use super::{
         SetupManifest, SetupMeta, SetupRepository, SetupSeries, SETUP_ADDON_REASON_FILES_NOT_INCLUDED,
         SETUP_ADDON_REASON_SYMLINK, SETUP_ADDON_REASON_SYSTEM_REPOSITORY, SETUP_PREFERENCES_FORMAT,
     },
+    lan::{LanHub, LanStatus},
     scripts::CAPTURE_SETUP_PY,
     sync::{read_sync_status, sync_file_path, SetupSyncStatus},
     transfer::{
@@ -187,6 +188,21 @@ pub trait TSetupService {
         app: AppHandle,
         state: tauri::State<'_, AppState>,
         code: String,
+    ) -> Result<SetupBundleInfo, String>;
+    async fn lan_share_start(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        hub: tauri::State<'_, LanHub>,
+        options: SetupExportOptions,
+    ) -> Result<LanStatus, String>;
+    async fn lan_receive(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        hub: tauri::State<'_, LanHub>,
+        peer_id: String,
+        pin: String,
     ) -> Result<SetupBundleInfo, String>;
 }
 
@@ -435,11 +451,7 @@ impl TSetupService for SetupServiceImpl {
         let keys = tokio::task::spawn_blocking(move || derive_keys(&code))
             .await
             .map_err(|e| format!("Failed receive_setup_transfer: {:?}", e))??;
-        let directory = dirs::data_dir()
-            .ok_or_else(|| String::from("Could not determine the app data directory"))?
-            .join(COM_PHYSICALADDONS_BLENDERBASE)
-            .join("transfers");
-        std::fs::create_dir_all(&directory).map_err(|e| format!("Could not create {}: {}", directory.display(), e))?;
+        let directory = transfers_directory()?;
         let encrypted = directory.join(format!("{}.part", &keys.id[..16]));
         let relay = relay_url();
         progress(String::from("Downloading…"));
@@ -473,9 +485,100 @@ impl TSetupService for SetupServiceImpl {
             warnings: Vec::new(),
         })
     }
+
+    async fn lan_share_start(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        hub: tauri::State<'_, LanHub>,
+        options: SetupExportOptions,
+    ) -> Result<LanStatus, String> {
+        self.lan_share_start_impl(app, state, hub, options).await
+    }
+
+    async fn lan_receive(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        hub: tauri::State<'_, LanHub>,
+        peer_id: String,
+        pin: String,
+    ) -> Result<SetupBundleInfo, String> {
+        self.lan_receive_impl(app, state, hub, peer_id, pin).await
+    }
+}
+
+/// Where received transfers land, whichever way they came.
+fn transfers_directory() -> Result<PathBuf, String> {
+    let directory = dirs::data_dir()
+        .ok_or_else(|| String::from("Could not determine the app data directory"))?
+        .join(COM_PHYSICALADDONS_BLENDERBASE)
+        .join("transfers");
+    std::fs::create_dir_all(&directory).map_err(|e| format!("Could not create {}: {}", directory.display(), e))?;
+    Ok(directory)
 }
 
 impl SetupServiceImpl {
+    /// Reads the setup out, hands the file to the local network side (which encrypts it under
+    /// a fresh PIN and starts announcing it) and removes the plain copy.
+    async fn lan_share_start_impl(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        hub: tauri::State<'_, LanHub>,
+        options: SetupExportOptions,
+    ) -> Result<LanStatus, String> {
+        let work_directory = std::env::temp_dir().join(format!("blenderbase-lan-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&work_directory)
+            .map_err(|e| format!("Could not create {}: {}", work_directory.display(), e))?;
+        let bundle = work_directory.join("setup.bbsetup");
+        let exported = self
+            .export_setup_bundle(app.clone(), state, bundle.to_string_lossy().to_string(), options)
+            .await;
+        let outcome = match exported {
+            Ok(info) => {
+                let _ = app.emit(SETUP_PROGRESS_EVENT, String::from("Preparing the share…"));
+                hub.start_share(&bundle, info.manifest.blender.len(), info.manifest.series.len()).await
+            }
+            Err(e) => Err(e),
+        };
+        let _ = std::fs::remove_dir_all(&work_directory);
+        outcome
+    }
+
+    /// Fetches what a computer on the network shares into the transfers folder and reads it
+    /// like any setup file; the restore view opens it from there. The share stays on until
+    /// its owner turns it off.
+    async fn lan_receive_impl(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        hub: tauri::State<'_, LanHub>,
+        peer_id: String,
+        pin: String,
+    ) -> Result<SetupBundleInfo, String> {
+        let progress: TransferProgress = Arc::new(move |message: String| {
+            let _ = app.emit(SETUP_PROGRESS_EVENT, message);
+        });
+        let directory = transfers_directory()?;
+        let stamp = chrono::Local::now().format("%Y-%m-%d %H%M%S").to_string();
+        let file_path = directory.join(format!("Local network {}.bbsetup", stamp));
+        hub.receive(&state.http_client, &peer_id, &pin, &file_path, &progress).await?;
+        let manifest = {
+            let file_path = file_path.clone();
+            tokio::task::spawn_blocking(move || read_bundle_manifest(&file_path))
+                .await
+                .map_err(|e| format!("Failed lan_receive: {:?}", e))??
+        };
+        Ok(SetupBundleInfo {
+            file_path: file_path.to_string_lossy().to_string(),
+            file_size: std::fs::metadata(&file_path).map(|m| m.len()).unwrap_or(0),
+            content_hash: manifest.content_hash()?,
+            manifest,
+            warnings: Vec::new(),
+        })
+    }
+
     async fn send_from(
         &self,
         app: AppHandle,

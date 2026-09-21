@@ -362,3 +362,47 @@ export interface ITransferSent {
     size: number,
     expires: string,
 }
+
+/** What a computer on the local network says about the setup it shares. */
+export interface ILanShareSummary {
+    salt: string,
+    size: number,
+    versions: number,
+    series: number,
+    saved: string,
+}
+
+/** Another computer running Blenderbase on this network. */
+export interface ILanPeer {
+    id: string,
+    device: string,
+    app_version: string,
+    platform: string,
+    address: string,
+    port: number,
+    share: ILanShareSummary | null,
+    seen_seconds_ago: number,
+}
+
+export interface ILanReceipt {
+    device: string,
+    at: string,
+}
+
+/** What this computer shares on the local network. */
+export interface ILanShareStatus {
+    pin: string,
+    size: number,
+    versions: number,
+    series: number,
+    saved: string,
+    received_by: ILanReceipt[],
+}
+
+export interface ILanStatus {
+    device: string,
+    /** True while this computer announces itself: sharing, or the Local network tab is open. */
+    active: boolean,
+    share: ILanShareStatus | null,
+    peers: ILanPeer[],
+}

@@ -3,8 +3,9 @@ use tauri::AppHandle;
 
 use crate::{
     core::{
-        format_command_error, setup_file_argument, SeriesApplyReport, SetupApplyOptions, SetupBundleInfo,
-        SetupExportOptions, SetupServiceImpl, SetupSyncStatus, TSetupService, TransferSent, COLON_SEPERATOR,
+        format_command_error, setup_file_argument, LanHub, LanStatus, SeriesApplyReport, SetupApplyOptions,
+        SetupBundleInfo, SetupExportOptions, SetupServiceImpl, SetupSyncStatus, TSetupService, TransferSent,
+        COLON_SEPERATOR,
     },
     AppState,
 };
@@ -155,6 +156,59 @@ pub async fn cmd_receive_setup_transfer(
     code: String,
 ) -> Result<SetupBundleInfo, String> {
     match SetupServiceImpl.receive_setup_transfer(app, state, code).await {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
+
+/// This computer on the local network: what it shares and which other computers it sees.
+#[tauri::command]
+pub async fn cmd_lan_status(hub: tauri::State<'_, LanHub>) -> Result<LanStatus, String> {
+    Ok(hub.status().await)
+}
+
+/// Looking for other computers, on while the Local network tab is open.
+#[named]
+#[tauri::command]
+pub async fn cmd_lan_browse(hub: tauri::State<'_, LanHub>, active: bool) -> Result<LanStatus, String> {
+    match hub.set_browsing(active).await {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
+
+#[named]
+#[tauri::command]
+pub async fn cmd_lan_share_start(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    hub: tauri::State<'_, LanHub>,
+    options: Option<SetupExportOptions>,
+) -> Result<LanStatus, String> {
+    match SetupServiceImpl
+        .lan_share_start(app, state, hub, options.unwrap_or_default())
+        .await
+    {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
+
+#[tauri::command]
+pub async fn cmd_lan_share_stop(hub: tauri::State<'_, LanHub>) -> Result<LanStatus, String> {
+    Ok(hub.stop_share().await)
+}
+
+#[named]
+#[tauri::command]
+pub async fn cmd_lan_receive(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    hub: tauri::State<'_, LanHub>,
+    peer_id: String,
+    pin: String,
+) -> Result<SetupBundleInfo, String> {
+    match SetupServiceImpl.lan_receive(app, state, hub, peer_id, pin).await {
         Ok(v) => Ok(v),
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }

@@ -107,12 +107,19 @@ pub fn normalise_code(typed: &str) -> Result<String, String> {
 /// more hash, so the name reveals nothing about the key), the second half is the key.
 pub fn derive_keys(code: &str) -> Result<TransferKeys, String> {
     let code = normalise_code(code)?;
+    derive_keys_with_salt(code.as_bytes(), KDF_SALT)
+}
+
+/// The same derivation for any secret and salt. The local network uses it with a six-digit
+/// PIN and a random salt the sharing computer announces, so nobody can prepare a table of
+/// ids for the million possible PINs ahead of time.
+pub fn derive_keys_with_salt(secret: &[u8], salt: &[u8]) -> Result<TransferKeys, String> {
     let params = Params::new(KDF_MEMORY_KIB, KDF_PASSES, KDF_LANES, Some(64))
         .map_err(|e| format!("Key derivation is misconfigured: {}", e))?;
     let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     let mut material = [0u8; 64];
     argon
-        .hash_password_into(code.as_bytes(), KDF_SALT, &mut material)
+        .hash_password_into(secret, salt, &mut material)
         .map_err(|e| format!("Could not derive the transfer key: {}", e))?;
     let id = format!("{:x}", Sha256::digest(&material[..32]));
     let mut key = [0u8; 32];
@@ -392,6 +399,16 @@ pub async fn download_transfer(
     if !response.status().is_success() {
         return Err(relay_error(response, "The relay has nothing for this code").await);
     }
+    download_response(response, destination, progress).await
+}
+
+/// Streams a successful response into a file, reporting every 5%; the relay and a computer on
+/// the local network are read the same way.
+pub async fn download_response(
+    response: reqwest::Response,
+    destination: &Path,
+    progress: &TransferProgress,
+) -> Result<u64, String> {
     let total = response.content_length().unwrap_or(0);
     if let Some(parent) = destination.parent() {
         tokio::fs::create_dir_all(parent).await.map_err(|e| format!("Could not create {}: {}", parent.display(), e))?;

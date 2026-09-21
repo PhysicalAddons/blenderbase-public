@@ -220,6 +220,8 @@ pub async fn run() {
             match app_state {
                 Ok(state) => {
                     app.manage(state);
+                    // The local network side: silent until the user shares a setup or looks for one.
+                    app.manage(LanHub::new(app.package_info().version.to_string()));
                 }
                 Err(message) => {
                     app.dialog()
@@ -289,12 +291,27 @@ pub async fn run() {
             cmd_save_setup_to_sync_folder,
             cmd_mark_setup_synced,
             cmd_send_setup_transfer,
-            cmd_receive_setup_transfer
+            cmd_receive_setup_transfer,
+            cmd_lan_status,
+            cmd_lan_browse,
+            cmd_lan_share_start,
+            cmd_lan_share_stop,
+            cmd_lan_receive
         ])
-        .run(tauri::generate_context!());
-    if let Err(e) = app {
-        eprintln!("Error while running Blenderbase application: {}", e);
-        std::process::exit(1);
+        .build(tauri::generate_context!());
+    match app {
+        Ok(app) => app.run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                // Other computers drop this one from their lists at once instead of after a timeout.
+                if let Some(hub) = app.try_state::<LanHub>() {
+                    hub.shutdown_blocking();
+                }
+            }
+        }),
+        Err(e) => {
+            eprintln!("Error while running Blenderbase application: {}", e);
+            std::process::exit(1);
+        }
     }
 }
 

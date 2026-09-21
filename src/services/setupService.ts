@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ISeriesApplyChoice, ISeriesApplyReport, ISetupBundleInfo, ISetupSyncStatus, ITransferSent } from "../models";
+import { ILanStatus, ISeriesApplyChoice, ISeriesApplyReport, ISetupBundleInfo, ISetupSyncStatus, ITransferSent } from "../models";
 
 export class SetupService {
     /** Reads the setup out of every installed Blender series (headless runs) and writes it to one file. */
@@ -50,6 +50,30 @@ export class SetupService {
     /** Fetches and decrypts the transfer for a code into the app's transfers folder. */
     public async receiveSetupTransfer(code: string): Promise<ISetupBundleInfo> {
         return await invoke("cmd_receive_setup_transfer", { code });
+    }
+
+    /** This computer on the local network: what it shares and which computers it sees. */
+    public async lanStatus(): Promise<ILanStatus> {
+        return await invoke("cmd_lan_status");
+    }
+
+    /** Starts or stops looking for other computers; on while the Local network tab is open. */
+    public async lanBrowse(active: boolean): Promise<ILanStatus> {
+        return await invoke("cmd_lan_browse", { active });
+    }
+
+    /** Reads the setup out and shares it on the local network under a fresh PIN. */
+    public async lanShareStart(includeAddonFiles: boolean): Promise<ILanStatus> {
+        return await invoke("cmd_lan_share_start", { options: { include_addon_files: includeAddonFiles } });
+    }
+
+    public async lanShareStop(): Promise<ILanStatus> {
+        return await invoke("cmd_lan_share_stop");
+    }
+
+    /** Fetches what a computer on the network shares, with the PIN it shows, into the transfers folder. */
+    public async lanReceive(peerId: string, pin: string): Promise<ISetupBundleInfo> {
+        return await invoke("cmd_lan_receive", { peerId, pin });
     }
 
     /** Puts the newest backup of a series back; resolves with the number of restored files. */

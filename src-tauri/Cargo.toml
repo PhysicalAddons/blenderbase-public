@@ -45,6 +45,9 @@ argon2 = "0.6.0"
 aes-gcm = "0.11.1"
 rand = "0.10.3"
 futures-util = "0.3.34"
+# Local network transfer: announcements need a shared UDP port and a multicast group on every interface.
+socket2 = "0.6"
+if-addrs = "0.15"
 
 # Blender ships `.tar.xz` archives for Linux (and they are readable on macOS).
 # `static` links the bundled liblzma so the app does not depend on a system or
