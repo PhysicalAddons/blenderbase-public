@@ -1,3 +1,4 @@
+@use "@carbon/motion";
 @use "../color" as *;
 @use "./Home" as *;
 
@@ -82,8 +83,8 @@ $share-switch-width: 104px;
             color: var(--bb-text);
             white-space: nowrap;
         }
-        // The versions of the series, each a small block that fills while it goes, like the
-        // tags of the left column: no checkboxes anywhere else in the app.
+        // The versions of the series: selectable tags. Outlined while a version stays out,
+        // filled with a tick while it goes, so the block reads as something to click.
         .share_row__versions {
             display: flex;
             align-items: center;
@@ -92,23 +93,34 @@ $share-switch-width: 104px;
             overflow: hidden;
         }
         .share_row__version {
-            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            height: 22px;
             padding: 0 8px;
-            border: none;
+            border: 1px solid var(--bb-text-muted);
             border-radius: 0;
-            background: var(--bb-field);
+            background: transparent;
             color: var(--bb-text-muted);
             font-size: 12px;
             line-height: 20px;
             white-space: nowrap;
             cursor: pointer;
+            svg {
+                fill: currentColor;
+                flex-shrink: 0;
+            }
             &:hover {
-                background: var(--bb-field-hover);
+                border-color: var(--bb-text);
                 color: var(--bb-text);
             }
             &[aria-pressed="true"] {
+                border-color: var(--bb-tag-stable-bg);
                 background: var(--bb-tag-stable-bg);
                 color: var(--bb-tag-stable-fg);
+                &:hover {
+                    border-color: var(--bb-tag-stable-fg);
+                }
             }
             &:focus-visible {
                 outline: 2px solid var(--bb-text);
@@ -132,28 +144,45 @@ $share-switch-width: 104px;
                 background-color: var(--bb-success);
             }
         }
-        // "12 of 15": opens the addon list under the row.
+        // "28 of 29": opens the addon list under the row. The same chevron as the Recent Files
+        // groups: right when closed, down when open.
         .share_row__count {
             display: inline-flex;
             align-items: center;
             gap: 2px;
-            padding: 0 4px;
+            height: 20px;
+            padding: 0 2px 0 6px;
             border: none;
+            border-radius: 0;
             background: transparent;
-            font-size: 11px;
-            line-height: 12px;
-            color: var(--bb-text-faint);
+            font-size: 12px;
+            line-height: 20px;
+            color: var(--bb-text-muted);
             white-space: nowrap;
             cursor: pointer;
             svg {
                 fill: currentColor;
             }
             &:hover {
+                background: var(--bb-field-hover);
                 color: var(--bb-text);
+            }
+            &:disabled {
+                color: var(--bb-text-faint);
+                cursor: default;
+                background: transparent;
             }
             &:focus-visible {
                 outline: 2px solid var(--bb-text);
                 outline-offset: -2px;
+            }
+        }
+        .share_row__chevron {
+            display: flex;
+            transition: transform motion.$duration-moderate-01 cubic-bezier(0.2, 0, 0.38, 0.9);
+            transform: rotate(0deg);
+            &.share_row__chevron--collapsed {
+                transform: rotate(-90deg);
             }
         }
         .cds--popover {

@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Button, InlineLoading, Toggle } from '@carbon/react';
-import { ArrowLeft, ChevronDown, ChevronUp, Reset } from '@carbon/react/icons';
+import { ArrowLeft, Checkmark, ChevronDown, Reset } from '@carbon/react/icons';
 import { useShallow } from 'zustand/react/shallow';
 import { IAddon, IBlenderVersion } from '../../models';
 import { AddonService } from '../../services/addonService';
@@ -154,9 +154,14 @@ const ShareSetupPanel = () => {
 						disabled={!anyVersion || !choice.addons}
 						aria-expanded={expanded === series}
 						aria-label={`Choose the addons of Blender ${series}`}
+						title={expanded === series ? "Hide the addons" : "Choose which addons go"}
 						onClick={() => toggleExpanded(series, versions)}
 					>
-						{countLabel} {expanded === series ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+						<span>{countLabel}</span>
+						{/* One chevron, rotated like the Recent Files groups: right when closed, down when open. */}
+						<span className={`share_row__chevron ${expanded === series ? "" : "share_row__chevron--collapsed"}`}>
+							<ChevronDown />
+						</span>
 					</button>
 				)}
 			</div>
@@ -179,6 +184,7 @@ const ShareSetupPanel = () => {
 										title={included ? `${label} goes · click to leave it out` : `${label} stays out · click to include it`}
 										onClick={() => setVersionIncluded(v.id, !included)}
 									>
+										{included && <Checkmark size={12} />}
 										{label}
 									</button>
 								);
