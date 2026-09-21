@@ -12,7 +12,6 @@ copied into the GitHub release by the release workflow, so keep the
   issues on GitHub, plus what the app is built with.
 - An info button next to the Settings and Sync titles opens the matching
   wiki page in your browser.
-
 - **Back to Addons** at the top right of Settings, Sync and What to share,
   as in Install Blender; a click on the dimmed Blender list returns as well.
 
