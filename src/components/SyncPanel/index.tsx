@@ -19,16 +19,19 @@ const DOCUMENTATION_HINT = 'How syncing works · opens the documentation in your
 
 type SyncSection = 'folder' | 'network' | 'transfer' | 'file';
 
-/** One way to move a setup: the tab label and the line under the tabs that says when it fits. */
+/**
+ * One way to share a setup: the tab label and the line under the tabs that says when it fits.
+ * In order of preference: the first tab is the one that opens.
+ */
 const SECTIONS: { id: SyncSection, label: string, when: string }[] = [
-	{ id: 'folder', label: 'Sync folder', when: 'For your own computers: a folder in a cloud drive keeps every one of them in step' },
-	{ id: 'network', label: 'Local network', when: 'For two computers on the same network, no internet needed: the setup goes straight across' },
-	{ id: 'transfer', label: 'Transfer code', when: 'For a computer somewhere else: the setup goes through an encrypted relay under a short code' },
-	{ id: 'file', label: 'Setup file', when: 'For anything else: one .bbsetup file to carry on a USB stick, in an email, on any drive' },
+	{ id: 'network', label: 'Local network', when: 'Both computers are on the same network. Turn on sharing here and type the PIN on the other one; no internet needed' },
+	{ id: 'transfer', label: 'Transfer code', when: 'The other computer is anywhere with internet. The setup travels encrypted through a relay under a short code' },
+	{ id: 'folder', label: 'Sync folder', when: 'Your own computers, kept in step through a folder in Dropbox, OneDrive, iCloud or Google Drive' },
+	{ id: 'file', label: 'Setup file', when: 'A .bbsetup file you carry yourself, on a USB stick, in an email, on any drive' },
 ];
 
-/** The four ways are four roads to one place; said once, under whichever is selected. */
-const SAME_DESTINATION = 'Whichever way, the setup opens in the restore view on the other computer, where you choose what to apply.';
+/** The four ways lead to one place; said once, under the rows of whichever is selected. */
+const AFTER_RECEIVING = 'A received setup opens in the restore view, where you choose per Blender series what to apply. Nothing changes until you apply it.';
 
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^cmd_\w+: /, "");
 
@@ -80,7 +83,7 @@ const Row = ({ id, label, description, inactive = false, children }: RowProps) =
  * a transfer code, a setup file. Takes the middle column and the tab band like Settings.
  */
 const SyncPanel = () => {
-	const [activeSection, setActiveSection] = useState<SyncSection>('folder')
+	const [activeSection, setActiveSection] = useState<SyncSection>(SECTIONS[0].id)
 	const installedBuilds = useBlenderManagerStore((s) => s.installedBuilds)
 	const openSetup = useSetupRestoreStore((s) => s.open)
 	const { syncStatus, isSyncBusy, loadSync, setSyncFolder, saveToSyncFolder, openSyncFile } = useSetupSyncStore(
@@ -426,12 +429,12 @@ const SyncPanel = () => {
 							<Information size={20} />
 						</a>
 					</span>
-					<span className='column_header__subtitle'>The same Blender setup on another computer, moved one of four ways</span>
+					<span className='column_header__subtitle'>Share your Blender setup with other computers</span>
 				</div>
 				{isBusy && <InlineLoading className="column_header__loading" iconDescription="Working" />}
 			</div>
 			<div className='column_actions settings_panel__toolbar sync_panel__ways'>
-				<span className='sync_panel__ways_label' id="sync-ways-label">Move it by</span>
+				<span className='sync_panel__ways_label' id="sync-ways-label">Share by:</span>
 				<div className='build_type_switch' role="tablist" aria-labelledby="sync-ways-label">
 					{SECTIONS.map((s) => (
 						<Button
@@ -448,9 +451,7 @@ const SyncPanel = () => {
 					))}
 				</div>
 			</div>
-			<p className='sync_panel__way'>
-				<span className='sync_panel__way_fit'>{section.when}.</span> {SAME_DESTINATION}
-			</p>
+			<p className='sync_panel__way'>{section.when}</p>
 			<div className='list_header settings_panel__list_header'>
 				<span>Action</span>
 				<span></span>
@@ -458,6 +459,7 @@ const SyncPanel = () => {
 			<div className='settings_panel__list'>
 				{renderSection()}
 			</div>
+			<p className='sync_panel__note'>{AFTER_RECEIVING}</p>
 		</div>
 	)
 }

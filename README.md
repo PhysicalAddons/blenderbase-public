@@ -49,11 +49,11 @@ Only versions from `3.1` onwards are listed, to keep the load on Blender Foundat
 
 ## Moving your setup to another computer
 
-A setup is what makes your Blender yours: the Blender versions you have installed and, for every series, its preferences, theme, keymap and addon list. The Sync view (the arrows button in the title bar) moves it to another computer in one of four ways. All four end in the same restore view, where you tick per series what to apply. The other computer backs up its own configuration first, and one click undoes the apply.
+A setup is what makes your Blender yours: the Blender versions you have installed and, for every series, its preferences, theme, keymap and addon list. The Sync view (the arrows button in the title bar) shares it with other computers in one of four ways. All four end in the same restore view, where you tick per series what to apply. The other computer backs up its own configuration first, and one click undoes the apply.
 
-- **Sync folder**: pick a folder inside Dropbox, OneDrive, iCloud or Google Drive. Every computer saves its setup there and is told when another one saved a newer setup.
 - **Local network**: two computers on the same network hand the setup over directly, no internet needed. Turn on sharing on one and type the six-digit PIN it shows on the other. Nothing leaves the network. The first time, your system may ask to allow Blenderbase through the firewall.
-- **Transfer code**: for a computer somewhere else. The setup is encrypted on your computer under a code like `brave-otter-4412`, parked on a relay for up to 7 days and removed once it is received. The relay holds only ciphertext and cannot tell which file belongs to which code.
+- **Transfer code**: for a computer anywhere with internet. The setup is encrypted on your computer under a code like `brave-otter-4412`, parked on a relay for up to 7 days and removed once it is received. The relay holds only ciphertext and cannot tell which file belongs to which code.
+- **Sync folder**: pick a folder inside Dropbox, OneDrive, iCloud or Google Drive. Every computer saves its setup there and is told when another one saved a newer setup.
 - **Setup file**: one `.bbsetup` file to carry yourself, on a USB stick, in an email, on any drive.
 
 Blender versions the other computer lacks are downloaded there from the Blender Foundation servers, for that computer's own system. Addons from the extensions platform are installed again by name; addons installed from a file travel with the setup when "Include addon files" is on.

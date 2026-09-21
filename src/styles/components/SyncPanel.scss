@@ -13,15 +13,19 @@
         white-space: nowrap;
         flex-shrink: 0;
     }
-    // When the selected way fits, and where every way ends: under the tabs, above the rows.
+    // When the selected way fits: under the tabs, above the rows.
     .sync_panel__way {
         padding: 12px $home-column-inset 0 calc(#{$home-column-inset} + 16px);
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--bb-text);
+    }
+    // Where every way ends: a quiet note under the rows, the same on every tab.
+    .sync_panel__note {
+        padding: 16px $home-column-inset 0 calc(#{$home-column-inset} + 16px);
         font-size: 12px;
         line-height: 16px;
         color: var(--bb-text-muted);
-        .sync_panel__way_fit {
-            color: var(--bb-text);
-        }
     }
     // The title and the small button that opens the documentation, on one line.
     .sync_panel__title_row {
