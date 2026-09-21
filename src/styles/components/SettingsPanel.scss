@@ -99,6 +99,15 @@ $settings-control-width: 176px;
             flex-shrink: 0;
         }
 
+        // A step whose turn has not come (Sync: save and apply before a folder is chosen):
+        // dimmed like the columns behind Install Blender, and out of reach until it lights up.
+        // The fade sits on the row so it plays both ways.
+        transition: opacity motion.$duration-fast-02 cubic-bezier(0.2, 0, 0.38, 0.9);
+        &.settings_row--inactive {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
         // Toggle: the switch alone, no side label.
         .cds--toggle__label {
             margin: 0;
