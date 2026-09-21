@@ -86,13 +86,27 @@ export const useBlenderManagerStore = create<IBlenderManagerStore>((set, get) =>
         // Set before awaiting so a second mount (StrictMode) does not start a second sweep.
         set({ hasRefreshedInstalledBuilds: true });
         let sweepMessage: string | null = null;
+        let skipped = false;
         try {
-            sweepMessage = sweepStatusMessage(await settingsService.sweepBlenderInstallations(true), true);
+            const sweep = await settingsService.sweepBlenderInstallations(true);
+            skipped = sweep.skipped;
+            sweepMessage = sweepStatusMessage(sweep, true);
         } catch (e) {
             console.error(e);
             postStatusError(`Looking for installed Blender versions failed: ${e}`);
         }
         await blenderService.refreshBlenderVersions();
+        // A database carried over from an older Blenderbase can hold locations with no Blender in
+        // them at all; then the usual folders are looked at as on a first start.
+        if (skipped && (await fetchInstalled()).length === 0) {
+            try {
+                sweepMessage = sweepStatusMessage(await settingsService.sweepBlenderInstallations(false), true);
+                await blenderService.refreshBlenderVersions();
+            } catch (e) {
+                console.error(e);
+                postStatusError(`Looking for installed Blender versions failed: ${e}`);
+            }
+        }
         if (sweepMessage) {
             // Posted before the list loads: the build-details probe below follows it.
             postStatus(sweepMessage);
