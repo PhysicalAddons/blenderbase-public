@@ -429,7 +429,7 @@ const SyncPanel = () => {
 							<Information size={20} />
 						</a>
 					</span>
-					<span className='column_header__subtitle'>Share your Blender setup with other computers</span>
+					<span className='column_header__subtitle'>Share your Blender setup across other computers</span>
 				</div>
 				{isBusy && <InlineLoading className="column_header__loading" iconDescription="Working" />}
 			</div>
