@@ -6,6 +6,7 @@ import AddonPanel from '../../components/AddonPanel';
 import InstallBlenderPanel from '../../components/InstallBlenderPanel';
 import SettingsPanel from '../../components/SettingsPanel';
 import RestoreSetupPanel from '../../components/RestoreSetupPanel';
+import SyncPanel from '../../components/SyncPanel';
 import EmptyState from '../../components/EmptyState';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useEffect } from 'react';
@@ -21,14 +22,16 @@ const setupService = new SetupService();
 let hasCheckedStartupFile = false;
 
 const Home = () => {
-    const { isInstallBlenderOpen, isSettingsOpen, isRestoreSetupOpen, setIsInstallBlenderOpen, setIsSettingsOpen, setIsRestoreSetupOpen } = useUiControlsStore(
+    const { isInstallBlenderOpen, isSettingsOpen, isRestoreSetupOpen, isSyncOpen, setIsInstallBlenderOpen, setIsSettingsOpen, setIsRestoreSetupOpen, setIsSyncOpen } = useUiControlsStore(
         useShallow((s) => ({
             isInstallBlenderOpen: s.isInstallBlenderOpen,
             isSettingsOpen: s.isSettingsOpen,
             isRestoreSetupOpen: s.isRestoreSetupOpen,
+            isSyncOpen: s.isSyncOpen,
             setIsInstallBlenderOpen: s.setIsInstallBlenderOpen,
             setIsSettingsOpen: s.setIsSettingsOpen,
             setIsRestoreSetupOpen: s.setIsRestoreSetupOpen,
+            setIsSyncOpen: s.setIsSyncOpen,
         }))
     )
     const { installedBuilds, hasLoadedInstalledBuilds } = useBlenderManagerStore(
@@ -60,9 +63,9 @@ const Home = () => {
         }
     }, []);
 
-    // Escape leaves the Install Blender, Settings or Restore view, like closing a dialog.
+    // Escape leaves the Install Blender, Settings, Sync or Restore view, like closing a dialog.
     useEffect(() => {
-        if (!isInstallBlenderOpen && !isSettingsOpen && !isRestoreSetupOpen) {
+        if (!isInstallBlenderOpen && !isSettingsOpen && !isRestoreSetupOpen && !isSyncOpen) {
             return;
         }
         const onKeyDown = (e: KeyboardEvent) => {
@@ -70,22 +73,23 @@ const Home = () => {
                 setIsInstallBlenderOpen(false);
                 setIsSettingsOpen(false);
                 setIsRestoreSetupOpen(false);
+                setIsSyncOpen(false);
             }
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
-    }, [isInstallBlenderOpen, isSettingsOpen, isRestoreSetupOpen]);
+    }, [isInstallBlenderOpen, isSettingsOpen, isRestoreSetupOpen, isSyncOpen]);
 
     return (
         <>
-            <div className={`home ${isInstallBlenderOpen ? 'home--installing' : ''} ${isSettingsOpen || isRestoreSetupOpen ? 'home--settings' : ''}`}>
+            <div className={`home ${isInstallBlenderOpen ? 'home--installing' : ''} ${isSettingsOpen || isRestoreSetupOpen || isSyncOpen ? 'home--settings' : ''}`}>
                 <BlenderColumn />
                 <div className='home__main'>
-                    {isRestoreSetupOpen ? <RestoreSetupPanel /> : isSettingsOpen ? <SettingsPanel /> : isInstallBlenderOpen ? <InstallBlenderPanel /> : isEmpty ? <EmptyState /> : <AddonPanel />}
+                    {isRestoreSetupOpen ? <RestoreSetupPanel /> : isSyncOpen ? <SyncPanel /> : isSettingsOpen ? <SettingsPanel /> : isInstallBlenderOpen ? <InstallBlenderPanel /> : isEmpty ? <EmptyState /> : <AddonPanel />}
                 </div>
-                {/* Settings, Restore and Install Blender take the middle column on their own; the
-                    Recent Files column and its toggle come back with the Addons view. */}
-                {!isSettingsOpen && !isInstallBlenderOpen && !isRestoreSetupOpen && <RecentFiles />}
+                {/* Settings, Sync, Restore and Install Blender take the middle column on their own;
+                    the Recent Files column and its toggle come back with the Addons view. */}
+                {!isSettingsOpen && !isInstallBlenderOpen && !isRestoreSetupOpen && !isSyncOpen && <RecentFiles />}
             </div>
             <LauncherBar />
         </>

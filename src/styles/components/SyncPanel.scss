@@ -1,0 +1,33 @@
+@use "../color" as *;
+@use "./Home" as *;
+
+// **Sync panel**
+// Borrows the Settings panel's rows (it carries the `settings_panel` class); this only adds
+// the titled groups that split the sync folder from the setup file.
+.sync_panel {
+    .sync_panel__section {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 24px calc(#{$home-column-inset} + 16px) 12px calc(#{$home-column-inset} + 16px);
+        border-bottom: 1px solid var(--bb-border-strong);
+        flex-shrink: 0;
+        .sync_panel__section_title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--bb-text);
+        }
+        .sync_panel__section_text {
+            font-size: 12px;
+            line-height: 14px;
+            color: var(--bb-text-muted);
+        }
+    }
+    // Two controls in one row (stop using the folder, then Change…): the row's hairline runs
+    // through both, so they read as one block.
+    .settings_row__control .cds--btn.settings_location_row__delete {
+        height: $home-row-height;
+        min-height: $home-row-height;
+        border-radius: 0;
+    }
+}

@@ -2,32 +2,25 @@ import { useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, NumberInput, Toggle } from '@carbon/react';
 import { Add, Star, StarFilled, TrashCan } from '@carbon/react/icons';
 import { getVersion } from '@tauri-apps/api/app';
-import { listen } from '@tauri-apps/api/event';
-import { ask, open, save } from '@tauri-apps/plugin-dialog';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
-import { IAppSetting, IBlenderInstallationLocation, ISetupBundleInfo } from '../../models';
+import { IAppSetting, IBlenderInstallationLocation } from '../../models';
 import { AppSettingCode } from '../../enums';
 import { SettingsService } from '../../services/settingsService';
-import { SetupService } from '../../services/setupService';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
-import { useSetupRestoreStore } from '../../store/setupRestoreStore';
-import { describeSyncFile, useSetupSyncStore } from '../../store/setupSyncStore';
-import { SETUP_FILE_FILTER } from '../../constants';
 import { ThemePreference, useThemeStore } from '../../store/themeStore';
 import { postStatus, postStatusError } from '../../store/statusStore';
 import { usePagedScroll } from '../../utility/usePagedScroll';
 
 const settingsService = new SettingsService();
-const setupService = new SetupService();
 
-type SettingsSection = 'locations' | 'launch' | 'updates' | 'appearance' | 'setup';
+type SettingsSection = 'locations' | 'launch' | 'updates' | 'appearance';
 
 const SECTIONS: { id: SettingsSection, label: string }[] = [
 	{ id: 'locations', label: 'Locations' },
 	{ id: 'launch', label: 'Launch' },
 	{ id: 'updates', label: 'Updates' },
 	{ id: 'appearance', label: 'Appearance' },
-	{ id: 'setup', label: 'Setup' },
 ];
 
 type ThemeOption = { id: ThemePreference, label: string };
@@ -39,27 +32,6 @@ const THEME_OPTIONS: ThemeOption[] = [
 ];
 
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
-
-const formatSetupSize = (bytes: number): string => {
-	const kb = bytes / 1024;
-	return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(kb))} KB`;
-};
-
-const plural = (count: number, one: string, many: string): string => `${count} ${count === 1 ? one : many}`;
-
-/** One status line for a setup file: what it holds and how much of it restores on its own. */
-const describeSetup = (info: ISetupBundleInfo): string => {
-	const sections = Object.values(info.manifest.series);
-	const addons = sections.flatMap((s) => s.addons).filter((a) => a.source !== "core");
-	const manual = addons.filter((a) => a.source === "manual" || (a.source === "file" && !a.file)).length;
-	const parts = [
-		plural(info.manifest.blender.length, "Blender version", "Blender versions"),
-		plural(sections.length, "configuration", "configurations"),
-		plural(addons.length, "addon", "addons") + (manual > 0 ? ` (${manual} to install by hand)` : ""),
-		formatSetupSize(info.file_size),
-	];
-	return parts.join(" · ");
-};
 
 type RowProps = {
 	id: string,
@@ -91,8 +63,6 @@ const SettingsPanel = () => {
 	// The cooldown field edits a local draft; the value is saved on blur or Enter.
 	const [cooldownDraft, setCooldownDraft] = useState<string>("")
 	const [isCooldownInvalid, setIsCooldownInvalid] = useState<boolean>(false)
-	const [includeAddonFiles, setIncludeAddonFiles] = useState<boolean>(false)
-	const [isSavingSetup, setIsSavingSetup] = useState<boolean>(false)
 	const listRef = useRef<HTMLDivElement>(null)
 	usePagedScroll(listRef, { rowSelector: '.settings_row, .settings_location_row, .settings_location_add' })
 
@@ -102,26 +72,6 @@ const SettingsPanel = () => {
 	const { preference, setPreference } = useThemeStore(
 		useShallow((s) => ({ preference: s.preference, setPreference: s.setPreference }))
 	)
-	const openSetup = useSetupRestoreStore((s) => s.open)
-	const { syncStatus, isSyncBusy, loadSync, setSyncFolder, saveToSyncFolder, openSyncFile } = useSetupSyncStore(
-		useShallow((s) => ({ syncStatus: s.status, isSyncBusy: s.isBusy, loadSync: s.load, setSyncFolder: s.setFolder, saveToSyncFolder: s.save, openSyncFile: s.openForApply }))
-	)
-	useEffect(() => {
-		void loadSync();
-	}, []);
-
-	const chooseSyncFolder = async () => {
-		try {
-			const selected = await open({ multiple: false, directory: true, title: "Choose the folder that keeps your setup in sync", defaultPath: syncStatus?.folder_path || undefined });
-			if (typeof selected === "string" && selected.length > 0) {
-				await setSyncFolder(selected);
-			}
-		} catch (e) {
-			console.error(e);
-			postStatusError(`Choosing the sync folder failed: ${errorText(e)}`);
-		}
-	};
-
 	const settingByCode = (code: AppSettingCode): IAppSetting | undefined =>
 		appSettings.find((s) => s.code === code);
 
@@ -314,48 +264,6 @@ const SettingsPanel = () => {
 		}
 	};
 
-	const saveSetup = async () => {
-		let filePath: string | null = null;
-		try {
-			filePath = await save({ title: "Save setup", defaultPath: "My Blender setup.bbsetup", filters: SETUP_FILE_FILTER });
-		} catch (e) {
-			console.error(e);
-			postStatusError(`Choosing where to save the setup failed: ${errorText(e)}`);
-		}
-		if (!filePath) {
-			return;
-		}
-		setIsSavingSetup(true);
-		postStatus("Reading the setup from every Blender series…", true);
-		// The backend names each step (series being read, addon being packed) as it goes.
-		const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
-		try {
-			const info = await setupService.exportSetupBundle(filePath, includeAddonFiles);
-			info.warnings.forEach((w) => console.warn(w));
-			postStatus(`Setup saved: ${describeSetup(info)}`);
-		} catch (e) {
-			console.error(e);
-			postStatusError(`Saving the setup failed: ${errorText(e)}`);
-		} finally {
-			stopListening();
-			setIsSavingSetup(false);
-		}
-	};
-
-	// The file opens in its own view, where each series can be ticked and applied.
-	const inspectSetup = async () => {
-		try {
-			const selected = await open({ multiple: false, directory: false, title: "Open a setup file", filters: SETUP_FILE_FILTER });
-			if (typeof selected !== "string" || selected.length === 0) {
-				return;
-			}
-			await openSetup(selected);
-		} catch (e) {
-			console.error(e);
-			postStatusError(`Opening the setup file failed: ${errorText(e)}`);
-		}
-	};
-
 	const locationMeta = (location: IBlenderInstallationLocation): string => {
 		const count = installedBuilds.filter((b) => (b.installation_directory_path ?? "").startsWith(location.directory_path)).length;
 		const versions = `${count} ${count === 1 ? "version" : "versions"}`;
@@ -533,90 +441,6 @@ const SettingsPanel = () => {
 		</SettingsRow>
 	);
 
-	const renderSetup = () => (
-		<>
-			<SettingsRow id="setting-setup-save" label="Save setup to a file" description="Blender versions, preferences, theme, keymaps and the addon list of every series">
-				<Button
-					kind="tertiary"
-					size="md"
-					className='settings_row__button'
-					disabled={isSavingSetup || installedBuilds.length === 0}
-					onClick={() => void saveSetup()}
-				>
-					{isSavingSetup ? "Saving…" : "Save…"}
-				</Button>
-			</SettingsRow>
-			<SettingsRow id="setting-setup-addon-files" label="Include addon files" description="Packs addons that were installed from a file, so they restore without the download">
-				<Toggle
-					id="setting-setup-addon-files"
-					size="sm"
-					hideLabel
-					aria-labelledby="setting-setup-addon-files-label"
-					toggled={includeAddonFiles}
-					disabled={isSavingSetup}
-					onToggle={(checked) => setIncludeAddonFiles(checked)}
-				/>
-			</SettingsRow>
-			<SettingsRow id="setting-setup-sync-folder" label="Sync folder" description={syncStatus?.folder_path ? syncStatus.folder_path : "A folder inside Dropbox, OneDrive, iCloud or Google Drive keeps every computer in step"}>
-				{syncStatus?.folder_path && (
-					<Button
-						kind="ghost"
-						size="md"
-						className='settings_location_row__delete'
-						renderIcon={TrashCan}
-						iconDescription="Stop using this sync folder"
-						title="Stop using this sync folder"
-						hasIconOnly
-						disabled={isSyncBusy}
-						onClick={() => void setSyncFolder(null)}
-					/>
-				)}
-				<Button
-					kind="tertiary"
-					size="md"
-					className='settings_row__button'
-					disabled={isSyncBusy}
-					onClick={() => void chooseSyncFolder()}
-				>
-					{syncStatus?.folder_path ? "Change…" : "Choose…"}
-				</Button>
-			</SettingsRow>
-			<SettingsRow id="setting-setup-sync-save" label="Save setup to the sync folder" description={syncStatus?.folder_path ? "Writes this computer's setup to the folder; other computers are told it is newer" : "Choose a sync folder first"}>
-				<Button
-					kind="tertiary"
-					size="md"
-					className='settings_row__button'
-					disabled={isSyncBusy || isSavingSetup || !syncStatus?.folder_path || installedBuilds.length === 0}
-					onClick={() => void saveToSyncFolder(includeAddonFiles)}
-				>
-					{isSyncBusy ? "Saving…" : "Save now"}
-				</Button>
-			</SettingsRow>
-			<SettingsRow id="setting-setup-sync-apply" label="Setup in the sync folder" description={syncStatus?.folder_path ? describeSyncFile(syncStatus) : "Choose a sync folder first"}>
-				<Button
-					kind="tertiary"
-					size="md"
-					className='settings_row__button'
-					disabled={isSyncBusy || !syncStatus?.file}
-					onClick={() => void openSyncFile()}
-				>
-					Apply…
-				</Button>
-			</SettingsRow>
-			<SettingsRow id="setting-setup-open" label="Restore from a setup file" description="Opens a .bbsetup file and shows what it would apply">
-				<Button
-					kind="tertiary"
-					size="md"
-					className='settings_row__button'
-					disabled={isSavingSetup}
-					onClick={() => void inspectSetup()}
-				>
-					Open…
-				</Button>
-			</SettingsRow>
-		</>
-	);
-
 	const renderSection = () => {
 		switch (activeSection) {
 			case 'locations':
@@ -627,8 +451,6 @@ const SettingsPanel = () => {
 				return renderUpdates();
 			case 'appearance':
 				return renderAppearance();
-			case 'setup':
-				return renderSetup();
 		}
 	};
 

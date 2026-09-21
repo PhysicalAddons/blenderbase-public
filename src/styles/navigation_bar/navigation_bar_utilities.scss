@@ -59,4 +59,19 @@
         background: $layer-01;
         border-bottom: 1px solid $border-subtle-01;
     }
+    // A dot on the Sync button while the sync folder holds a setup newer than this computer.
+    .navigation_bar_tab--badge {
+        position: relative;
+        &::after {
+            content: "";
+            position: absolute;
+            top: 7px;
+            right: 9px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--bb-primary);
+            box-shadow: 0 0 0 2px $background;
+        }
+    }
 }

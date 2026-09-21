@@ -16,6 +16,7 @@
 @use "./styles/components/InstallBlenderPanel";
 @use "./styles/components/SettingsPanel";
 @use "./styles/components/RestoreSetupPanel";
+@use "./styles/components/SyncPanel";
 @use "./styles/components/LauncherBar";
 
 // Fonts (Sass hoists this plain CSS import to the top of the output)
