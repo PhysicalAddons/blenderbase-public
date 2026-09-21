@@ -11,21 +11,21 @@ import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useSetupRestoreStore } from '../../store/setupRestoreStore';
 import { describeSyncFile, useSetupSyncStore } from '../../store/setupSyncStore';
 import { formatLanSize, formatPin, platformLabel, useSetupLanStore } from '../../store/setupLanStore';
+import { describeShare, exportOptions, useSetupShareStore } from '../../store/setupShareStore';
+import { SyncSection, useUiControlsStore } from '../../store/uiControlsStore';
 import { postStatus, postStatusError, useStatusStore } from '../../store/statusStore';
 
 const setupService = new SetupService();
 
 const DOCUMENTATION_HINT = 'How syncing works · opens the documentation in your browser';
 
-type SyncSection = 'folder' | 'network' | 'transfer' | 'file';
-
 /**
  * One way to share a setup: the tab label and the line under the tabs that says when it fits.
  * In order of preference: the first tab is the one that opens.
  */
 const SECTIONS: { id: SyncSection, label: string, when: string }[] = [
-	{ id: 'network', label: 'Local network', when: 'Both computers are on the same network. Turn on sharing here and type the PIN on the other one; no internet needed' },
-	{ id: 'transfer', label: 'Transfer code', when: 'The other computer is anywhere with internet. The setup travels encrypted through a relay under a short code' },
+	{ id: 'network', label: 'Local network', when: 'Your computers are on the same network. Turn on sharing here and type the PIN on the other ones; no internet needed' },
+	{ id: 'transfer', label: 'Transfer code', when: 'Your computers are outside the local network. The setup travels encrypted through a relay under a short code. Requires an internet connection' },
 	{ id: 'folder', label: 'Sync folder', when: 'Your own computers, kept in step through a folder in Dropbox, OneDrive, iCloud or Google Drive' },
 	{ id: 'file', label: 'Setup file', when: 'A .bbsetup file you carry yourself, on a USB stick, in an email, on any drive' },
 ];
@@ -83,7 +83,9 @@ const Row = ({ id, label, description, inactive = false, children }: RowProps) =
  * a transfer code, a setup file. Takes the middle column and the tab band like Settings.
  */
 const SyncPanel = () => {
-	const [activeSection, setActiveSection] = useState<SyncSection>(SECTIONS[0].id)
+	const { activeSection, setActiveSection, setIsShareSetupOpen } = useUiControlsStore(
+		useShallow((s) => ({ activeSection: s.syncSection, setActiveSection: s.setSyncSection, setIsShareSetupOpen: s.setIsShareSetupOpen }))
+	)
 	const installedBuilds = useBlenderManagerStore((s) => s.installedBuilds)
 	const openSetup = useSetupRestoreStore((s) => s.open)
 	const { syncStatus, isSyncBusy, loadSync, setSyncFolder, saveToSyncFolder, openSyncFile } = useSetupSyncStore(
@@ -92,8 +94,9 @@ const SyncPanel = () => {
 	const { sent, isSending, isReceiving, sendTransfer, receiveTransfer } = useSetupSyncStore(
 		useShallow((s) => ({ sent: s.sent, isSending: s.isSending, isReceiving: s.isReceiving, sendTransfer: s.send, receiveTransfer: s.receive }))
 	)
-	// One choice for every tab: the folder, the transfer and the file all pack addons the same way.
-	const [includeAddonFiles, setIncludeAddonFiles] = useState<boolean>(false)
+	// One choice of what goes, for every tab; made in the What to share view.
+	const shareSelection = useSetupShareStore((s) => s.selection)
+	const shareOptions = exportOptions(shareSelection)
 	const [isSavingSetup, setIsSavingSetup] = useState<boolean>(false)
 	const [codeDraft, setCodeDraft] = useState<string>("")
 	const { lan, isStartingShare, isLanReceiving, refreshLan, browseLan, shareLan, stopLanShare, receiveLan } = useSetupLanStore(
@@ -171,7 +174,7 @@ const SyncPanel = () => {
 		// The backend names each step (series being read, addon being packed) as it goes.
 		const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
 		try {
-			const info = await setupService.exportSetupBundle(filePath, includeAddonFiles);
+			const info = await setupService.exportSetupBundle(filePath, shareOptions);
 			info.warnings.forEach((w) => console.warn(w));
 			postStatus(`Setup saved: ${describeSetup(info)}`);
 		} catch (e) {
@@ -199,23 +202,18 @@ const SyncPanel = () => {
 
 	const folderSet = Boolean(syncStatus?.folder_path);
 
-	// The last row of every tab: the same switch, since it shapes whatever is saved or sent.
-	const renderAddonFilesRow = (inactive = false) => (
-		<Row id="sync-addon-files" label="Include addon files" description="Packs addons installed from a file, so they restore without the download" inactive={inactive}>
-			<Toggle
-				id="sync-addon-files"
-				size="sm"
-				hideLabel
-				aria-labelledby="sync-addon-files-label"
-				toggled={includeAddonFiles}
-				disabled={isBusy || inactive}
-				onToggle={(checked) => setIncludeAddonFiles(checked)}
-			/>
+	// The first row of every tab: what goes is one choice, whichever way it travels.
+	const renderWhatToShareRow = () => (
+		<Row id="sync-what" label="What to share" description={describeShare(shareSelection, installedBuilds)}>
+			<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => setIsShareSetupOpen(true)}>
+				Choose…
+			</Button>
 		</Row>
 	);
 
 	const renderFolder = () => (
 		<>
+			{renderWhatToShareRow()}
 			<Row id="sync-folder" label="Folder" description={folderSet ? syncStatus!.folder_path : "Choose a folder inside Dropbox, OneDrive, iCloud or Google Drive"}>
 				{folderSet && (
 					<Button
@@ -235,7 +233,7 @@ const SyncPanel = () => {
 				</Button>
 			</Row>
 			<Row id="sync-save" label="Save this computer's setup" description={folderSet ? "Writes the setup to the folder; other computers are told it is newer" : "Choose a folder first"} inactive={!folderSet}>
-				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || !folderSet || installedBuilds.length === 0} onClick={() => void saveToSyncFolder(includeAddonFiles)}>
+				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || !folderSet || installedBuilds.length === 0} onClick={() => void saveToSyncFolder(shareOptions)}>
 					{isSyncBusy ? "Saving…" : "Save now"}
 				</Button>
 			</Row>
@@ -245,12 +243,12 @@ const SyncPanel = () => {
 					Apply…
 				</Button>
 			</Row>
-			{renderAddonFilesRow(!folderSet)}
 		</>
 	);
 
 	const renderTransfer = () => (
 		<>
+			{renderWhatToShareRow()}
 			<Row id="sync-transfer-send" label={sent ? "Your transfer code" : "Send to another computer"} description={sentDescription()}>
 				{sent && (
 					<>
@@ -258,7 +256,7 @@ const SyncPanel = () => {
 						<Button kind="ghost" size="md" className='settings_location_row__delete' renderIcon={Copy} iconDescription="Copy the code" title="Copy the code" hasIconOnly onClick={() => void copyCode()} />
 					</>
 				)}
-				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => void sendTransfer(includeAddonFiles)}>
+				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => void sendTransfer(shareOptions)}>
 					{isSending ? "Sending…" : sent ? "Send again" : "Send…"}
 				</Button>
 			</Row>
@@ -283,12 +281,12 @@ const SyncPanel = () => {
 					{isReceiving ? "Receiving…" : "Receive"}
 				</Button>
 			</Row>
-			{renderAddonFilesRow()}
 		</>
 	);
 
 	const renderFile = () => (
 		<>
+			{renderWhatToShareRow()}
 			<Row id="sync-file-save" label="Save setup to a file" description="Blender versions, preferences, theme, keymaps and the addon list of every series">
 				<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => void saveSetup()}>
 					{isSavingSetup ? "Saving…" : "Save…"}
@@ -299,7 +297,6 @@ const SyncPanel = () => {
 					Open…
 				</Button>
 			</Row>
-			{renderAddonFilesRow()}
 		</>
 	);
 
@@ -326,6 +323,7 @@ const SyncPanel = () => {
 		const peers = lan?.peers ?? [];
 		return (
 			<>
+				{renderWhatToShareRow()}
 				<Row id="lan-share" label="Share this computer's setup" description={shareDescription()}>
 					{lan?.share && <code className='sync_panel__code'>{formatPin(lan.share.pin)}</code>}
 					<Toggle
@@ -335,7 +333,7 @@ const SyncPanel = () => {
 						aria-labelledby="lan-share-label"
 						toggled={Boolean(lan?.share)}
 						disabled={isBusy || (!lan?.share && installedBuilds.length === 0)}
-						onToggle={(checked) => void (checked ? shareLan(includeAddonFiles) : stopLanShare())}
+						onToggle={(checked) => void (checked ? shareLan(shareOptions) : stopLanShare())}
 					/>
 				</Row>
 				{peers.map((peer) => (
@@ -370,7 +368,6 @@ const SyncPanel = () => {
 						<InlineLoading className="sync_panel__looking" iconDescription="Looking" description="Looking…" />
 					</Row>
 				)}
-				{renderAddonFilesRow()}
 			</>
 		);
 	};

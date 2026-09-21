@@ -363,6 +363,28 @@ export interface ITransferSent {
     expires: string,
 }
 
+/** What of one Blender series goes into a shared setup. Everything, unless unticked. */
+export interface ISeriesShareChoice {
+    preferences: boolean,
+    theme: boolean,
+    keymap: boolean,
+    addons: boolean,
+    /** Addons left out, by module name (a legacy addon's folder) or extension id. */
+    excluded_addons: string[],
+}
+
+/** What goes into a shared setup, whichever way it travels: records what is left out. */
+export interface ISetupShareSelection {
+    include_addon_files: boolean,
+    /** Installed Blender versions left out, by their id. */
+    excluded_version_ids: string[],
+    /** Per series, what is left out; a series not listed goes whole. */
+    series: Record<string, ISeriesShareChoice>,
+}
+
+/** The backend's export options have the selection's shape. */
+export type ISetupExportOptions = ISetupShareSelection;
+
 /** What a computer on the local network says about the setup it shares. */
 export interface ILanShareSummary {
     salt: string,

@@ -1,5 +1,8 @@
 import { create } from "zustand"
 
+/** The ways the Sync view offers, one tab each. */
+export type SyncSection = 'network' | 'transfer' | 'folder' | 'file';
+
 interface IUiControlsStore {
     /** Whether the Recent Files column is shown. */
     isSidebarExpanded: boolean,
@@ -11,6 +14,10 @@ interface IUiControlsStore {
     isRestoreSetupOpen: boolean,
     /** Whether the middle column shows the Sync view (sync folder, setup files). */
     isSyncOpen: boolean,
+    /** Whether the middle column shows What to share, the choice behind every way of the Sync view. */
+    isShareSetupOpen: boolean,
+    /** The Sync view's tab, kept so a trip to What to share comes back to the same one. */
+    syncSection: SyncSection,
     /** The Blender version highlighted in the left column. Falls back to the default version when null. */
     selectedBlenderVersionId: string | null,
     /** Versions that finished installing during this session and have not been selected or launched yet. */
@@ -23,6 +30,8 @@ interface IUiControlsStore {
     setIsSettingsOpen: (v: boolean) => void,
     setIsRestoreSetupOpen: (v: boolean) => void,
     setIsSyncOpen: (v: boolean) => void,
+    setIsShareSetupOpen: (v: boolean) => void,
+    setSyncSection: (section: SyncSection) => void,
     setSelectedBlenderVersionId: (id: string | null) => void,
     addNewlyInstalledBlenderId: (id: string) => void,
     clearNewlyInstalledBlenderId: (id: string) => void,
@@ -44,6 +53,8 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
     isSettingsOpen: false,
     isRestoreSetupOpen: false,
     isSyncOpen: false,
+    isShareSetupOpen: false,
+    syncSection: 'network',
     selectedBlenderVersionId: null,
     newlyInstalledBlenderIds: [],
     launchWithConsole: readLaunchWithConsole(),
@@ -62,25 +73,37 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         isSettingsOpen: v ? false : state.isSettingsOpen,
         isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
         isSyncOpen: v ? false : state.isSyncOpen,
+        isShareSetupOpen: v ? false : state.isShareSetupOpen,
     })),
     setIsSettingsOpen: (v) => set((state) => ({
         isSettingsOpen: v,
         isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
         isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
         isSyncOpen: v ? false : state.isSyncOpen,
+        isShareSetupOpen: v ? false : state.isShareSetupOpen,
     })),
     setIsRestoreSetupOpen: (v) => set((state) => ({
         isRestoreSetupOpen: v,
         isSettingsOpen: v ? false : state.isSettingsOpen,
         isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
         isSyncOpen: v ? false : state.isSyncOpen,
+        isShareSetupOpen: v ? false : state.isShareSetupOpen,
     })),
     setIsSyncOpen: (v) => set((state) => ({
         isSyncOpen: v,
         isSettingsOpen: v ? false : state.isSettingsOpen,
         isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
         isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
+        isShareSetupOpen: v ? false : state.isShareSetupOpen,
     })),
+    setIsShareSetupOpen: (v) => set((state) => ({
+        isShareSetupOpen: v,
+        isSettingsOpen: v ? false : state.isSettingsOpen,
+        isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
+        isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
+        isSyncOpen: v ? false : state.isSyncOpen,
+    })),
+    setSyncSection: (section) => set({ syncSection: section }),
     setSelectedBlenderVersionId: (id) => set((state) => ({
         selectedBlenderVersionId: id,
         newlyInstalledBlenderIds: id === null

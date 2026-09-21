@@ -7,6 +7,7 @@ import InstallBlenderPanel from '../../components/InstallBlenderPanel';
 import SettingsPanel from '../../components/SettingsPanel';
 import RestoreSetupPanel from '../../components/RestoreSetupPanel';
 import SyncPanel from '../../components/SyncPanel';
+import ShareSetupPanel from '../../components/ShareSetupPanel';
 import EmptyState from '../../components/EmptyState';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useEffect } from 'react';
@@ -22,16 +23,18 @@ const setupService = new SetupService();
 let hasCheckedStartupFile = false;
 
 const Home = () => {
-    const { isInstallBlenderOpen, isSettingsOpen, isRestoreSetupOpen, isSyncOpen, setIsInstallBlenderOpen, setIsSettingsOpen, setIsRestoreSetupOpen, setIsSyncOpen } = useUiControlsStore(
+    const { isInstallBlenderOpen, isSettingsOpen, isRestoreSetupOpen, isSyncOpen, isShareSetupOpen, setIsInstallBlenderOpen, setIsSettingsOpen, setIsRestoreSetupOpen, setIsSyncOpen, setIsShareSetupOpen } = useUiControlsStore(
         useShallow((s) => ({
             isInstallBlenderOpen: s.isInstallBlenderOpen,
             isSettingsOpen: s.isSettingsOpen,
             isRestoreSetupOpen: s.isRestoreSetupOpen,
             isSyncOpen: s.isSyncOpen,
+            isShareSetupOpen: s.isShareSetupOpen,
             setIsInstallBlenderOpen: s.setIsInstallBlenderOpen,
             setIsSettingsOpen: s.setIsSettingsOpen,
             setIsRestoreSetupOpen: s.setIsRestoreSetupOpen,
             setIsSyncOpen: s.setIsSyncOpen,
+            setIsShareSetupOpen: s.setIsShareSetupOpen,
         }))
     )
     const { installedBuilds, hasLoadedInstalledBuilds } = useBlenderManagerStore(
@@ -63,13 +66,19 @@ const Home = () => {
         }
     }, []);
 
-    // Escape leaves the Install Blender, Settings, Sync or Restore view, like closing a dialog.
+    // Escape leaves the Install Blender, Settings, Sync, Restore or What to share view, like
+    // closing a dialog; from What to share it goes back to Sync, where it came from.
     useEffect(() => {
-        if (!isInstallBlenderOpen && !isSettingsOpen && !isRestoreSetupOpen && !isSyncOpen) {
+        if (!isInstallBlenderOpen && !isSettingsOpen && !isRestoreSetupOpen && !isSyncOpen && !isShareSetupOpen) {
             return;
         }
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
+                if (isShareSetupOpen) {
+                    setIsShareSetupOpen(false);
+                    setIsSyncOpen(true);
+                    return;
+                }
                 setIsInstallBlenderOpen(false);
                 setIsSettingsOpen(false);
                 setIsRestoreSetupOpen(false);
@@ -78,18 +87,20 @@ const Home = () => {
         };
         document.addEventListener('keydown', onKeyDown);
         return () => document.removeEventListener('keydown', onKeyDown);
-    }, [isInstallBlenderOpen, isSettingsOpen, isRestoreSetupOpen, isSyncOpen]);
+    }, [isInstallBlenderOpen, isSettingsOpen, isRestoreSetupOpen, isSyncOpen, isShareSetupOpen]);
+
+    const isPanelOpen = isSettingsOpen || isRestoreSetupOpen || isSyncOpen || isShareSetupOpen;
 
     return (
         <>
-            <div className={`home ${isInstallBlenderOpen ? 'home--installing' : ''} ${isSettingsOpen || isRestoreSetupOpen || isSyncOpen ? 'home--settings' : ''}`}>
+            <div className={`home ${isInstallBlenderOpen ? 'home--installing' : ''} ${isPanelOpen ? 'home--settings' : ''}`}>
                 <BlenderColumn />
                 <div className='home__main'>
-                    {isRestoreSetupOpen ? <RestoreSetupPanel /> : isSyncOpen ? <SyncPanel /> : isSettingsOpen ? <SettingsPanel /> : isInstallBlenderOpen ? <InstallBlenderPanel /> : isEmpty ? <EmptyState /> : <AddonPanel />}
+                    {isShareSetupOpen ? <ShareSetupPanel /> : isRestoreSetupOpen ? <RestoreSetupPanel /> : isSyncOpen ? <SyncPanel /> : isSettingsOpen ? <SettingsPanel /> : isInstallBlenderOpen ? <InstallBlenderPanel /> : isEmpty ? <EmptyState /> : <AddonPanel />}
                 </div>
-                {/* Settings, Sync, Restore and Install Blender take the middle column on their own;
-                    the Recent Files column and its toggle come back with the Addons view. */}
-                {!isSettingsOpen && !isInstallBlenderOpen && !isRestoreSetupOpen && !isSyncOpen && <RecentFiles />}
+                {/* Settings, Sync, What to share, Restore and Install Blender take the middle column on
+                    their own; the Recent Files column and its toggle come back with the Addons view. */}
+                {!isPanelOpen && !isInstallBlenderOpen && <RecentFiles />}
             </div>
             <LauncherBar />
         </>

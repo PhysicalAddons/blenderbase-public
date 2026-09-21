@@ -56,6 +56,8 @@ A setup is what makes your Blender yours: the Blender versions you have installe
 - **Sync folder**: pick a folder inside Dropbox, OneDrive, iCloud or Google Drive. Every computer saves its setup there and is told when another one saved a newer setup.
 - **Setup file**: one `.bbsetup` file to carry yourself, on a USB stick, in an email, on any drive.
 
+"What to share" at the top of every tab chooses what goes: which installed Blender versions, and per series whether preferences, theme, keymap and addons travel, down to single addons. Everything goes until you untick it; a series with no version ticked is not read at all, which makes sharing quicker.
+
 Blender versions the other computer lacks are downloaded there from the Blender Foundation servers, for that computer's own system. Addons from the extensions platform are installed again by name; addons installed from a file travel with the setup when "Include addon files" is on.
 
 ## Installing

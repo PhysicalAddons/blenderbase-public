@@ -1,0 +1,263 @@
+@use "../color" as *;
+@use "./Home" as *;
+
+// **Share setup panel** (What to share)
+// Takes the middle column like the restore view and mirrors its layout, so both ends of a
+// transfer look the same: one row per installed Blender series, a switch per part, and the
+// series' addons folded under the row.
+$share-switch-width: 104px;
+
+.share_panel {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+
+    .share_panel__toolbar {
+        gap: 0;
+        .cds--btn + .cds--btn {
+            border-left: 1px solid var(--bb-divider);
+        }
+    }
+
+    .share_panel__list_header,
+    .share_row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) $share-switch-width $share-switch-width $share-switch-width $share-switch-width;
+        align-items: center;
+    }
+
+    .share_panel__list_header {
+        margin-left: 0;
+        margin-right: 0;
+        padding: 0 $home-column-inset 0 calc(#{$home-column-inset} + 16px);
+    }
+
+    .share_panel__list {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0 0 24px 0;
+        &::-webkit-scrollbar {
+            display: none;
+        }
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .share_panel__empty,
+    .share_panel__note {
+        padding: 24px calc(#{$home-column-inset} + 16px);
+        color: var(--bb-text-muted);
+        font-size: 14px;
+        line-height: 18px;
+    }
+
+    .share_row {
+        height: $home-row-height;
+        padding-left: calc(#{$home-column-inset} + 16px);
+        padding-right: $home-column-inset;
+        border-bottom: 1px solid var(--bb-border);
+        flex-shrink: 0;
+        &:hover {
+            background: var(--bb-row-hover);
+        }
+        // Every version of the series unticked: its configuration does not travel either.
+        &.share_row--inactive .share_row__label,
+        &.share_row--inactive .share_row__switch {
+            opacity: 0.35;
+        }
+
+        .share_row__main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .share_row__label {
+            font-size: 14px;
+            line-height: 18px;
+            color: var(--bb-text);
+            white-space: nowrap;
+        }
+        // The versions of the series, each with its own tick, on one line.
+        .share_row__versions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: nowrap;
+            overflow: hidden;
+            .cds--form-item {
+                flex: 0 0 auto;
+            }
+            .cds--checkbox-label {
+                padding-inline-start: 22px;
+                min-height: 18px;
+                font-size: 12px;
+                line-height: 18px;
+                color: var(--bb-text-muted);
+                white-space: nowrap;
+            }
+            .cds--checkbox-label::before {
+                width: 14px;
+                height: 14px;
+                margin-block-start: 2px;
+                border-radius: 0;
+                border-color: var(--bb-text-muted);
+            }
+            .cds--checkbox:checked + .cds--checkbox-label::before {
+                background-color: var(--bb-success);
+                border-color: var(--bb-success);
+            }
+            .cds--checkbox-label::after {
+                inset-block-start: 5px;
+                inset-inline-start: 4px;
+                width: 7px;
+                height: 3.5px;
+            }
+        }
+
+        .share_row__switch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            .cds--toggle__label-text,
+            .cds--toggle__text {
+                display: none;
+            }
+            .cds--toggle__appearance {
+                column-gap: 0;
+            }
+            .cds--toggle__switch--checked {
+                background-color: var(--bb-success);
+            }
+        }
+        // "12 of 15": opens the addon list under the row.
+        .share_row__count {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 0 4px;
+            border: none;
+            background: transparent;
+            font-size: 11px;
+            line-height: 12px;
+            color: var(--bb-text-faint);
+            white-space: nowrap;
+            cursor: pointer;
+            svg {
+                fill: currentColor;
+            }
+            &:hover {
+                color: var(--bb-text);
+            }
+            &:focus-visible {
+                outline: 2px solid var(--bb-text);
+                outline-offset: -2px;
+            }
+        }
+        .cds--popover {
+            display: none;
+        }
+    }
+
+    // One addon of the expanded series: tick, name, what kind it is.
+    .share_addon {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        height: 40px;
+        padding-left: calc(#{$home-column-inset} + 40px);
+        padding-right: $home-column-inset;
+        border-bottom: 1px solid var(--bb-border);
+        background: var(--bb-field);
+        flex-shrink: 0;
+        &:hover {
+            background: var(--bb-field-hover);
+        }
+        .cds--checkbox-label {
+            padding-inline-start: 26px;
+            min-height: 20px;
+            font-size: 13px;
+            line-height: 20px;
+            color: var(--bb-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cds--checkbox-label::before {
+            border-radius: 0;
+            border-color: var(--bb-text-muted);
+        }
+        .cds--checkbox:checked + .cds--checkbox-label::before {
+            background-color: var(--bb-success);
+            border-color: var(--bb-success);
+        }
+        .share_addon__meta {
+            font-size: 12px;
+            color: var(--bb-text-muted);
+            white-space: nowrap;
+            padding-left: 16px;
+        }
+    }
+    .share_addon--empty {
+        display: flex;
+        align-items: center;
+        height: 40px;
+        padding-left: calc(#{$home-column-inset} + 40px);
+        border-bottom: 1px solid var(--bb-border);
+        background: var(--bb-field);
+        font-size: 12px;
+        color: var(--bb-text-muted);
+        flex-shrink: 0;
+    }
+
+    // Options that shape the whole setup, under the series: the Settings row look.
+    .share_panel__option {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        height: $home-row-height;
+        padding-left: calc(#{$home-column-inset} + 16px);
+        padding-right: $home-column-inset;
+        margin-top: 24px;
+        border-top: 1px solid var(--bb-border-strong);
+        border-bottom: 1px solid var(--bb-border);
+        flex-shrink: 0;
+        .share_panel__option_main {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .share_panel__option_label {
+            font-size: 14px;
+            line-height: 18px;
+            color: var(--bb-text);
+        }
+        .share_panel__option_text {
+            font-size: 12px;
+            line-height: 14px;
+            color: var(--bb-text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cds--toggle__label-text,
+        .cds--toggle__text {
+            display: none;
+        }
+        .cds--toggle__appearance {
+            column-gap: 0;
+        }
+        .cds--toggle__switch--checked {
+            background-color: var(--bb-success);
+        }
+        .cds--popover {
+            display: none;
+        }
+    }
+}

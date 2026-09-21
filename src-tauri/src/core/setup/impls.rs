@@ -60,6 +60,50 @@ pub struct SetupExportOptions {
     /// without the original download. They are only listed otherwise.
     #[serde(default)]
     pub include_addon_files: bool,
+    /// Installed Blender versions, by their database id, that stay out of the setup. A series
+    /// none of whose versions goes is not read at all.
+    #[serde(default)]
+    pub excluded_version_ids: Vec<String>,
+    /// Per series, what stays out; a series not listed goes whole.
+    #[serde(default)]
+    pub series: BTreeMap<String, SeriesExportChoice>,
+}
+
+/// What of one series goes into the setup. Everything, unless the user unticked it.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SeriesExportChoice {
+    #[serde(default = "yes")]
+    pub preferences: bool,
+    #[serde(default = "yes")]
+    pub theme: bool,
+    #[serde(default = "yes")]
+    pub keymap: bool,
+    #[serde(default = "yes")]
+    pub addons: bool,
+    /// Addons that stay out, by module name (a legacy addon's folder) or extension id.
+    #[serde(default)]
+    pub excluded_addons: Vec<String>,
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Default for SeriesExportChoice {
+    fn default() -> Self {
+        Self { preferences: true, theme: true, keymap: true, addons: true, excluded_addons: Vec::new() }
+    }
+}
+
+impl SeriesExportChoice {
+    /// Whether an addon Blender reported is one the user left out. Blender names an extension
+    /// `bl_ext.<repository>.<id>`; the app's own list knows it by the id, so both forms match.
+    fn leaves_out(&self, module: &str, package: &str) -> bool {
+        let last = module.rsplit('.').next().unwrap_or(module);
+        self.excluded_addons
+            .iter()
+            .any(|x| x == module || (!package.is_empty() && x == package) || x == last)
+    }
 }
 
 /// A setup handed to the relay: the code to type on the other computer.
@@ -213,6 +257,8 @@ struct SeriesStep<'a> {
     series: &'a str,
     pack_directory: &'a Path,
     include_addon_files: bool,
+    /// What of this series goes; `None` means everything.
+    choice: Option<&'a SeriesExportChoice>,
     progress: &'a SetupProgress,
 }
 
@@ -228,6 +274,15 @@ impl TSetupService for SetupServiceImpl {
         let installed = Self::installed_blender_versions(&state).await?;
         if installed.is_empty() {
             return Err(String::from("There is no installed Blender version to save a setup from"));
+        }
+        let installed: Vec<BlenderVersion> = installed
+            .into_iter()
+            .filter(|v| !options.excluded_version_ids.contains(&v.id))
+            .collect();
+        if installed.is_empty() {
+            return Err(String::from(
+                "Every installed Blender version is left out of the setup; tick at least one under What to share",
+            ));
         }
 
         let work_directory =
@@ -639,6 +694,7 @@ impl SetupServiceImpl {
         let bundle_path = bundle_path.to_path_buf();
         let work_directory = work_directory.to_path_buf();
         let include_addon_files = options.include_addon_files;
+        let choices = options.series.clone();
         // Hashing, packing and zipping are blocking file work over what may be hundreds of megabytes.
         let join = tokio::task::spawn_blocking(move || -> Result<SetupBundleInfo, String> {
             let mut warnings: Vec<String> = Vec::new();
@@ -657,6 +713,7 @@ impl SetupServiceImpl {
                     series: &series,
                     pack_directory: &pack_directory,
                     include_addon_files,
+                    choice: choices.get(&series),
                     progress: &progress,
                 };
                 match Self::series_section(captured, &mut writer, &step, &mut warnings) {
@@ -799,13 +856,14 @@ impl SetupServiceImpl {
             captured_with: captured.blender_version.clone(),
             ..SetupSeries::default()
         };
+        let choice = step.choice.cloned().unwrap_or_default();
 
         let has_preferences = captured
             .preferences
             .as_object()
             .map(|groups| !groups.is_empty())
             .unwrap_or(false);
-        if has_preferences {
+        if has_preferences && choice.preferences {
             let json = serde_json::to_vec_pretty(&captured.preferences)
                 .map_err(|e| format!("Could not store the preferences: {}", e))?;
             let (blob, size) = writer.add_blob_from_bytes(&json)?;
@@ -816,8 +874,12 @@ impl SetupServiceImpl {
                 format: Some(String::from(SETUP_PREFERENCES_FORMAT)),
             });
         }
-        section.theme = Self::stored_file(captured.theme, writer)?;
-        section.keymap = Self::stored_file(captured.keymap, writer)?;
+        section.theme = if choice.theme { Self::stored_file(captured.theme, writer)? } else { None };
+        section.keymap = if choice.keymap { Self::stored_file(captured.keymap, writer)? } else { None };
+        if !choice.addons {
+            // No addons, and so no repositories to install them from.
+            return Ok(section);
+        }
 
         // Only remote repositories travel: a local one is a folder on this computer.
         let remote: Vec<&CapturedRepository> = captured
@@ -836,6 +898,9 @@ impl SetupServiceImpl {
             .collect();
 
         for addon in captured.addons {
+            if choice.leaves_out(&addon.module, &addon.package) {
+                continue;
+            }
             let mut entry = SetupAddon {
                 source: SetupAddonSource::Manual,
                 module: addon.module.clone(),
@@ -1023,6 +1088,25 @@ mod tests {
     use crate::core::run_blender_with_env;
 
     #[test]
+    fn a_series_choice_leaves_out_addons_by_module_or_extension_id() {
+        let choice = SeriesExportChoice {
+            excluded_addons: vec![String::from("node_wrangler"), String::from("my_extension")],
+            ..SeriesExportChoice::default()
+        };
+        assert!(choice.leaves_out("node_wrangler", ""));
+        assert!(choice.leaves_out("bl_ext.user_default.my_extension", "my_extension"));
+        assert!(choice.leaves_out("bl_ext.blender_org.my_extension", ""));
+        assert!(!choice.leaves_out("bl_ext.user_default.other", "other"));
+        assert!(!choice.leaves_out("node_wrangler_pro", ""));
+        let whole: SeriesExportChoice = serde_json::from_str("{}").unwrap();
+        assert!(whole.preferences && whole.theme && whole.keymap && whole.addons);
+        let trimmed: SeriesExportChoice = serde_json::from_str(r#"{"theme":false,"excluded_addons":["x"]}"#).unwrap();
+        assert!(trimmed.preferences && !trimmed.theme && trimmed.addons);
+        let options: SetupExportOptions = serde_json::from_str(r#"{"include_addon_files":true}"#).unwrap();
+        assert!(options.excluded_version_ids.is_empty() && options.series.is_empty());
+    }
+
+    #[test]
     fn versions_are_ordered_by_number_not_by_text() {
         use std::cmp::Ordering::*;
         assert_eq!(compare_versions("4.5.10", "4.5.2"), Greater);
@@ -1121,7 +1205,7 @@ print("__MARKER__" + '{"ok": true}')
         }
 
         let progress: SetupProgress = Arc::new(|message: String| println!("  {}", message));
-        let options = SetupExportOptions { include_addon_files: true };
+        let options = SetupExportOptions { include_addon_files: true, ..Default::default() };
         let export = |target: SetupTarget, name: &'static str| {
             let (dir, progress, options) = (dir.clone(), progress.clone(), options.clone());
             async move {

@@ -1,10 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ILanStatus, ISeriesApplyChoice, ISeriesApplyReport, ISetupBundleInfo, ISetupSyncStatus, ITransferSent } from "../models";
+import { ILanStatus, ISeriesApplyChoice, ISeriesApplyReport, ISetupBundleInfo, ISetupExportOptions, ISetupSyncStatus, ITransferSent } from "../models";
 
 export class SetupService {
-    /** Reads the setup out of every installed Blender series (headless runs) and writes it to one file. */
-    public async exportSetupBundle(filePath: string, includeAddonFiles: boolean): Promise<ISetupBundleInfo> {
-        return await invoke("cmd_export_setup_bundle", { filePath, options: { include_addon_files: includeAddonFiles } });
+    /** Reads the chosen parts of the setup out of the installed Blender series (headless runs) and writes them to one file. */
+    public async exportSetupBundle(filePath: string, options: ISetupExportOptions): Promise<ISetupBundleInfo> {
+        return await invoke("cmd_export_setup_bundle", { filePath, options });
     }
 
     /** Reads and verifies a setup file without changing anything. */
@@ -33,8 +33,8 @@ export class SetupService {
     }
 
     /** Saves the setup to the sync folder's file and records it as synced. */
-    public async saveSetupToSyncFolder(includeAddonFiles: boolean): Promise<ISetupBundleInfo> {
-        return await invoke("cmd_save_setup_to_sync_folder", { options: { include_addon_files: includeAddonFiles } });
+    public async saveSetupToSyncFolder(options: ISetupExportOptions): Promise<ISetupBundleInfo> {
+        return await invoke("cmd_save_setup_to_sync_folder", { options });
     }
 
     /** Records that this computer matches the given setup (after applying the folder's file). */
@@ -43,8 +43,8 @@ export class SetupService {
     }
 
     /** Saves the setup, encrypts it under a fresh code and hands it to the relay. */
-    public async sendSetupTransfer(includeAddonFiles: boolean): Promise<ITransferSent> {
-        return await invoke("cmd_send_setup_transfer", { options: { include_addon_files: includeAddonFiles } });
+    public async sendSetupTransfer(options: ISetupExportOptions): Promise<ITransferSent> {
+        return await invoke("cmd_send_setup_transfer", { options });
     }
 
     /** Fetches and decrypts the transfer for a code into the app's transfers folder. */
@@ -63,8 +63,8 @@ export class SetupService {
     }
 
     /** Reads the setup out and shares it on the local network under a fresh PIN. */
-    public async lanShareStart(includeAddonFiles: boolean): Promise<ILanStatus> {
-        return await invoke("cmd_lan_share_start", { options: { include_addon_files: includeAddonFiles } });
+    public async lanShareStart(options: ISetupExportOptions): Promise<ILanStatus> {
+        return await invoke("cmd_lan_share_start", { options });
     }
 
     public async lanShareStop(): Promise<ILanStatus> {

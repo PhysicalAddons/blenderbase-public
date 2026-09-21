@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
-import { ISetupSyncStatus, ITransferSent } from "../models";
+import { ISetupExportOptions, ISetupSyncStatus, ITransferSent } from "../models";
 import { SetupService } from "../services/setupService";
 import { postStatus, postStatusError } from "./statusStore";
 import { useSetupRestoreStore } from "./setupRestoreStore";
@@ -17,8 +17,8 @@ interface ISetupSyncStore {
     hintedHash: string,
     load: () => Promise<void>,
     setFolder: (folderPath: string | null) => Promise<void>,
-    /** Captures the setup and writes it to the folder's file. */
-    save: (includeAddonFiles: boolean) => Promise<void>,
+    /** Captures the chosen parts of the setup and writes them to the folder's file. */
+    save: (options: ISetupExportOptions) => Promise<void>,
     /** Opens the folder's file in the restore view. */
     openForApply: () => Promise<void>,
     /** Records that this computer now matches the folder's file (after applying it). */
@@ -29,8 +29,8 @@ interface ISetupSyncStore {
     sent: ITransferSent | null,
     isSending: boolean,
     isReceiving: boolean,
-    /** Saves the setup and hands it to the relay; the code lands in `sent`. */
-    send: (includeAddonFiles: boolean) => Promise<void>,
+    /** Saves the chosen parts of the setup and hands them to the relay; the code lands in `sent`. */
+    send: (options: ISetupExportOptions) => Promise<void>,
     /** Fetches the transfer for a code and opens it in the restore view. */
     receive: (code: string) => Promise<void>,
 }
@@ -58,12 +58,12 @@ export const useSetupSyncStore = create<ISetupSyncStore>((set, get) => ({
     sent: null,
     isSending: false,
     isReceiving: false,
-    async send(includeAddonFiles) {
+    async send(options) {
         set({ isSending: true, sent: null });
         postStatus("Reading the setup from every Blender series…", true);
         const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
         try {
-            const sent = await setupService.sendSetupTransfer(includeAddonFiles);
+            const sent = await setupService.sendSetupTransfer(options);
             set({ sent });
             postStatus(`Transfer ready · type ${sent.code} on the other computer within 7 days`);
         } catch (e) {
@@ -106,12 +106,12 @@ export const useSetupSyncStore = create<ISetupSyncStore>((set, get) => ({
             postStatusError(`Changing the sync folder failed: ${errorText(e)}`);
         }
     },
-    async save(includeAddonFiles) {
+    async save(options) {
         set({ isBusy: true });
         postStatus("Reading the setup from every Blender series…", true);
         const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
         try {
-            const info = await setupService.saveSetupToSyncFolder(includeAddonFiles);
+            const info = await setupService.saveSetupToSyncFolder(options);
             info.warnings.forEach((w) => console.warn(w));
             set({ hintedHash: info.content_hash });
             await get().load();

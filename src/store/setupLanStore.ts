@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
-import { ILanStatus } from "../models";
+import { ILanStatus, ISetupExportOptions } from "../models";
 import { SetupService } from "../services/setupService";
 import { postStatus, postStatusError } from "./statusStore";
 import { useSetupRestoreStore } from "./setupRestoreStore";
@@ -20,7 +20,7 @@ interface ISetupLanStore {
     refresh: () => Promise<void>,
     /** On while the Local network tab is open; off closes the sockets unless a share is on. */
     browse: (active: boolean) => Promise<void>,
-    share: (includeAddonFiles: boolean) => Promise<void>,
+    share: (options: ISetupExportOptions) => Promise<void>,
     stopShare: () => Promise<void>,
     /** Fetches a peer's setup with its PIN and opens it in the restore view. */
     receive: (peerId: string, pin: string) => Promise<void>,
@@ -80,12 +80,12 @@ export const useSetupLanStore = create<ISetupLanStore>((set, get) => ({
             postStatusError(`Looking for computers on the network failed: ${errorText(e)}`);
         }
     },
-    async share(includeAddonFiles) {
+    async share(options) {
         set({ isStartingShare: true });
         postStatus("Reading the setup from every Blender series…", true);
         const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
         try {
-            const status = await setupService.lanShareStart(includeAddonFiles);
+            const status = await setupService.lanShareStart(options);
             set({ status });
             const share = status.share;
             postStatus(share ? `Sharing on the local network · PIN ${formatPin(share.pin)} · ${share.versions} Blender versions, ${share.series} series` : "Sharing on the local network");
