@@ -30,9 +30,6 @@ const SECTIONS: { id: SyncSection, label: string, when: string }[] = [
 	{ id: 'file', label: 'Setup file', when: 'Use Setup file if you want to carry the setup yourself, on a USB stick, in an email or on any drive' },
 ];
 
-/** The four ways lead to one place; said once, under the rows of whichever is selected. */
-const AFTER_RECEIVING = 'A received setup opens in the restore view, where you choose per Blender series what to apply. Nothing changes until you apply it.';
-
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^cmd_\w+: /, "");
 
 const formatSetupSize = (bytes: number): string => {
@@ -456,7 +453,6 @@ const SyncPanel = () => {
 			<div className='settings_panel__list'>
 				{renderSection()}
 			</div>
-			<p className='sync_panel__note'>{AFTER_RECEIVING}</p>
 		</div>
 	)
 }

@@ -48,8 +48,7 @@ $share-switch-width: 104px;
         scrollbar-width: none;
     }
 
-    .share_panel__empty,
-    .share_panel__note {
+    .share_panel__empty {
         padding: 24px calc(#{$home-column-inset} + 16px);
         color: var(--bb-text-muted);
         font-size: 14px;

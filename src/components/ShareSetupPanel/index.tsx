@@ -244,9 +244,6 @@ const ShareSetupPanel = () => {
 						onToggle={(checked: boolean) => setIncludeAddonFiles(checked)}
 					/>
 				</div>
-				<div className='share_panel__note'>
-					Only what is on goes into the setup. Fewer Blender versions make sharing quicker.
-				</div>
 			</div>
 		</div>
 	)
