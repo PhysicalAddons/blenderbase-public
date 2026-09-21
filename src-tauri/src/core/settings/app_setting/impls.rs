@@ -453,10 +453,25 @@ impl AppSettingsServiceImpl {
         let updater = app
             .updater()
             .map_err(|e| format!("Failed check_for_update: {}", e))?;
-        let update = updater
-            .check()
-            .await
-            .map_err(|e| format!("Failed check_for_update: {}", e))?;
+        // GitHub's download edge answers with a 504 now and then, for minutes after a release
+        // is published; one bad answer is not "no update". Three tries, a few seconds apart.
+        let mut attempt = 0;
+        let update = loop {
+            attempt += 1;
+            match updater.check().await {
+                Ok(update) => break update,
+                Err(e) if attempt < 3 => {
+                    eprintln!("Update check attempt {} failed: {}", attempt, e);
+                    tokio::time::sleep(std::time::Duration::from_secs(3 * attempt)).await;
+                }
+                Err(e) => {
+                    return Err(format!(
+                        "Failed check_for_update: GitHub did not answer with the release list after {} tries ({}). Try again in a minute",
+                        attempt, e
+                    ));
+                }
+            }
+        };
         let Some(update) = update else {
             if interactive {
                 instance_native_ok_dialog_window(
