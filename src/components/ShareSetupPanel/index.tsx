@@ -245,7 +245,7 @@ const ShareSetupPanel = () => {
 					/>
 				</div>
 				<div className='share_panel__note'>
-					Untick a version and it stays out of the setup; a series with no version ticked is not read at all, which makes sharing quicker. The other computer still chooses what to apply.
+					Only what is on goes into the setup. Fewer Blender versions make sharing quicker.
 				</div>
 			</div>
 		</div>
