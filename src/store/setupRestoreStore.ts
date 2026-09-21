@@ -90,6 +90,24 @@ const missingOf = (info: ISetupBundleInfo, installed: IBlenderVersion[]): IMissi
         .filter((v) => !installed.some((b) => b.version === v.version))
         .map((wanted) => ({ id: missingVersionId(wanted), wanted, resolved: null, state: "looking" as MissingVersionState, message: "Looking up the download…" }));
 
+/**
+ * The installed versions, once they have been read at least once. A setup file opened with
+ * the app arrives before that first read, and against an empty list every version looks missing.
+ */
+const installedBuildsLoaded = (): Promise<IBlenderVersion[]> => new Promise((resolve) => {
+    const now = useBlenderManagerStore.getState();
+    if (now.hasLoadedInstalledBuilds) {
+        resolve(now.installedBuilds);
+        return;
+    }
+    const unsubscribe = useBlenderManagerStore.subscribe((state) => {
+        if (state.hasLoadedInstalledBuilds) {
+            unsubscribe();
+            resolve(state.installedBuilds);
+        }
+    });
+});
+
 // Backend errors arrive as "cmd_name: reason"; the status line only needs the reason.
 const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/^cmd_\w+: /, "");
 
@@ -114,7 +132,8 @@ export const useSetupRestoreStore = create<ISetupRestoreStore>((set, get) => ({
             keymap: Boolean(section.keymap),
             addons: restorableAddons(section).length > 0,
         }));
-        set({ info, choices, reports: [], missing: missingOf(info, useBlenderManagerStore.getState().installedBuilds), locationPrompt: null });
+        const installed = await installedBuildsLoaded();
+        set({ info, choices, reports: [], missing: missingOf(info, installed), locationPrompt: null });
         useUiControlsStore.getState().setIsRestoreSetupOpen(true);
         void get().resolveMissingVersions();
     },
