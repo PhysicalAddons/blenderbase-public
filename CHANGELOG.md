@@ -4,6 +4,20 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## 1.3.1
+
+### Added
+- **Settings › About**: who makes Blenderbase, with links to the website,
+  the documentation (the wiki), the community on Discord and the source and
+  issues on GitHub, plus what the app is built with.
+- An info button next to the Settings and Sync titles opens the matching
+  wiki page in your browser.
+
+### Changed
+- **macOS:** the app says why it needs access to the local network, so the
+  permission prompt reads properly, and a refused local connection names
+  the Local Network privacy setting instead of blaming a firewall.
+
 ## 1.3.0
 
 ### Added
