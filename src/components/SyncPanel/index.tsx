@@ -445,9 +445,9 @@ const SyncPanel = () => {
 					))}
 				</div>
 			</div>
-			<p className='sync_panel__way'>{section.when}</p>
+			{/* When the selected way fits, in the list header row: the row lines stay on the grid every column shares. */}
 			<div className='list_header settings_panel__list_header'>
-				<span>Action</span>
+				<span className='sync_panel__way' title={section.when}>{section.when}</span>
 				<span></span>
 			</div>
 			<div className='settings_panel__list'>
