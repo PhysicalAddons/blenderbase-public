@@ -355,3 +355,10 @@ export interface ISeriesApplyReport {
     repositories_added: string[],
     warnings: string[],
 }
+
+/** A setup handed to the transfer relay: the code to type on the other computer. */
+export interface ITransferSent {
+    code: string,
+    size: number,
+    expires: string,
+}

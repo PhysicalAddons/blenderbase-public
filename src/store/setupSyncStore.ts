@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { listen } from "@tauri-apps/api/event";
-import { ISetupSyncStatus } from "../models";
+import { ISetupSyncStatus, ITransferSent } from "../models";
 import { SetupService } from "../services/setupService";
 import { postStatus, postStatusError } from "./statusStore";
 import { useSetupRestoreStore } from "./setupRestoreStore";
@@ -25,6 +25,14 @@ interface ISetupSyncStore {
     markSynced: (contentHash: string) => Promise<void>,
     /** Re-reads the folder and posts a status hint when its file is newer than this computer. */
     checkForNews: () => Promise<void>,
+    /** The last transfer this computer sent, for the code to show. */
+    sent: ITransferSent | null,
+    isSending: boolean,
+    isReceiving: boolean,
+    /** Saves the setup and hands it to the relay; the code lands in `sent`. */
+    send: (includeAddonFiles: boolean) => Promise<void>,
+    /** Fetches the transfer for a code and opens it in the restore view. */
+    receive: (code: string) => Promise<void>,
 }
 
 const setupService = new SetupService();
@@ -47,6 +55,41 @@ export const useSetupSyncStore = create<ISetupSyncStore>((set, get) => ({
     status: null,
     isBusy: false,
     hintedHash: "",
+    sent: null,
+    isSending: false,
+    isReceiving: false,
+    async send(includeAddonFiles) {
+        set({ isSending: true, sent: null });
+        postStatus("Reading the setup from every Blender series…", true);
+        const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
+        try {
+            const sent = await setupService.sendSetupTransfer(includeAddonFiles);
+            set({ sent });
+            postStatus(`Transfer ready · type ${sent.code} on the other computer within 7 days`);
+        } catch (e) {
+            console.error(e);
+            postStatusError(`Sending the setup failed: ${errorText(e)}`);
+        } finally {
+            stopListening();
+            set({ isSending: false });
+        }
+    },
+    async receive(code) {
+        set({ isReceiving: true });
+        postStatus("Fetching the transfer…", true);
+        const stopListening = await listen<string>("setup-progress", (event) => postStatus(event.payload, true));
+        try {
+            const info = await setupService.receiveSetupTransfer(code);
+            postStatus(`Transfer received · ${info.manifest.blender.length} Blender versions, ${Object.keys(info.manifest.series).length} series`);
+            await useSetupRestoreStore.getState().open(info.file_path);
+        } catch (e) {
+            console.error(e);
+            postStatusError(`Receiving the transfer failed: ${errorText(e)}`);
+        } finally {
+            stopListening();
+            set({ isReceiving: false });
+        }
+    },
     async load() {
         try {
             set({ status: await setupService.getSetupSync() });
@@ -109,6 +152,6 @@ export const useSetupSyncStore = create<ISetupSyncStore>((set, get) => ({
         }
         set({ hintedHash: file.content_hash });
         const where = file.meta.device ? ` on ${file.meta.device}` : "";
-        postStatus(`Newer setup in your sync folder, saved${where} · Settings › Setup to apply it`);
+        postStatus(`Newer setup in your sync folder, saved${where} · open Sync to apply it`);
     },
 }));

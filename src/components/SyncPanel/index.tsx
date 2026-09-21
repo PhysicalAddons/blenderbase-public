@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, InlineLoading, Toggle } from '@carbon/react';
-import { TrashCan } from '@carbon/react/icons';
+import { Button, InlineLoading, TextInput, Toggle } from '@carbon/react';
+import { Copy, TrashCan } from '@carbon/react/icons';
 import { listen } from '@tauri-apps/api/event';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
@@ -79,8 +79,12 @@ const SyncPanel = () => {
 	const { syncStatus, isSyncBusy, loadSync, setSyncFolder, saveToSyncFolder, openSyncFile } = useSetupSyncStore(
 		useShallow((s) => ({ syncStatus: s.status, isSyncBusy: s.isBusy, loadSync: s.load, setSyncFolder: s.setFolder, saveToSyncFolder: s.save, openSyncFile: s.openForApply }))
 	)
+	const { sent, isSending, isReceiving, sendTransfer, receiveTransfer } = useSetupSyncStore(
+		useShallow((s) => ({ sent: s.sent, isSending: s.isSending, isReceiving: s.isReceiving, sendTransfer: s.send, receiveTransfer: s.receive }))
+	)
 	const [includeAddonFiles, setIncludeAddonFiles] = useState<boolean>(false)
 	const [isSavingSetup, setIsSavingSetup] = useState<boolean>(false)
+	const [codeDraft, setCodeDraft] = useState<string>("")
 	const listRef = useRef<HTMLDivElement>(null)
 	usePagedScroll(listRef, { rowSelector: '.settings_row' })
 
@@ -88,7 +92,29 @@ const SyncPanel = () => {
 		void loadSync();
 	}, []);
 
-	const isBusy = isSyncBusy || isSavingSetup;
+	const isBusy = isSyncBusy || isSavingSetup || isSending || isReceiving;
+
+	const copyCode = async () => {
+		if (!sent) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(sent.code);
+			postStatus(`Copied ${sent.code}`);
+		} catch (e) {
+			console.error(e);
+			postStatusError("Could not copy the code; select it and copy it by hand");
+		}
+	};
+
+	const sentDescription = (): string => {
+		if (!sent) {
+			return "Uploads this computer's setup, encrypted, and gives you a code to type on the other computer";
+		}
+		const expires = sent.expires ? new Date(sent.expires).toLocaleDateString() : "";
+		const size = sent.size >= 1024 * 1024 ? `${(sent.size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(sent.size / 1024))} KB`;
+		return `Type this code on the other computer${expires ? ` before ${expires}` : ""} · ${size}`;
+	};
 
 	const chooseSyncFolder = async () => {
 		try {
@@ -187,6 +213,40 @@ const SyncPanel = () => {
 					<Row id="sync-apply" label="Setup in the folder" description={folderSet ? describeSyncFile(syncStatus!) : "Choose a folder first"}>
 						<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || !syncStatus?.file} onClick={() => void openSyncFile()}>
 							Apply…
+						</Button>
+					</Row>
+				</Section>
+				<Section title="Transfer code" text="For a computer that is not on the same network and shares no folder: the setup goes through a relay, encrypted with a code only the two computers know. It is removed once it is received, or after 7 days.">
+					<Row id="sync-transfer-send" label={sent ? "Your transfer code" : "Send to another computer"} description={sentDescription()}>
+						{sent && (
+							<>
+								<code className='sync_panel__code'>{sent.code}</code>
+								<Button kind="ghost" size="md" className='settings_location_row__delete' renderIcon={Copy} iconDescription="Copy the code" title="Copy the code" hasIconOnly onClick={() => void copyCode()} />
+							</>
+						)}
+						<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || installedBuilds.length === 0} onClick={() => void sendTransfer(includeAddonFiles)}>
+							{isSending ? "Sending…" : sent ? "Send again" : "Send…"}
+						</Button>
+					</Row>
+					<Row id="sync-transfer-receive" label="Receive with a code" description="Fetches the setup the code stands for and shows what it would apply">
+						<TextInput
+							id="sync-transfer-code"
+							className='sync_panel__code_input'
+							size="md"
+							hideLabel
+							labelText="Transfer code"
+							placeholder="brave-otter-4412"
+							value={codeDraft}
+							disabled={isBusy}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCodeDraft(e.target.value)}
+							onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+								if (e.key === "Enter" && codeDraft.trim().length > 0 && !isBusy) {
+									void receiveTransfer(codeDraft);
+								}
+							}}
+						/>
+						<Button kind="tertiary" size="md" className='settings_row__button' disabled={isBusy || codeDraft.trim().length === 0} onClick={() => void receiveTransfer(codeDraft)}>
+							{isReceiving ? "Receiving…" : "Receive"}
 						</Button>
 					</Row>
 				</Section>

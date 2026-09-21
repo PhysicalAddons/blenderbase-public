@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { ISeriesApplyChoice, ISeriesApplyReport, ISetupBundleInfo, ISetupSyncStatus } from "../models";
+import { ISeriesApplyChoice, ISeriesApplyReport, ISetupBundleInfo, ISetupSyncStatus, ITransferSent } from "../models";
 
 export class SetupService {
     /** Reads the setup out of every installed Blender series (headless runs) and writes it to one file. */
@@ -40,6 +40,16 @@ export class SetupService {
     /** Records that this computer matches the given setup (after applying the folder's file). */
     public async markSetupSynced(contentHash: string): Promise<ISetupSyncStatus> {
         return await invoke("cmd_mark_setup_synced", { contentHash });
+    }
+
+    /** Saves the setup, encrypts it under a fresh code and hands it to the relay. */
+    public async sendSetupTransfer(includeAddonFiles: boolean): Promise<ITransferSent> {
+        return await invoke("cmd_send_setup_transfer", { options: { include_addon_files: includeAddonFiles } });
+    }
+
+    /** Fetches and decrypts the transfer for a code into the app's transfers folder. */
+    public async receiveSetupTransfer(code: string): Promise<ISetupBundleInfo> {
+        return await invoke("cmd_receive_setup_transfer", { code });
     }
 
     /** Puts the newest backup of a series back; resolves with the number of restored files. */

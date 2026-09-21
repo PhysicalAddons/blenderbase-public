@@ -30,4 +30,27 @@
         min-height: $home-row-height;
         border-radius: 0;
     }
+    // The code to read out or copy: large and spaced, selectable.
+    .sync_panel__code {
+        padding: 0 16px;
+        font-size: 18px;
+        letter-spacing: 0.04em;
+        color: var(--bb-text);
+        user-select: text;
+        white-space: nowrap;
+    }
+    // The code field: the same block as the buttons, text at the right next to Receive.
+    .sync_panel__code_input {
+        width: 220px;
+        .cds--text-input {
+            height: $home-row-height;
+            background: var(--bb-field);
+            border-block-end: 1px solid var(--bb-border);
+            border-radius: 0;
+            font-family: inherit;
+        }
+        .cds--text-input__field-wrapper {
+            height: $home-row-height;
+        }
+    }
 }
