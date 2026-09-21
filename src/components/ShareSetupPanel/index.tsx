@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { Button, InlineLoading, Toggle } from '@carbon/react';
+import { Button, InlineLoading, Modal, Toggle } from '@carbon/react';
 import { ArrowLeft, Checkmark, ChevronDown, Reset } from '@carbon/react/icons';
 import { useShallow } from 'zustand/react/shallow';
 import { IAddon, IBlenderVersion } from '../../models';
@@ -43,6 +43,8 @@ const ShareSetupPanel = () => {
 	)
 	/** The series whose addons are unfolded under its row. */
 	const [expanded, setExpanded] = useState<string | null>(null)
+	/** Turning on "Include addon files" first asks the user to own what the files are licensed for. */
+	const [isAcknowledgingFiles, setIsAcknowledgingFiles] = useState<boolean>(false)
 	const [addonsBySeries, setAddonsBySeries] = useState<Record<string, IAddon[]>>({})
 	const [loadingSeries, setLoadingSeries] = useState<string | null>(null)
 
@@ -231,7 +233,7 @@ const ShareSetupPanel = () => {
 				<div className='share_panel__option'>
 					<div className='share_panel__option_main'>
 						<span className='share_panel__option_label'>Include addon files</span>
-						<span className='share_panel__option_text'>Packs addons installed from a file, so they restore without the download; the setup grows by their size</span>
+						<span className='share_panel__option_text'>Packs addons installed from a file, so they restore without the download. For your own computers only: a paid addon is licensed to you</span>
 					</div>
 					<Toggle
 						id="share-addon-files"
@@ -241,9 +243,28 @@ const ShareSetupPanel = () => {
 						labelB=""
 						labelText="Include addon files"
 						toggled={selection.include_addon_files}
-						onToggle={(checked: boolean) => setIncludeAddonFiles(checked)}
+						onToggle={(checked: boolean) => (checked ? setIsAcknowledgingFiles(true) : setIncludeAddonFiles(false))}
 					/>
 				</div>
+				{/* The files of a paid addon are licensed to the user, not to whoever receives the setup;
+				    the switch turns on only after that is acknowledged, every time. */}
+				<Modal
+					open={isAcknowledgingFiles}
+					size="sm"
+					modalHeading="Addon files travel with the setup"
+					modalLabel="Include addon files"
+					primaryButtonText="I understand"
+					secondaryButtonText="Leave files out"
+					onRequestClose={() => setIsAcknowledgingFiles(false)}
+					onRequestSubmit={() => {
+						setIncludeAddonFiles(true);
+						setIsAcknowledgingFiles(false);
+					}}
+				>
+					<p className='location_prompt__text'>
+						The setup will carry the files of every addon that was installed from a file, paid addons included. Those files are licensed to you: put them on your own computers only. Handing them to a computer that is not yours is not allowed by most addon licences, and Blenderbase cannot tell who receives a setup.
+					</p>
+				</Modal>
 			</div>
 		</div>
 	)
