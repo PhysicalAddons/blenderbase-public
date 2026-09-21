@@ -296,7 +296,8 @@ pub async fn run() {
             cmd_lan_browse,
             cmd_lan_share_start,
             cmd_lan_share_stop,
-            cmd_lan_receive
+            cmd_lan_receive,
+            cmd_sweep_blender_installations
         ])
         .build(tauri::generate_context!());
     match app {

@@ -15,7 +15,10 @@ impl<'a> BlenderInstallationLocationRepository<'a> {
         &self,
         blender_installation_location: &BlenderInstallationLocation,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+        // `is_confirmed` is stored too: a location registered from the
+        // first-download prompt or by the sweep is confirmed from the start,
+        // and leaving it at the column default made the prompt come back.
+        sqlx::query(
             "INSERT INTO blender_installation_location
             (
             id,
@@ -28,38 +31,27 @@ impl<'a> BlenderInstallationLocationRepository<'a> {
             write,
             special_permissions,
             directory_path,
+            is_confirmed,
             created_by,
             created,
             modified
-            ) VALUES ( 
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?,
-            ?
-            ) ON CONFLICT(directory_path) DO NOTHING",
-            blender_installation_location.id,
-            blender_installation_location.is_default,
-            blender_installation_location.full_control,
-            blender_installation_location.modify,
-            blender_installation_location.read_and_execute,
-            blender_installation_location.list_folder_contents,
-            blender_installation_location.read,
-            blender_installation_location.write,
-            blender_installation_location.special_permissions,
-            blender_installation_location.directory_path,
-            blender_installation_location.created_by,
-            blender_installation_location.created,
-            blender_installation_location.modified
+            ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+            ON CONFLICT(directory_path) DO NOTHING",
         )
+        .bind(&blender_installation_location.id)
+        .bind(blender_installation_location.is_default)
+        .bind(blender_installation_location.full_control)
+        .bind(blender_installation_location.modify)
+        .bind(blender_installation_location.read_and_execute)
+        .bind(blender_installation_location.list_folder_contents)
+        .bind(blender_installation_location.read)
+        .bind(blender_installation_location.write)
+        .bind(blender_installation_location.special_permissions)
+        .bind(&blender_installation_location.directory_path)
+        .bind(blender_installation_location.is_confirmed)
+        .bind(&blender_installation_location.created_by)
+        .bind(&blender_installation_location.created)
+        .bind(&blender_installation_location.modified)
         .execute(self.pool)
         .await?;
         Ok(())

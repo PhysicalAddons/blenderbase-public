@@ -4,6 +4,8 @@ import { BlenderBuildKind } from "../enums";
 import { fromStrBlenderBuildTypeKind } from "../enums/helpers";
 import { COMPLETED_LOWERCASE, DESC_LOWERCASE } from "../constants";
 import { BlenderService } from "../services/blenderService";
+import { SettingsService } from "../services/settingsService";
+import { sweepStatusMessage } from "../utility/installationSweep";
 import { postStatus, postStatusError } from "./statusStore";
 
 interface IBlenderManagerStore {
@@ -21,6 +23,12 @@ interface IBlenderManagerStore {
     setInstalledBuilds: () => Promise<void>,
     /** Rescans the installation locations on disk, then loads the list. Rejects on failure. */
     refreshInstalledBuilds: () => Promise<void>,
+    /**
+     * The first load of a session: registers Blender installed outside Blenderbase while no
+     * location exists yet (a fresh install), then rescans and loads like `refreshInstalledBuilds`.
+     * A failed sweep is reported in the status line and does not stop the load.
+     */
+    firstLoadInstalledBuilds: () => Promise<void>,
     /** Rejects on failure. */
     setDownloadableBuilds: (build: string) => Promise<void>,
     setActiveDownloadBuildType: (type: IBlenderVersionDownloadBuildTypeFilter | null) => void
@@ -28,6 +36,7 @@ interface IBlenderManagerStore {
 }
 
 const blenderService = new BlenderService();
+const settingsService = new SettingsService();
 
 const fetchInstalled = () =>
     blenderService.fetchBlenderVersions(null, null, null, null, null, DESC_LOWERCASE, [COMPLETED_LOWERCASE]);
@@ -71,6 +80,23 @@ export const useBlenderManagerStore = create<IBlenderManagerStore>((set, get) =>
         // Set before awaiting so a second mount (StrictMode) does not start a second scan.
         set({ hasRefreshedInstalledBuilds: true });
         await blenderService.refreshBlenderVersions();
+        await get().setInstalledBuilds();
+    },
+    async firstLoadInstalledBuilds() {
+        // Set before awaiting so a second mount (StrictMode) does not start a second sweep.
+        set({ hasRefreshedInstalledBuilds: true });
+        let sweepMessage: string | null = null;
+        try {
+            sweepMessage = sweepStatusMessage(await settingsService.sweepBlenderInstallations(true), true);
+        } catch (e) {
+            console.error(e);
+            postStatusError(`Looking for installed Blender versions failed: ${e}`);
+        }
+        await blenderService.refreshBlenderVersions();
+        if (sweepMessage) {
+            // Posted before the list loads: the build-details probe below follows it.
+            postStatus(sweepMessage);
+        }
         await get().setInstalledBuilds();
     },
     async setDownloadableBuilds(build: string) {

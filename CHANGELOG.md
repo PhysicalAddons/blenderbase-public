@@ -4,6 +4,24 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## Unreleased
+
+### Added
+- On the first start, Blender versions already installed on the computer are
+  picked up: the Blender installer's folder in Program Files and Steam's copy
+  on Windows, Applications on macOS, `/opt`, snap and Flatpak on Linux. Their
+  folders appear under Settings › Locations, and **Find installed Blender
+  versions** there runs the same sweep again. Installs elsewhere are still
+  added with **Add location**.
+
+### Changed
+- In What to share, **Include addon files** sits under the list instead of
+  at its end, so it stays in view however many Blender series there are.
+
+### Fixed
+- The first-download prompt asked for the installation folder a second time:
+  the folder registered from the prompt was not stored as confirmed.
+
 ## 1.3.1
 
 ### Added

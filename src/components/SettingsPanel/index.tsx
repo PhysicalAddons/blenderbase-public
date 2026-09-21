@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Dropdown, NumberInput, Toggle } from '@carbon/react';
-import { Add, ArrowLeft, Star, StarFilled, TrashCan } from '@carbon/react/icons';
+import { Add, ArrowLeft, Search, Star, StarFilled, TrashCan } from '@carbon/react/icons';
 import { getVersion } from '@tauri-apps/api/app';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useShallow } from 'zustand/react/shallow';
@@ -14,6 +14,7 @@ import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { ThemePreference, useThemeStore } from '../../store/themeStore';
 import { postStatus, postStatusError } from '../../store/statusStore';
 import { usePagedScroll } from '../../utility/usePagedScroll';
+import { sweepStatusMessage } from '../../utility/installationSweep';
 
 const settingsService = new SettingsService();
 
@@ -238,6 +239,23 @@ const SettingsPanel = () => {
 		}
 	};
 
+	// The sweep the first start runs, on demand: Program Files, Steam, Applications, /opt and so on.
+	const findInstalledVersions = async () => {
+		postStatus("Looking for installed Blender versions…", true);
+		try {
+			const sweep = await settingsService.sweepBlenderInstallations(false);
+			await reloadLocations();
+			await refreshInstalledBuilds();
+			const message = sweepStatusMessage(sweep, false);
+			if (message) {
+				postStatus(message);
+			}
+		} catch (e) {
+			console.error(e);
+			postStatusError(`Looking for installed Blender versions failed: ${errorText(e)}`);
+		}
+	};
+
 	const setLocationAsDefault = async (location: IBlenderInstallationLocation) => {
 		try {
 			// The command toggles from the current state: passing the present value makes it the default.
@@ -305,6 +323,19 @@ const SettingsPanel = () => {
 		</button>
 	);
 
+	// Under it, the sweep of the folders where the Blender installer, Steam and package managers put Blender.
+	const renderFindInstalled = () => (
+		<button
+			type="button"
+			className='settings_location_add'
+			title="Add the folders where Blender is already installed on this computer"
+			onClick={() => void findInstalledVersions()}
+		>
+			<Search size={16} aria-hidden="true" />
+			<span>Find installed Blender versions</span>
+		</button>
+	);
+
 	const renderLocations = () => {
 		if (locations.length === 0) {
 			return (
@@ -315,6 +346,7 @@ const SettingsPanel = () => {
 							: "Loading installation locations…"}
 					</div>
 					{hasLoadedLocations && renderAddLocation()}
+					{hasLoadedLocations && renderFindInstalled()}
 				</>
 			);
 		}
@@ -322,6 +354,7 @@ const SettingsPanel = () => {
 			<>
 				{locations.map((location) => renderLocationRow(location))}
 				{renderAddLocation()}
+				{renderFindInstalled()}
 			</>
 		);
 	};

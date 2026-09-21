@@ -35,6 +35,9 @@ const EmptyState = () => {
             <p className='empty_state__text'>
                 Install a version to manage its addons and open your recent files with it.
             </p>
+            <p className='empty_state__text'>
+                Blender already installed somewhere else? Add its folder under Settings › Locations.
+            </p>
             <Button
                 kind="primary"
                 size="lg"

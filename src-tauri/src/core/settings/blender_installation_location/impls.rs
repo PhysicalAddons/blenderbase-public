@@ -2,8 +2,8 @@ use tauri::AppHandle;
 
 use crate::{
     core::{
-        get_directory_from_file_explorer, get_permission_details,
-        PermissionDetails,
+        detect_blender_installations, get_directory_from_file_explorer, get_permission_details,
+        same_location_path, BlenderInstallServiceImpl, PermissionDetails, TBlenderInstallService,
     },
     database::BlenderInstallationLocation,
     AppState,
@@ -61,6 +61,40 @@ pub trait TBlenderInstallationLocationService {
         state: tauri::State<'_, AppState>,
         directory_path: String,
     ) -> Result<BlenderInstallationLocation, String>;
+    /// Registers the folders where the Blender installer, Steam and the
+    /// package managers put Blender on this machine (see
+    /// [`detect_blender_installations`]) and scans the versions found there.
+    /// None of them becomes the default for downloads: Program Files and its
+    /// relatives are not writable. With `only_when_unregistered` the sweep is
+    /// skipped as soon as any location exists (the first-launch case), so a
+    /// folder the user removed is not added back on every start.
+    async fn sweep_blender_installations(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        only_when_unregistered: bool,
+    ) -> Result<BlenderInstallationSweep, String>;
+}
+
+/// What a sweep found and did; the frontend turns it into a status line.
+#[derive(Debug, Clone, Default, serde::Serialize)]
+pub struct BlenderInstallationSweep {
+    /// True when `only_when_unregistered` was set and a location already
+    /// existed: nothing was looked at.
+    pub skipped: bool,
+    /// Every folder that holds Blender versions, registered now or before.
+    pub locations: Vec<SweptBlenderLocation>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SweptBlenderLocation {
+    pub directory_path: String,
+    /// Where the folder comes from: "Program Files", "Steam", "Applications", ...
+    pub label: String,
+    /// Version folders the sweep found inside it.
+    pub version_count: usize,
+    /// True when this sweep registered the folder, false when it already was a location.
+    pub is_new: bool,
 }
 
 /// Where Blender versions go when the user has not chosen a folder. The
@@ -91,51 +125,31 @@ pub fn default_installation_directory() -> std::path::PathBuf {
 
 pub struct BlenderInstallationLocationServiceImpl;
 
-impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceImpl {
-    async fn register_blender_installation_location(
-        &self,
-        app: AppHandle,
-        state: tauri::State<'_, AppState>,
-        directory_path: String,
+impl BlenderInstallationLocationServiceImpl {
+    /// Inserts `path`, which exists, as a confirmed location after probing its
+    /// access rights. It becomes the default only when `may_become_default`
+    /// is set and no default exists yet.
+    async fn insert_confirmed_location(
+        state: &tauri::State<'_, AppState>,
+        path: String,
+        may_become_default: bool,
     ) -> Result<BlenderInstallationLocation, String> {
-        let path = directory_path.trim().to_string();
-        if path.is_empty() {
-            return Err(String::from("Failed register blender installation location: no directory given"));
-        }
         let blr = state.blender_installation_location_repository();
-        let mut existing = match blr.fetch(None, None, Some(path.clone()), None).await {
-            Ok(v) => v,
-            Err(e) => return Err(format!("Failed register blender installation location: {:?}", e)),
-        };
-        if !existing.is_empty() {
-            let found = existing.remove(0);
-            if found.is_confirmed {
-                return Ok(found);
-            }
-            return self
-                .confirm_blender_installation_location(app, state, found.id, path)
-                .await;
-        }
-        if let Err(e) = std::fs::create_dir_all(&path) {
-            return Err(format!(
-                "Failed register blender installation location: could not create {}: {:?}",
-                path, e
-            ));
-        }
         let all = match blr.fetch(None, None, None, None).await {
             Ok(v) => v,
-            Err(e) => return Err(format!("Failed register blender installation location: {:?}", e)),
+            Err(e) => return Err(format!("{:?}", e)),
         };
+        // The ACL probe spawns PowerShell and waits for it; keep that off the async runtime.
         let probe_path = path.clone();
         let permission_details: PermissionDetails =
             match tokio::task::spawn_blocking(move || get_permission_details(&probe_path)).await {
                 Ok(Ok(v)) => v,
-                Ok(Err(e)) => return Err(format!("Failed register blender installation location: {:?}", e)),
-                Err(e) => return Err(format!("Failed register blender installation location: {:?}", e)),
+                Ok(Err(e)) => return Err(format!("{:?}", e)),
+                Err(e) => return Err(format!("{:?}", e)),
             };
         let entry = BlenderInstallationLocation {
             id: uuid::Uuid::new_v4().to_string(),
-            is_default: !all.iter().any(|l| l.is_default),
+            is_default: may_become_default && !all.iter().any(|l| l.is_default),
             full_control: permission_details.full_control,
             modify: permission_details.modify,
             read_and_execute: permission_details.read_and_execute,
@@ -151,8 +165,113 @@ impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceI
         };
         match blr.insert(&entry).await {
             Ok(_) => Ok(entry),
-            Err(e) => Err(format!("Failed register blender installation location: {:?}", e)),
+            Err(e) => Err(format!("{:?}", e)),
         }
+    }
+}
+
+impl TBlenderInstallationLocationService for BlenderInstallationLocationServiceImpl {
+    async fn register_blender_installation_location(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        directory_path: String,
+    ) -> Result<BlenderInstallationLocation, String> {
+        let path = directory_path.trim().to_string();
+        if path.is_empty() {
+            return Err(String::from("Failed register blender installation location: no directory given"));
+        }
+        let blr = state.blender_installation_location_repository();
+        let all = match blr.fetch(None, None, None, None).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed register blender installation location: {:?}", e)),
+        };
+        let has_default = all.iter().any(|l| l.is_default);
+        if let Some(found) = all
+            .iter()
+            .find(|l| same_location_path(&l.directory_path, &path))
+            .cloned()
+        {
+            // A folder the sweep registered is confirmed but never default. Picked
+            // in the first-download prompt it has to become the default like a new
+            // folder would, or the prompt would come back on every download.
+            if found.is_confirmed && (found.is_default || has_default) {
+                return Ok(found);
+            }
+            return self
+                .confirm_blender_installation_location(app, state, found.id, path)
+                .await;
+        }
+        if let Err(e) = std::fs::create_dir_all(&path) {
+            return Err(format!(
+                "Failed register blender installation location: could not create {}: {:?}",
+                path, e
+            ));
+        }
+        match Self::insert_confirmed_location(&state, path, !has_default).await {
+            Ok(v) => Ok(v),
+            Err(e) => Err(format!("Failed register blender installation location: {}", e)),
+        }
+    }
+
+    async fn sweep_blender_installations(
+        &self,
+        app: AppHandle,
+        state: tauri::State<'_, AppState>,
+        only_when_unregistered: bool,
+    ) -> Result<BlenderInstallationSweep, String> {
+        let blr = state.blender_installation_location_repository();
+        let existing = match blr.fetch(None, None, None, None).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed sweep blender installations: {:?}", e)),
+        };
+        if only_when_unregistered && !existing.is_empty() {
+            return Ok(BlenderInstallationSweep { skipped: true, locations: Vec::new() });
+        }
+        // Folder listings and a registry read: quick, but kept off the async
+        // runtime like the other filesystem probes.
+        let detected = match tokio::task::spawn_blocking(detect_blender_installations).await {
+            Ok(v) => v,
+            Err(e) => return Err(format!("Failed sweep blender installations: {:?}", e)),
+        };
+        let mut locations: Vec<SweptBlenderLocation> = Vec::with_capacity(detected.len());
+        let mut registered_any = false;
+        for found in detected {
+            let is_known = existing
+                .iter()
+                .any(|l| same_location_path(&l.directory_path, &found.directory_path));
+            if !is_known {
+                if let Err(e) =
+                    Self::insert_confirmed_location(&state, found.directory_path.clone(), false).await
+                {
+                    return Err(format!("Failed sweep blender installations: {}", e));
+                }
+                registered_any = true;
+            }
+            locations.push(SweptBlenderLocation {
+                directory_path: found.directory_path,
+                label: found.label,
+                version_count: found.version_dirs.len(),
+                is_new: !is_known,
+            });
+        }
+        if registered_any {
+            // The same pair as `cmd_refresh_blender_versions`: scan the
+            // locations, then pick a default version when none is set.
+            if let Err(e) = BlenderInstallServiceImpl
+                .refresh_blender_versions(app.clone(), state.clone())
+                .await
+            {
+                return Err(format!("Failed sweep blender installations: {}", e));
+            }
+            if let Err(e) = BlenderInstallServiceImpl
+                .set_default_blender_version(app, state)
+                .await
+            {
+                return Err(format!("Failed sweep blender installations: {}", e));
+            }
+        }
+        Ok(BlenderInstallationSweep { skipped: false, locations })
     }
 
     async fn confirm_blender_installation_location(

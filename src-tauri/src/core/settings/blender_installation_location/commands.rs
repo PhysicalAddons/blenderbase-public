@@ -4,7 +4,7 @@ use tauri::AppHandle;
 use crate::{
     core::{
         default_installation_directory, format_command_error, BlenderInstallationLocationServiceImpl,
-        TBlenderInstallationLocationService, COLON_SEPERATOR,
+        BlenderInstallationSweep, TBlenderInstallationLocationService, COLON_SEPERATOR,
     },
     database::BlenderInstallationLocation,
     AppState,
@@ -105,6 +105,24 @@ pub async fn cmd_register_blender_installation_location(
 ) -> Result<BlenderInstallationLocation, String> {
     match BlenderInstallationLocationServiceImpl
         .register_blender_installation_location(app, state, directory_path)
+        .await
+    {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
+/// Registers the folders where Blender is already installed on this machine
+/// and scans them. With `only_when_unregistered` it does nothing once any
+/// location exists (the first-launch call); Settings passes `false`.
+#[named]
+#[tauri::command]
+pub async fn cmd_sweep_blender_installations(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    only_when_unregistered: bool,
+) -> Result<BlenderInstallationSweep, String> {
+    match BlenderInstallationLocationServiceImpl
+        .sweep_blender_installations(app, state, only_when_unregistered)
         .await
     {
         Ok(v) => Ok(v),

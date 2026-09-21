@@ -56,6 +56,10 @@ if-addrs = "0.15"
 tar = "0.4"
 liblzma = { version = "0.4", features = ["static"] }
 
+# Steam's folder is read from the registry to find its Blender install.
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+
 [profile.release]
 lto = true
 codegen-units = 1

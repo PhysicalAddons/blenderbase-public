@@ -70,6 +70,22 @@ export interface IBlenderInstallationLocation {
     modified: string,
 }
 
+/** One folder holding Blender versions, found by the installation sweep. */
+export interface ISweptBlenderLocation {
+    directory_path: string,
+    /** Where the folder comes from: "Program Files", "Steam", "Applications", … */
+    label: string,
+    version_count: number,
+    /** True when the sweep registered the folder; false when it already was a location. */
+    is_new: boolean,
+}
+
+export interface IBlenderInstallationSweep {
+    /** True when the sweep was asked to run only while no location exists, and one did. */
+    skipped: boolean,
+    locations: ISweptBlenderLocation[],
+}
+
 export interface IAppSettingType {
     id: number,
     code: string,

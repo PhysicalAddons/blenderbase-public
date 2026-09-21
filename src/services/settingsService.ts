@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { IAppSetting, IAppSettingType, IBlenderInstallationLocation, IInputValueType } from "../models";
+import { IAppSetting, IAppSettingType, IBlenderInstallationLocation, IBlenderInstallationSweep, IInputValueType } from "../models";
 
 /**
  * Every method rejects when the backend command fails; callers decide how to report it.
@@ -41,6 +41,15 @@ export class SettingsService {
     /** Opens the folder picker. Resolves to the registered location, or null when the picker was cancelled. */
     public async insertBlenderInstallationLocation(): Promise<IBlenderInstallationLocation | null> {
         return await invoke<IBlenderInstallationLocation | null>("cmd_insert_blender_installation_location");
+    }
+
+    /**
+     * Registers the folders where Blender is already installed on this machine (Program Files,
+     * Steam, Applications, /opt, …) and scans them. With `onlyWhenUnregistered` nothing happens
+     * once any location exists: that is the first-launch call.
+     */
+    public async sweepBlenderInstallations(onlyWhenUnregistered: boolean): Promise<IBlenderInstallationSweep> {
+        return await invoke<IBlenderInstallationSweep>("cmd_sweep_blender_installations", { onlyWhenUnregistered });
     }
 
     public async setBlenderInstallationLocationAsDefault(id: string, isDefault: boolean): Promise<void> {

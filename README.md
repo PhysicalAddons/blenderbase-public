@@ -78,6 +78,18 @@ xattr -dr com.apple.quarantine /Applications/Blenderbase.app
 
 Installs of 1.2.0 or newer update themselves. Older installs (1.1.0 and 1.0.x) have to be replaced by hand once; see the [1.2.0 notes](CHANGELOG.md#120).
 
+### First run
+
+On the first start Blenderbase looks in the folders where Blender is usually installed and lists the versions it finds; the status line says where they came from.
+
+| Platform | Folders |
+| --- | --- |
+| Windows | `%ProgramFiles%\Blender Foundation` (the Blender installer), `steamapps\common\Blender` in every Steam library, `%LOCALAPPDATA%\Programs` |
+| macOS | `/Applications` and `~/Applications` (`Blender.app`, or a renamed `Blender 4.x.app`) |
+| Linux | `/opt`, `/usr/lib/blender`, the snap under `/snap/blender` and the Flatpak `org.blender.Blender` |
+
+Blenderbase's own folder from an earlier install is picked up too. These folders appear under **Settings › Locations**; they are not used for downloads, which go to the folder you confirm on the first download. Blender installed anywhere else is added there with **Add location**: choose the folder that *contains* the version folders (or app bundles), not a version folder itself. **Find installed Blender versions** in the same list runs the sweep again later. The Microsoft Store version of Blender cannot be listed, because Windows does not let other apps read or start it.
+
 ## Building from source
 
 Prerequisites:

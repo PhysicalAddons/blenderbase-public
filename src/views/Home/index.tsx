@@ -43,11 +43,13 @@ const Home = () => {
     const isEmpty = hasLoadedInstalledBuilds && installedBuilds.length === 0;
     useRescanOnFocus();
 
-    // First visit: scan the installation locations on disk, then load the list. Later visits
-    // (and StrictMode's second run) only reload; refocusing the window rescans later on.
+    // First visit: pick up Blender installed outside Blenderbase (only while no location is
+    // registered, so once per fresh install), scan the installation locations on disk, then load
+    // the list. Later visits (and StrictMode's second run) only reload; refocusing the window
+    // rescans later on.
     useEffect(() => {
-        const { hasRefreshedInstalledBuilds, refreshInstalledBuilds, setInstalledBuilds } = useBlenderManagerStore.getState();
-        const load = hasRefreshedInstalledBuilds ? setInstalledBuilds : refreshInstalledBuilds;
+        const { hasRefreshedInstalledBuilds, firstLoadInstalledBuilds, setInstalledBuilds } = useBlenderManagerStore.getState();
+        const load = hasRefreshedInstalledBuilds ? setInstalledBuilds : firstLoadInstalledBuilds;
         load()
             .then(() => useSetupSyncStore.getState().checkForNews())
             .catch((e) => {
