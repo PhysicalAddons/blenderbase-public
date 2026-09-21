@@ -25,8 +25,8 @@ use super::{
 use crate::{
     core::{
         extract_json_payload, py_string_literal, resolve_blender_console_executable,
-        run_blender_python_with_env, run_blender_with_env, ADDON_KIND_ADDON, ADDON_KIND_CORE,
-        ADDON_KIND_EXTENSION, BLENDERBASE_JSON_MARKER,
+        run_blender_python_with_env, ADDON_KIND_ADDON, ADDON_KIND_CORE, ADDON_KIND_EXTENSION,
+        BLENDERBASE_JSON_MARKER,
     },
     database::BlenderVersion,
     AppState,
@@ -688,6 +688,7 @@ pub fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::run_blender_with_env;
 
     #[test]
     fn versions_are_ordered_by_number_not_by_text() {

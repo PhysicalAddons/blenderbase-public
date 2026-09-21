@@ -54,6 +54,101 @@ $restore-switch-width: 104px;
         line-height: 18px;
     }
 
+    // Heading of the missing-versions list, in the place of a second list header.
+    .restore_panel__section {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 24px calc(#{$home-column-inset} + 16px) 12px calc(#{$home-column-inset} + 16px);
+        border-bottom: 1px solid var(--bb-border-strong);
+        .restore_panel__section_title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--bb-text);
+        }
+        .restore_panel__section_text {
+            font-size: 12px;
+            line-height: 14px;
+            color: var(--bb-text-muted);
+        }
+    }
+
+    // One version to download: number and channel over the resolver's line, the button at the right.
+    .restore_missing {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        height: $home-row-height;
+        padding-left: calc(#{$home-column-inset} + 16px);
+        padding-right: 0;
+        border-bottom: 1px solid var(--bb-border);
+        flex-shrink: 0;
+        &:hover {
+            background: var(--bb-row-hover);
+        }
+        &.restore_missing--unavailable .restore_missing__label {
+            color: var(--bb-text-muted);
+        }
+        .restore_missing__main {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .restore_missing__label {
+            font-size: 14px;
+            line-height: 18px;
+            color: var(--bb-text);
+            white-space: nowrap;
+        }
+        .restore_missing__meta {
+            font-size: 12px;
+            line-height: 14px;
+            color: var(--bb-text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .restore_missing__action {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            height: 100%;
+        }
+        .restore_missing__installed {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 $home-column-inset;
+            color: var(--bb-success);
+            font-size: 14px;
+            svg {
+                fill: currentColor;
+            }
+        }
+        // The same block as the download buttons of the Install Blender list.
+        .cds--btn.restore_missing__button {
+            height: $home-row-height;
+            min-height: $home-row-height;
+            min-width: 176px;
+            border-radius: 0;
+            border: none;
+            background: var(--bb-field);
+            color: var(--bb-text);
+            &:hover {
+                background: var(--bb-field-hover);
+            }
+            &:disabled,
+            &:disabled:hover {
+                background: var(--bb-field);
+                color: var(--bb-text-muted);
+            }
+            &:focus:not(:focus-visible) {
+                box-shadow: none;
+            }
+        }
+    }
+
     .restore_row {
         height: $home-row-height;
         padding-left: calc(#{$home-column-inset} + 16px);

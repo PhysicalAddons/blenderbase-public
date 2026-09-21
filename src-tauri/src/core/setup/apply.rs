@@ -445,41 +445,22 @@ pub async fn undo_last_apply(target: &SetupTarget, backups_directory: &Path) -> 
 }
 
 /// Blender writes its preferences when it quits or saves them, which would undo an apply (or
-/// be undone by it), so nothing is written into a profile while a Blender is open.
+/// be undone by it), so nothing is written into a profile while a Blender is open. The process
+/// list is read in this process: spawning `tasklist` for it looked like reconnaissance to at
+/// least one antivirus.
 pub async fn is_blender_running() -> bool {
-    #[cfg(target_os = "windows")]
-    let probe = {
-        let mut command = tokio::process::Command::new("tasklist");
-        command.args(["/FI", "IMAGENAME eq blender.exe", "/FO", "CSV", "/NH"]);
-        command.creation_flags(crate::core::CREATE_NO_WINDOW_FLAG);
-        command
-    };
-    #[cfg(target_os = "macos")]
-    let probe = {
-        let mut command = tokio::process::Command::new("pgrep");
-        command.args(["-x", "Blender"]);
-        command
-    };
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    let probe = {
-        let mut command = tokio::process::Command::new("pgrep");
-        command.args(["-x", "blender"]);
-        command
-    };
-    let mut probe = probe;
-    match probe.output().await {
-        Ok(output) => {
-            let listed = String::from_utf8_lossy(&output.stdout).to_lowercase();
-            if cfg!(target_os = "windows") {
-                listed.contains("blender.exe")
-            } else {
-                output.status.success() && !listed.trim().is_empty()
-            }
-        }
-        // Without the probe there is no evidence either way; the apply itself stays safe to
-        // repeat, so it is not blocked.
-        Err(_) => false,
-    }
+    let probe = tokio::task::spawn_blocking(|| {
+        use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
+        let mut system = System::new();
+        system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+        system.processes().values().any(|process| {
+            let name = process.name().to_string_lossy().to_ascii_lowercase();
+            name == "blender" || name == "blender.exe"
+        })
+    });
+    // Without a process list there is no evidence either way; the apply itself stays safe to
+    // repeat, so it is not blocked.
+    probe.await.unwrap_or(false)
 }
 
 /// File name (and so the preset name in Blender's menu) a restored theme is installed under.
