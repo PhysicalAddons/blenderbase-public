@@ -21,7 +21,7 @@ export const cmd_check_internet_connection_STATUS_SENTANCE_CASE = "Check interne
 export const JOIN_THE_COMMUNITY_SENTANCE_CASE = "Join the community";
 export const DISCORD_COM_INVITE = "https://discord.com/invite/4pseCn9pys";
 /** The wiki page that explains the four ways to share a setup; the Sync view links to it. */
-export const SYNC_DOCUMENTATION_URL = "https://github.com/PhysicalAddons/blenderbase-public/wiki/10.-Sync";
+export const SYNC_DOCUMENTATION_URL = "https://github.com/PhysicalAddons/blenderbase-public/wiki/09.-Sync";
 export const STATUS_OFF = "off"
 export const STATUS_ON = "on"
 /** File-picker filter for Blenderbase setup files. */
