@@ -16,6 +16,7 @@
         "width": 1280,
         "height": 800,
         "decorations": false,
+        "dragDropEnabled": false,
         "label": "main",
         "devtools": true
       }

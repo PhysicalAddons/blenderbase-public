@@ -4,6 +4,18 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## Unreleased
+
+### Added
+- An addon can be applied to another installed Blender version: drag it from
+  the Addons list onto a version in the Blender column, or right-click it and
+  pick the version under **Apply to**. Its files are copied into that
+  version's series folder (a symlinked addon is linked to the same source
+  folder) and the addon is enabled there. Builds of one series (4.4.0 and
+  4.4.3, say) share their addons already, so the menu lists each series once
+  and rows of the addon's own series take no drop. When the target already
+  has the addon, Blenderbase asks before replacing it.
+
 ## 1.3.2
 
 ### Added
@@ -74,6 +86,7 @@ copied into the GitHub release by the release workflow, so keep the
 ### Changed
 - The README says what leaves the computer: nothing, unless you send a
   transfer code, and then only the encrypted setup.
+
 
 ## 1.2.9
 

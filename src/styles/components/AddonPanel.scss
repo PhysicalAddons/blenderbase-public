@@ -66,8 +66,17 @@
         padding-right: $home-column-inset;
         border-bottom: 1px solid var(--bb-border);
         flex-shrink: 0;
+        user-select: none;
         &:hover {
             background: var(--bb-row-hover);
+        }
+        // Rows can be dragged onto a Blender version; the name cell says so, the row being
+        // dragged fades while its ghost travels.
+        &[draggable="true"] .addon_row__name {
+            cursor: grab;
+        }
+        &.addon_row--dragging {
+            opacity: 0.5;
         }
 
         .addon_row__name {

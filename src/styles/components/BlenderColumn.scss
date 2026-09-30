@@ -76,6 +76,25 @@
             background: var(--bb-selected, var(--bb-field));
             border-left-color: $primary-color;
         }
+        // While an addon is dragged from the Addons column: rows of other series take the
+        // drop (tinted), the row under the pointer is framed, and rows of the addon's own
+        // series step back, since they read the same folder and have the addon already.
+        &.blender_row--drop-target {
+            background: var(--bb-tag-new-bg);
+        }
+        &.blender_row--drop-over {
+            background: var(--bb-tag-new-bg);
+            box-shadow: inset 0 0 0 2px var(--bb-primary);
+        }
+        &.blender_row--drop-blocked {
+            opacity: 0.35;
+        }
+        // The row as a whole takes the drop, so its children stay out of the drag events.
+        &.blender_row--drop-target > *,
+        &.blender_row--drop-over > *,
+        &.blender_row--drop-blocked > * {
+            pointer-events: none;
+        }
 
         .blender_row__main {
             display: flex;

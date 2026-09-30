@@ -47,6 +47,22 @@ const AppContent = () => {
             window.removeEventListener("focus", checkInternetConnectionHandler);
         };
     }, []);
+    // The webview's own drag-and-drop handling is off (dragDropEnabled in tauri.conf.json):
+    // dragging addons between the columns needs that on Windows. Without it a file dropped
+    // on the window would be opened in place of the app, so file drops are swallowed here.
+    useEffect(() => {
+        const swallowFileDrop = (e: DragEvent) => {
+            if (e.dataTransfer?.types.includes("Files")) {
+                e.preventDefault();
+            }
+        };
+        document.addEventListener("dragover", swallowFileDrop);
+        document.addEventListener("drop", swallowFileDrop);
+        return () => {
+            document.removeEventListener("dragover", swallowFileDrop);
+            document.removeEventListener("drop", swallowFileDrop);
+        };
+    }, []);
     const fetchVersion = async () => {
         try {
             setAppVersion(await getVersion());

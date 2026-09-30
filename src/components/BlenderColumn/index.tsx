@@ -5,8 +5,10 @@ import { useShallow } from 'zustand/react/shallow';
 import { IBlenderVersion } from '../../models';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
+import { useAddonStore } from '../../store/addonStore';
 import { BlenderService } from '../../services/blenderService';
-import { blenderVersionLabel, buildChannel, describeBuildVariant, formatBuildDate, resolveSelectedBlenderVersion, shortHash } from '../../utility';
+import { addonLabel, applyTargetOf, blenderVersionLabel, buildChannel, describeApplyTargets, describeBuildVariant, formatBuildDate, resolveSelectedBlenderVersion, shareAddonFolder, shortHash } from '../../utility';
+import { applyAddonToVersion, dragStartHint, postDragHint } from '../../utility/applyAddon';
 import { usePagedScroll } from '../../utility/usePagedScroll';
 import { showContextMenu } from '../../utility/contextMenu';
 import { postStatus, postStatusError } from '../../store/statusStore';
@@ -45,10 +47,15 @@ const BlenderColumn = () => {
 			setSelectedBlenderVersionId: s.setSelectedBlenderVersionId,
 		}))
 	)
+	const { draggingAddon, setDraggingAddon } = useAddonStore(
+		useShallow((s) => ({ draggingAddon: s.draggingAddon, setDraggingAddon: s.setDraggingAddon }))
+	)
 
 	const listRef = useRef<HTMLDivElement>(null)
 	usePagedScroll(listRef, { rowSelector: '.blender_row' })
 	const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+	/** The row an addon is being dragged over. */
+	const [dragOverId, setDragOverId] = useState<string | null>(null)
 
 	/** Rescans the installation locations on disk and reloads the list. */
 	const refreshInstalled = async () => {
@@ -79,6 +86,59 @@ const BlenderColumn = () => {
 	}
 
 	const selectedVersion = resolveSelectedBlenderVersion(installedBuilds, selectedBlenderVersionId);
+
+	// Dropping an addon on a row applies it to that row's series. Rows of the addon's own
+	// series take no drop: they read the same folder and have it already.
+	const dragSource = draggingAddon
+		? installedBuilds.find((x) => x.id === draggingAddon.parent_blender_version_id) ?? selectedVersion
+		: undefined;
+	const takesDrop = (x: IBlenderVersion): boolean =>
+		draggingAddon !== null && (dragSource === undefined || !shareAddonFolder(dragSource, x));
+	const dragOverRow = (e: React.DragEvent<HTMLDivElement>, x: IBlenderVersion) => {
+		if (draggingAddon === null) {
+			return;
+		}
+		const ok = takesDrop(x);
+		if (ok) {
+			e.preventDefault();
+			e.dataTransfer.dropEffect = 'copy';
+		}
+		if (dragOverId !== x.id) {
+			setDragOverId(x.id);
+			postDragHint(ok
+				? `Apply ${addonLabel(draggingAddon)} to ${applyTargetOf(installedBuilds, x).label}`
+				: `Blender ${blenderVersionLabel(x)} shares its addons with Blender ${blenderVersionLabel(dragSource)}, so ${addonLabel(draggingAddon)} is there already`);
+		}
+	};
+	const dragLeaveRow = (e: React.DragEvent<HTMLDivElement>, x: IBlenderVersion) => {
+		// Moving onto a child of the row is not leaving it.
+		if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) {
+			return;
+		}
+		if (draggingAddon !== null && dragOverId === x.id) {
+			setDragOverId(null);
+			postDragHint(dragStartHint(draggingAddon, describeApplyTargets(installedBuilds, dragSource).length > 0));
+		}
+	};
+	const dropOnRow = (e: React.DragEvent<HTMLDivElement>, x: IBlenderVersion) => {
+		e.preventDefault();
+		const addon = draggingAddon;
+		const ok = takesDrop(x);
+		setDragOverId(null);
+		setDraggingAddon(null);
+		if (addon !== null && ok) {
+			void applyAddonToVersion(addon, x);
+		}
+	};
+	const dropStateOf = (x: IBlenderVersion): string => {
+		if (draggingAddon === null) {
+			return "";
+		}
+		if (!takesDrop(x)) {
+			return "blender_row--drop-blocked";
+		}
+		return dragOverId === x.id ? "blender_row--drop-over" : "blender_row--drop-target";
+	};
 
 	const selectVersion = (id: string) => {
 		setSelectedBlenderVersionId(id);
@@ -177,9 +237,13 @@ const BlenderColumn = () => {
 					return (
 						<div
 							key={x.id}
-							className={`blender_row ${isSelected ? "blender_row--selected" : ""}`}
+							className={`blender_row ${isSelected ? "blender_row--selected" : ""} ${dropStateOf(x)}`}
 							title={`Blender ${blenderVersionLabel(x)}`}
 							onClick={() => selectVersion(x.id)}
+							onDragEnter={(e) => dragOverRow(e, x)}
+							onDragOver={(e) => dragOverRow(e, x)}
+							onDragLeave={(e) => dragLeaveRow(e, x)}
+							onDrop={(e) => dropOnRow(e, x)}
 							onContextMenu={(e) => showContextMenu(e, [
 								{ text: 'Open file location', action: () => { void revealBlenderVersion(x.id); } },
 								{ text: 'Rescan installed versions', action: () => { void refreshInstalled(); } },

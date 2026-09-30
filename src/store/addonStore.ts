@@ -1,6 +1,8 @@
 import { create } from "zustand";
-import { IAddon } from "../models";
+import { IAddon, IBlenderVersion } from "../models";
 import { AddonService } from "../services/addonService";
+import { addonLabel, applyTargetOf } from "../utility";
+import { useBlenderManagerStore } from "./blenderManagerStore";
 import { postStatus, postStatusError } from "./statusStore";
 
 interface IAddonStore {
@@ -13,13 +15,23 @@ interface IAddonStore {
     isBusy: boolean,
     lastError: string | null,
     /**
-     * Blender versions launched since their addons were last read. Addons installed or removed
-     * inside Blender's Preferences only show up after a re-read, so these are read again
-     * instead of served from the cache: on the next window focus for the selected version,
-     * or when the version is selected later.
+     * Blender versions whose addons may have changed since they were last read: launched
+     * from Blenderbase since then (addons installed or removed in Preferences only show up
+     * after a re-read), or sharing a series folder with a build that just received an addon.
+     * These are read again instead of served from the cache: on the next window focus for
+     * the selected version, or when the version is selected later.
      */
     launchedSinceReadIds: string[],
     noteBlenderLaunched: (blenderVersionId: string) => void,
+    markAddonsStale: (blenderVersionIds: string[]) => void,
+    /** The addon being dragged towards the Blender column, while a drag is in progress. */
+    draggingAddon: IAddon | null,
+    setDraggingAddon: (addon: IAddon | null) => void,
+    /**
+     * Copies (or re-links) an addon into the series of `target` and enables it there. Resolves
+     * "exists" when that series has it already and `replace` is false; nothing was changed then.
+     */
+    applyAddon: (addon: IAddon, target: IBlenderVersion, replace: boolean) => Promise<"applied" | "exists" | "failed">,
     loadAddons: (blenderVersionId: string) => Promise<void>,
     refreshAddons: (blenderVersionId: string) => Promise<void>,
     toggleAddon: (id: string, isEnabled: boolean) => Promise<void>,
@@ -44,12 +56,16 @@ export const useAddonStore = create<IAddonStore>((set, get) => ({
     isBusy: false,
     lastError: null,
     launchedSinceReadIds: [],
+    draggingAddon: null,
 
-    noteBlenderLaunched: (blenderVersionId) => set((state) => ({
-        launchedSinceReadIds: state.launchedSinceReadIds.includes(blenderVersionId)
-            ? state.launchedSinceReadIds
-            : [...state.launchedSinceReadIds, blenderVersionId],
+    markAddonsStale: (blenderVersionIds) => set((state) => ({
+        launchedSinceReadIds: [
+            ...state.launchedSinceReadIds,
+            ...blenderVersionIds.filter((id) => !state.launchedSinceReadIds.includes(id)),
+        ],
     })),
+    noteBlenderLaunched: (blenderVersionId) => get().markAddonsStale([blenderVersionId]),
+    setDraggingAddon: (addon) => set({ draggingAddon: addon }),
 
     /** Shows the cached list immediately, and scans with Blender when nothing is cached yet
      *  or the version has been launched since the last read. */
@@ -202,5 +218,35 @@ export const useAddonStore = create<IAddonStore>((set, get) => ({
         }
     },
 
-    clear: () => set({ addons: [], loadedForBlenderVersionId: null, requestedBlenderVersionId: null, isBusy: false, lastError: null }),
+    async applyAddon(addon, target, replace) {
+        const label = addonLabel(addon);
+        const group = applyTargetOf(useBlenderManagerStore.getState().installedBuilds, target);
+        // What Blender ships itself is not copied, only switched on over there.
+        const isCore = addon.variant_type === "core";
+        const doing = isCore ? `Enabling ${label} in ${group.label}` : `Applying ${label} to ${group.label}`;
+        const done = isCore ? `Enabled ${label} in ${group.label}` : `Applied ${label} to ${group.label}`;
+        set({ isBusy: true, lastError: null });
+        postStatus(`${doing}…`, true);
+        try {
+            const outcome = await addonService.applyAddon(addon.id, target.id, replace);
+            if (outcome.kind === "exists") {
+                postStatus(`${group.label} already has ${label}`);
+                return "exists";
+            }
+            // The backend re-read the target build's list; the other builds of its series see
+            // the same folder but still hold their cached lists.
+            get().markAddonsStale(group.versions.filter((x) => x.id !== target.id).map((x) => x.id));
+            postStatus(done);
+            return "applied";
+        } catch (e) {
+            console.error(e);
+            set({ lastError: errorText(e) });
+            postStatusError(`${doing} failed: ${errorText(e)}`);
+            return "failed";
+        } finally {
+            set({ isBusy: false });
+        }
+    },
+
+    clear: () => set({ addons: [], loadedForBlenderVersionId: null, requestedBlenderVersionId: null, isBusy: false, lastError: null, draggingAddon: null }),
 }));

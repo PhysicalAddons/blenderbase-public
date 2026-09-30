@@ -252,6 +252,11 @@ export interface IAddon {
     modified: string,
 }
 
+/** What applying an addon to another Blender series did. */
+export type IApplyAddonOutcome =
+    | { kind: "applied" }
+    | { kind: "exists", path: string };
+
 /** Applies a changed setting; resolves with an error message when the backend refuses it. */
 export type SettingHandler = (appSetting: IAppSetting) => Promise<string | undefined>;
 

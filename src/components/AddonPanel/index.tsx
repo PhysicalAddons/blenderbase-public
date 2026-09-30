@@ -3,11 +3,12 @@ import { Button, Dropdown, InlineLoading, Search, Toggle } from '@carbon/react';
 import { Add, Link, TrashCan } from '@carbon/react/icons';
 import { ask, open } from '@tauri-apps/plugin-dialog';
 import { IAddon } from '../../models';
-import { showContextMenu } from '../../utility/contextMenu';
+import { IContextMenuEntry, showContextMenu } from '../../utility/contextMenu';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
 import { useAddonStore } from '../../store/addonStore';
-import { resolveSelectedBlenderVersion } from '../../utility';
+import { describeApplyTargets, resolveSelectedBlenderVersion } from '../../utility';
+import { ADDON_DRAG_TYPE, applyAddonToVersion, clearDragHints, dragStartHint, postDragHint } from '../../utility/applyAddon';
 import { usePagedScroll } from '../../utility/usePagedScroll';
 import { useShallow } from 'zustand/react/shallow';
 import RecentFilesToggle from '../RecentFiles/Actions/Button';
@@ -38,11 +39,12 @@ const kindLabel = (a: IAddon): string => {
 const AddonPanel = () => {
 	const installedBuilds = useBlenderManagerStore((s) => s.installedBuilds)
 	const selectedBlenderVersionId = useUiControlsStore((s) => s.selectedBlenderVersionId)
-	const { addons, isBusy, loadedForBlenderVersionId, loadAddons, refreshAddons, toggleAddon, installAddon, symlinkAddon, deleteAddon, revealAddon, clear } = useAddonStore(
+	const { addons, isBusy, loadedForBlenderVersionId, draggingAddon, loadAddons, refreshAddons, toggleAddon, installAddon, symlinkAddon, deleteAddon, revealAddon, setDraggingAddon, clear } = useAddonStore(
 		useShallow((s) => ({
 			addons: s.addons,
 			isBusy: s.isBusy,
 			loadedForBlenderVersionId: s.loadedForBlenderVersionId,
+			draggingAddon: s.draggingAddon,
 			loadAddons: s.loadAddons,
 			refreshAddons: s.refreshAddons,
 			toggleAddon: s.toggleAddon,
@@ -50,17 +52,11 @@ const AddonPanel = () => {
 			symlinkAddon: s.symlinkAddon,
 			deleteAddon: s.deleteAddon,
 			revealAddon: s.revealAddon,
+			setDraggingAddon: s.setDraggingAddon,
 			clear: s.clear,
 		}))
 	)
 
-	const rereadItem = () => ({ text: 'Re-read addons from Blender', action: () => { if (selectedId !== null) { void refreshAddons(selectedId); } } });
-	/** Native right-click menu for an addon row. */
-	const showRowMenu = (e: React.MouseEvent, a: IAddon) =>
-		showContextMenu(e, [
-			{ text: 'Open file location', action: () => { void revealAddon(a.id); } },
-			rereadItem(),
-		]);
 	const [searchText, setSearchText] = useState<string>("")
 	const [typeFilter, setTypeFilter] = useState<ITypeFilter>(TYPE_FILTERS[0])
 	const listRef = useRef<HTMLDivElement>(null)
@@ -68,6 +64,43 @@ const AddonPanel = () => {
 
 	const selectedVersion = resolveSelectedBlenderVersion(installedBuilds, selectedBlenderVersionId);
 	const selectedId = selectedVersion?.id ?? null;
+	/** The other installed series, where an addon of the selected version can be applied. */
+	const applyTargets = useMemo(() => describeApplyTargets(installedBuilds, selectedVersion), [installedBuilds, selectedId]);
+
+	const rereadItem = (): IContextMenuEntry => ({ text: 'Re-read addons from Blender', action: () => { if (selectedId !== null) { void refreshAddons(selectedId); } } });
+	/** One entry per other installed series: builds of one series share their addons, so a series is applied to as a whole. */
+	const applyToSubmenu = (a: IAddon): IContextMenuEntry => ({
+		text: 'Apply to',
+		enabled: !isBusy,
+		items: applyTargets.length === 0
+			? [{ text: 'No other Blender series installed', action: () => {}, enabled: false }]
+			: applyTargets.map((t) => ({ text: t.label, action: () => { void applyAddonToVersion(a, t.version); } })),
+	});
+	/** Native right-click menu for an addon row. */
+	const showRowMenu = (e: React.MouseEvent, a: IAddon) =>
+		showContextMenu(e, [
+			{ text: 'Open file location', action: () => { void revealAddon(a.id); } },
+			applyToSubmenu(a),
+			{ separator: true },
+			rereadItem(),
+		]);
+
+	/** Starts dragging a row towards the Blender column. The store carries the addon; the payload only marks the drag as ours. */
+	const beginDrag = (e: React.DragEvent<HTMLDivElement>, a: IAddon) => {
+		e.dataTransfer.setData(ADDON_DRAG_TYPE, a.id);
+		e.dataTransfer.effectAllowed = 'copy';
+		// The ghost is the name cell, not the whole row.
+		const name = e.currentTarget.querySelector('.addon_row__name');
+		if (name instanceof HTMLElement) {
+			e.dataTransfer.setDragImage(name, 16, name.offsetHeight / 2);
+		}
+		setDraggingAddon(a);
+		postDragHint(dragStartHint(a, applyTargets.length > 0));
+	};
+	const endDrag = () => {
+		setDraggingAddon(null);
+		clearDragHints();
+	};
 
 	useEffect(() => {
 		if (selectedId === null) {
@@ -147,7 +180,7 @@ const AddonPanel = () => {
 	}
 
 	const subtitle = selectedVersion
-		? (isCurrent && !isBusy ? `${addons.length} addons` : " ")
+		? (isCurrent && !isBusy ? `${addons.length} addons` : " ")
 		: "Select a Blender version to see its addons";
 
 	return (
@@ -227,7 +260,15 @@ const AddonPanel = () => {
 							: "No addons match the current filter."}
 					</div>
 				) : visibleAddons.map((a) => (
-					<div key={a.id} className='addon_row' title={a.description ?? a.name ?? ""} onContextMenu={(e) => showRowMenu(e, a)}>
+					<div
+						key={a.id}
+						className={`addon_row ${draggingAddon?.id === a.id ? 'addon_row--dragging' : ''}`}
+						title={a.description ?? a.name ?? ""}
+						draggable={!isBusy}
+						onDragStart={(e) => beginDrag(e, a)}
+						onDragEnd={endDrag}
+						onContextMenu={(e) => showRowMenu(e, a)}
+					>
 						<div className='addon_row__name'>
 							<span className='addon_row__label'>{a.name || a.functional_name}</span>
 							{a.is_symbolic_link && (

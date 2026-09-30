@@ -2,7 +2,7 @@ use function_name::named;
 use tauri::AppHandle;
 
 use crate::{
-    core::{format_command_error, AddonServiceImpl, TAddonService, COLON_SEPERATOR},
+    core::{format_command_error, AddonServiceImpl, ApplyAddonOutcome, TAddonService, COLON_SEPERATOR},
     database::Addon,
     AppState,
 };
@@ -109,6 +109,26 @@ pub async fn cmd_reveal_addon_in_file_explorer(
 ) -> Result<(), String> {
     match AddonServiceImpl
         .reveal_addon_in_file_explorer(app, state, id)
+        .await
+    {
+        Ok(v) => Ok(v),
+        Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
+    }
+}
+
+/// Puts addon `id` in place for the series of `blender_version_id` and enables it there.
+/// With `replace` false, an addon already at the destination is reported, not touched.
+#[named]
+#[tauri::command]
+pub async fn cmd_apply_addon(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: String,
+    blender_version_id: String,
+    replace: bool,
+) -> Result<ApplyAddonOutcome, String> {
+    match AddonServiceImpl
+        .apply_addon(app, state, id, blender_version_id, replace)
         .await
     {
         Ok(v) => Ok(v),

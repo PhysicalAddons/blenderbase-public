@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { IAddon } from "../models";
+import { IAddon, IApplyAddonOutcome } from "../models";
 
 export class AddonService {
     /** Cached addons for a Blender version (fast, no Blender run). */
@@ -30,5 +30,14 @@ export class AddonService {
 
     public async revealAddon(id: string): Promise<void> {
         await invoke("cmd_reveal_addon_in_file_explorer", { id });
+    }
+
+    /**
+     * Puts the addon in place for the series of another Blender version and enables it there
+     * (runs that build headlessly). With `replace` false, an addon already at the destination
+     * is reported as `exists` and left alone.
+     */
+    public async applyAddon(id: string, blenderVersionId: string, replace: boolean): Promise<IApplyAddonOutcome> {
+        return await invoke("cmd_apply_addon", { id, blenderVersionId, replace });
     }
 }

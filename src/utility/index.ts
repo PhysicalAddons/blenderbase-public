@@ -1,5 +1,5 @@
 import { download } from "@tauri-apps/plugin-upload";
-import { IBlenderVersion, IDownloadableBlenderVersion } from "../models";
+import { IAddon, IBlenderVersion, IDownloadableBlenderVersion } from "../models";
 
 export async function downloadFile(url: string, filePath: string, buttonId: string, onProgress?: (percent: number) => void) : Promise<boolean> {
     let isSuccess = true;
@@ -115,6 +115,79 @@ export const blenderVersionLabel = (x: IBlenderVersion | undefined): string => {
     }
     const variant = describeBuildVariant(x.release_cycle, x.risk_id, x.series);
     return [x.version ?? "", variant?.label ?? ""].filter((v) => v.length > 0).join(" ");
+}
+
+/** Display name of an addon row. */
+export const addonLabel = (a: IAddon): string => a.name || a.functional_name || "this addon";
+
+/**
+ * The `major.minor` series of an installed build. Blender keeps one user folder per series
+ * (addons, extensions, preferences), so every build of a series sees the same addons.
+ */
+export const blenderSeriesOf = (x: IBlenderVersion): string => {
+    const series = (x.series ?? "").trim();
+    if (series.length > 0) {
+        return series;
+    }
+    return (x.version ?? "").trim().split(".").slice(0, 2).join(".");
+}
+
+/** True when both builds read the same series folder, so an addon of one is already there for the other. */
+export const shareAddonFolder = (a: IBlenderVersion, b: IBlenderVersion): boolean => {
+    const series = blenderSeriesOf(a);
+    return series.length > 0 && series === blenderSeriesOf(b);
+}
+
+/** An installed series an addon can be applied to. */
+export interface IApplyTarget {
+    /** The series the addon lands in, e.g. "4.4". */
+    series: string,
+    /** The build that places and enables the addon: the series' default version, else its newest. */
+    version: IBlenderVersion,
+    /** Every installed build of the series, newest first; they all see the addon. */
+    versions: IBlenderVersion[],
+    /** "Blender 4.4.3 Stable" for a lone build, "Blender 4.4 (4.4.0, 4.4.1, 4.4.3)" for several. */
+    label: string,
+}
+
+const applyTargetLabel = (series: string, versions: IBlenderVersion[]): string => {
+    if (versions.length === 1) {
+        return `Blender ${blenderVersionLabel(versions[0])}`;
+    }
+    // The list says which builds share the folder; a number twice (two 4.5.1 builds) adds nothing.
+    const numbers = [...new Set(versions.map((v) => (v.version ?? "").trim()).filter((v) => v.length > 0))];
+    return numbers.length === 0 ? `Blender ${series}` : `Blender ${series} (${numbers.join(", ")})`;
+}
+
+/** The installed builds grouped by series, in the list's order (newest first). */
+export const applyTargetsOf = (installedBuilds: IBlenderVersion[]): IApplyTarget[] => {
+    const groups = new Map<string, IBlenderVersion[]>();
+    for (const x of installedBuilds) {
+        const series = blenderSeriesOf(x);
+        if (series.length === 0) {
+            continue;
+        }
+        groups.set(series, [...(groups.get(series) ?? []), x]);
+    }
+    return [...groups.entries()].map(([series, versions]) => ({
+        series,
+        version: versions.find((v) => v.is_default) ?? versions[0],
+        versions,
+        label: applyTargetLabel(series, versions),
+    }));
+}
+
+/** The series an addon of `source` can be applied to: every installed series but its own. */
+export const describeApplyTargets = (installedBuilds: IBlenderVersion[], source: IBlenderVersion | undefined): IApplyTarget[] => {
+    const own = source ? blenderSeriesOf(source) : "";
+    return applyTargetsOf(installedBuilds).filter((t) => t.series !== own);
+}
+
+/** The series group `target` belongs to (a group of one when it is not in the list). */
+export const applyTargetOf = (installedBuilds: IBlenderVersion[], target: IBlenderVersion): IApplyTarget => {
+    const series = blenderSeriesOf(target);
+    return applyTargetsOf(installedBuilds).find((t) => t.series === series)
+        ?? { series, version: target, versions: [target], label: applyTargetLabel(series, [target]) };
 }
 
 export type BuildVariantKind = "lts" | "stable" | "candidate" | "beta" | "alpha" | "neutral";
