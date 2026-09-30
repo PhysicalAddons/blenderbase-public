@@ -247,12 +247,15 @@ fn move_aside(
         loop {
             match std::fs::rename(&from, &to) {
                 Ok(()) => break,
-                Err(e) if attempt < 40 => {
+                Err(_) if attempt < 40 => {
                     attempt += 1;
-                    let _ = e;
                     std::thread::sleep(std::time::Duration::from_millis(50));
                 }
                 Err(e) => {
+                    // Nothing went in: leave no empty folder behind.
+                    if moved == 0 {
+                        let _ = std::fs::remove_dir(folder);
+                    }
                     return Err(format!("Could not move {} aside: {}", from.display(), e));
                 }
             }
