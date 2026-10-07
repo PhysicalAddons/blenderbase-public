@@ -179,11 +179,12 @@ const BlenderColumn = () => {
 			.join(" · ");
 
 	// Stats: hours in each version sit at the right of its title line, the total in the subtitle.
-	// Both stay away until something has been counted.
+	// Both stay away until something has been counted, and while time tracking is off.
 	const timeByVersion = useActivityStore((s) => s.timeByVersion)
 	const totalOpenSeconds = useActivityStore((s) => s.totalOpenSeconds)
-	const hoursOf = (x: IBlenderVersion): string => formatBlenderHours(timeByVersion[x.id]?.open_seconds ?? 0);
-	const totalHours = formatBlenderHours(totalOpenSeconds);
+	const isCounting = useActivityStore((s) => s.isCounting)
+	const hoursOf = (x: IBlenderVersion): string => (isCounting ? formatBlenderHours(timeByVersion[x.id]?.open_seconds ?? 0) : "");
+	const totalHours = isCounting ? formatBlenderHours(totalOpenSeconds) : "";
 
 	// While Settings, Sync or What to share has the middle column, the list is dimmed and out of
 	// reach, so a click on it lands on the column itself: that click is the way back.

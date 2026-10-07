@@ -698,6 +698,22 @@ mod tests {
         )
     }
 
+    /// A fresh database has time tracking on: the switch is seeded on and the achievements
+    /// catalogue hangs off it.
+    #[tokio::test]
+    async fn time_tracking_is_on_by_default() {
+        let dir = temp_dir("default");
+        let pool = test_pool(&dir).await;
+        assert!(is_counting(&pool).await.unwrap());
+        let name: String = sqlx::query_scalar("SELECT name FROM app_setting WHERE code = 'COUNT_BLENDER_ACTIVITY'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(name, "Time tracking and achievements");
+        pool.close().await;
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn session_ids_come_from_the_file_name() {
         assert_eq!(session_id_of("20261006T091502Z_3f9c2a7e.jsonl"), Some("3f9c2a7e".to_string()));

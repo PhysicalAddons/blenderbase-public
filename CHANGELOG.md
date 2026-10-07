@@ -4,6 +4,15 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## 1.5.1
+
+### Changed
+- The stats switch under Settings › Launch is now **Time tracking and
+  achievements**, and it is on from the start. Turning it off removes the
+  counting script from every Blender series, hides the hours on the Blender
+  rows, the trophy button and the Stats view, and keeps the numbers for when
+  it comes back on. Installs that already have 1.5.0 get it switched on once.
+
 ## 1.5.0
 
 ### Added

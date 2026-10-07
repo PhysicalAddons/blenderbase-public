@@ -1,15 +1,12 @@
 # Stats
 
-Blenderbase can count the time you spend in each installed Blender version and a few things you do there, and turn the numbers into achievements. Everything stays on your computer. The feature is off until you turn it on.
+Blenderbase counts the time you spend in each installed Blender version and a few things you do there, and turns the numbers into achievements. Everything stays on your computer. The feature is on from the start; the switch **Time tracking and achievements** under Settings › Launch turns it off and on.
 
 *(Draft for the wiki page `11.-Stats`, which the info button next to the Stats title opens. Screenshots to add once the view is final.)*
 
-## Turning it on
+## How it works
 
-1. Open Settings (the gear in the title bar) and pick **Launch**.
-2. Turn on **Count time and events in Blender**.
-
-Blenderbase puts one small Python file, `blenderbase_activity.py`, into the startup folder of every Blender series it knows (2.80 and later):
+While the switch is on, Blenderbase keeps one small Python file, `blenderbase_activity.py`, in the startup folder of every Blender series it knows (2.80 and later):
 
 - Windows: `%APPDATA%\Blender Foundation\Blender\<series>\scripts\startup\`
 - macOS: `~/Library/Application Support/Blender/<series>/scripts/startup/`
@@ -76,7 +73,7 @@ A new unlock is announced in the status line at the bottom of the window, and th
 
 ## Turning it off
 
-Turn the switch off under Settings › Launch. Blenderbase removes the file from every series folder. A Blender already running keeps counting until it closes, and that last session is still read. Your hours and badges stay; nothing is deleted.
+Turn **Time tracking and achievements** off under Settings › Launch. Blenderbase removes the file from every series folder and hides the hours, the trophy and the Stats view. A Blender already running keeps counting until it closes, and that last session is still read. Your hours and badges stay; nothing is deleted, and everything comes back when the switch goes on again.
 
 ## Good to know
 

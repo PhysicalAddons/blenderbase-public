@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, LogoDiscord, Renew, Settings, Trophy } from '@carbon/react/icons';
 import { useShallow } from 'zustand/react/shallow';
@@ -46,6 +46,13 @@ const UtilityOptions = () => {
 	)
 	const hasNewerSetup = useSetupSyncStore((s) => Boolean(s.status?.is_newer))
 	const unseenUnlocks = useActivityStore((s) => s.unseenUnlocks)
+	// Time tracking off: no trophy in the title bar, and the Stats view closes if it was open.
+	const isCounting = useActivityStore((s) => s.isCounting)
+	useEffect(() => {
+		if (!isCounting && isStatsOpen) {
+			setIsStatsOpen(false);
+		}
+	}, [isCounting, isStatsOpen]);
 	// Settings, Sync and Stats are panels in the middle column, not routes: the Home tab reads as
 	// active only while all are closed, and the open panel's button takes the active look.
 	const homeClassName = ({ isActive }: { isActive: boolean }) =>
@@ -85,19 +92,21 @@ const UtilityOptions = () => {
 			>
 				<Renew/>
 			</button>
-			<button
-				type="button"
-				className={`navigation_bar_utilities_option navigation_bar_tab${isStatsOpen ? " active" : ""}${unseenUnlocks > 0 ? " navigation_bar_tab--badge" : ""}`}
-				aria-label={isStatsOpen ? "Close stats" : "Stats"}
-				aria-pressed={isStatsOpen}
-				onMouseEnter={statsHint.show}
-				onMouseLeave={statsHint.hide}
-				onFocus={statsHint.showOnKeyboardFocus}
-				onBlur={statsHint.hide}
-				onClick={() => { statsHint.forget(); setIsStatsOpen(!isStatsOpen); }}
-			>
-				<Trophy/>
-			</button>
+			{isCounting && (
+				<button
+					type="button"
+					className={`navigation_bar_utilities_option navigation_bar_tab${isStatsOpen ? " active" : ""}${unseenUnlocks > 0 ? " navigation_bar_tab--badge" : ""}`}
+					aria-label={isStatsOpen ? "Close stats" : "Stats"}
+					aria-pressed={isStatsOpen}
+					onMouseEnter={statsHint.show}
+					onMouseLeave={statsHint.hide}
+					onFocus={statsHint.showOnKeyboardFocus}
+					onBlur={statsHint.hide}
+					onClick={() => { statsHint.forget(); setIsStatsOpen(!isStatsOpen); }}
+				>
+					<Trophy/>
+				</button>
+			)}
 			<button
 				type="button"
 				className={`navigation_bar_utilities_option navigation_bar_tab${isSettingsOpen ? " active" : ""}`}

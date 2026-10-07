@@ -11,6 +11,7 @@ import { IAppSetting, IBlenderInstallationLocation } from '../../models';
 import { AppSettingCode } from '../../enums';
 import { SettingsService } from '../../services/settingsService';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
+import { useActivityStore } from '../../store/activityStore';
 import { ThemePreference, useThemeStore } from '../../store/themeStore';
 import { postStatus, postStatusError } from '../../store/statusStore';
 import { usePagedScroll } from '../../utility/usePagedScroll';
@@ -145,6 +146,11 @@ const SettingsPanel = () => {
 		const err = await handleSetting({ ...setting, int_value: +!setting.int_value });
 		if (err) {
 			postStatusError(`Changing "${setting.name}" failed: ${err}`);
+			return;
+		}
+		// Time tracking: the trophy tab and the hours on the Blender rows follow the switch at once.
+		if (setting.code === AppSettingCode.COUNT_BLENDER_ACTIVITY) {
+			useActivityStore.getState().importAndRefresh(true).catch((e) => console.error(e));
 		}
 	};
 
@@ -403,8 +409,8 @@ const SettingsPanel = () => {
 			{toggleRow(
 				AppSettingCode.COUNT_BLENDER_ACTIVITY,
 				"setting-count-activity",
-				"Count time and events in Blender",
-				"A small script in each Blender series counts hours and a few events. The numbers stay on this computer.",
+				"Time tracking and achievements",
+				"Counts the hours in each Blender version and unlocks achievements. Everything stays on this computer.",
 			)}
 		</>
 	);
