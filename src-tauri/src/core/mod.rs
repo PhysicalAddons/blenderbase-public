@@ -1,3 +1,4 @@
+mod activity;
 mod addon;
 mod blend_file;
 mod blender;
@@ -6,6 +7,7 @@ mod setup;
 mod shared;
 mod system;
 
+pub use activity::*;
 pub use addon::*;
 pub use blend_file::*;
 pub use blender::*;

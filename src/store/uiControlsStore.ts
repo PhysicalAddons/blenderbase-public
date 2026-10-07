@@ -4,6 +4,8 @@ import { create } from "zustand"
 export type SyncSection = 'network' | 'transfer' | 'folder' | 'file';
 /** The way a share was started for; What to share opens as the step before it. */
 export type ShareIntent = SyncSection;
+/** The Stats view's tabs. */
+export type StatsSection = 'overview' | 'achievements';
 
 interface IUiControlsStore {
     /** Whether the Recent Files column is shown. */
@@ -18,6 +20,10 @@ interface IUiControlsStore {
     isSyncOpen: boolean,
     /** Whether the middle column shows What to share, the choice behind every way of the Sync view. */
     isShareSetupOpen: boolean,
+    /** Whether the middle column shows the Stats view (hours per version, achievements). */
+    isStatsOpen: boolean,
+    /** The Stats view's tab. */
+    statsSection: StatsSection,
     /** The Sync view's tab, kept so a trip to What to share comes back to the same one. */
     syncSection: SyncSection,
     /** Which way What to share was opened for; its button goes on with that way. */
@@ -35,6 +41,8 @@ interface IUiControlsStore {
     setIsRestoreSetupOpen: (v: boolean) => void,
     setIsSyncOpen: (v: boolean) => void,
     setIsShareSetupOpen: (v: boolean) => void,
+    setIsStatsOpen: (v: boolean) => void,
+    setStatsSection: (section: StatsSection) => void,
     setSyncSection: (section: SyncSection) => void,
     /** Opens What to share as the step before sharing one way. */
     openShareSetup: (intent: ShareIntent) => void,
@@ -60,6 +68,8 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
     isRestoreSetupOpen: false,
     isSyncOpen: false,
     isShareSetupOpen: false,
+    isStatsOpen: false,
+    statsSection: 'overview',
     syncSection: 'network',
     shareIntent: null,
     selectedBlenderVersionId: null,
@@ -74,13 +84,14 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         set({ launchWithConsole: v });
     },
     setIsSidebarExpanded: (v) => set({ isSidebarExpanded: v }),
-    // The middle column shows one of the four; opening one closes the others.
+    // The middle column shows one of these at a time; opening one closes the others.
     setIsInstallBlenderOpen: (v) => set((state) => ({
         isInstallBlenderOpen: v,
         isSettingsOpen: v ? false : state.isSettingsOpen,
         isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
         isSyncOpen: v ? false : state.isSyncOpen,
         isShareSetupOpen: v ? false : state.isShareSetupOpen,
+        isStatsOpen: v ? false : state.isStatsOpen,
     })),
     setIsSettingsOpen: (v) => set((state) => ({
         isSettingsOpen: v,
@@ -88,6 +99,7 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
         isSyncOpen: v ? false : state.isSyncOpen,
         isShareSetupOpen: v ? false : state.isShareSetupOpen,
+        isStatsOpen: v ? false : state.isStatsOpen,
     })),
     setIsRestoreSetupOpen: (v) => set((state) => ({
         isRestoreSetupOpen: v,
@@ -95,6 +107,7 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
         isSyncOpen: v ? false : state.isSyncOpen,
         isShareSetupOpen: v ? false : state.isShareSetupOpen,
+        isStatsOpen: v ? false : state.isStatsOpen,
     })),
     setIsSyncOpen: (v) => set((state) => ({
         isSyncOpen: v,
@@ -102,6 +115,7 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
         isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
         isShareSetupOpen: v ? false : state.isShareSetupOpen,
+        isStatsOpen: v ? false : state.isStatsOpen,
     })),
     setIsShareSetupOpen: (v) => set((state) => ({
         isShareSetupOpen: v,
@@ -109,7 +123,17 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
         isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
         isSyncOpen: v ? false : state.isSyncOpen,
+        isStatsOpen: v ? false : state.isStatsOpen,
     })),
+    setIsStatsOpen: (v) => set((state) => ({
+        isStatsOpen: v,
+        isSettingsOpen: v ? false : state.isSettingsOpen,
+        isInstallBlenderOpen: v ? false : state.isInstallBlenderOpen,
+        isRestoreSetupOpen: v ? false : state.isRestoreSetupOpen,
+        isSyncOpen: v ? false : state.isSyncOpen,
+        isShareSetupOpen: v ? false : state.isShareSetupOpen,
+    })),
+    setStatsSection: (section) => set({ statsSection: section }),
     setSyncSection: (section) => set({ syncSection: section }),
     openShareSetup: (intent) => set({
         shareIntent: intent,
@@ -119,6 +143,7 @@ export const useUiControlsStore = create<IUiControlsStore>((set) => ({
         isInstallBlenderOpen: false,
         isRestoreSetupOpen: false,
         isSyncOpen: false,
+        isStatsOpen: false,
     }),
     setSelectedBlenderVersionId: (id) => set((state) => ({
         selectedBlenderVersionId: id,

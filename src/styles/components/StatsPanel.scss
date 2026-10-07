@@ -1,0 +1,219 @@
+@use "../color" as *;
+@use "./Home" as *;
+
+// The range block at the right of the band: one control width, like every block in Settings.
+$stats-control-width: 176px;
+
+// **Stats panel**
+// Borrows the Settings panel's header, tab band and list (it carries the `settings_panel`
+// class). Adds a figures row on the grid, rows with a bar and a value, and the badge tiles.
+.stats_panel {
+    .stats_panel__toolbar {
+        gap: 0;
+    }
+
+    // The range dropdown: a band block, same fill as the tabs, pushed to the right edge.
+    .stats_panel__range {
+        width: $stats-control-width;
+        margin-left: auto;
+        flex-shrink: 0;
+        .cds--list-box,
+        .cds--list-box.cds--list-box--sm {
+            height: 48px;
+            block-size: 48px;
+            max-block-size: 48px;
+            background: var(--bb-field);
+            border-block-end: none;
+            border-radius: 0;
+        }
+        .cds--list-box__field {
+            height: 48px;
+            block-size: 48px;
+        }
+        .cds--list-box:hover {
+            background: var(--bb-field-hover);
+        }
+        .cds--list-box__menu {
+            background: var(--bb-field);
+        }
+    }
+    .cds--popover {
+        display: none;
+    }
+
+    // The figures: one row on the grid, blocks with hairlines between; the list header follows
+    // without its own top margin, so the hairline runs straight into it.
+    .stats_panel__figures {
+        display: flex;
+        height: $home-row-height;
+        margin-top: 24px;
+        border-bottom: 1px solid var(--bb-border);
+        flex-shrink: 0;
+    }
+    .stats_figure {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        padding: 0 $home-column-inset;
+        border-right: 1px solid var(--bb-border);
+        &:first-child {
+            padding-left: calc(#{$home-column-inset} + 16px);
+        }
+        &:last-child {
+            border-right: none;
+        }
+    }
+    .stats_figure__label {
+        font-size: 12px;
+        line-height: 14px;
+        color: var(--bb-text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .stats_figure__value {
+        font-size: 16px;
+        line-height: 20px;
+        color: var(--bb-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .stats_panel__list_header {
+        margin-top: 0;
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .stats_panel__list_header_right {
+        text-align: right;
+    }
+
+    // One version, or one achievement: texts on the left, a bar and a value on the right.
+    .stats_row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        height: $home-row-height;
+        padding-left: calc(#{$home-column-inset} + 16px);
+        padding-right: $home-column-inset;
+        border-bottom: 1px solid var(--bb-border);
+        flex-shrink: 0;
+        &:hover {
+            background: var(--bb-row-hover);
+        }
+    }
+    .stats_row__main {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    .stats_row__title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+    .stats_row__version {
+        font-size: 20px;
+        line-height: 20px;
+        letter-spacing: -0.4px;
+        color: var(--bb-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    // Sessions of versions no longer installed read quieter.
+    .stats_row--gone .stats_row__version {
+        font-size: 14px;
+        line-height: 18px;
+        letter-spacing: 0;
+        color: var(--bb-text-secondary);
+    }
+    .stats_row__name {
+        font-size: 14px;
+        line-height: 18px;
+        color: var(--bb-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .stats_row--locked .stats_row__name {
+        color: var(--bb-text-secondary);
+    }
+    .stats_row__meta {
+        font-size: 12px;
+        line-height: 14px;
+        color: var(--bb-text-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .stats_row__value {
+        width: 96px;
+        flex-shrink: 0;
+        text-align: right;
+        font-size: 16px;
+        line-height: 20px;
+        color: var(--bb-text);
+        white-space: nowrap;
+    }
+    .stats_row__value--muted {
+        width: 88px;
+        font-size: 12px;
+        line-height: 14px;
+        color: var(--bb-text-muted);
+    }
+    .stats_row__unlocked {
+        width: 208px;
+        flex-shrink: 0;
+        text-align: right;
+        font-size: 12px;
+        line-height: 14px;
+        color: var(--bb-tag-lts-fg);
+        white-space: nowrap;
+    }
+
+    // The bar: a thin track, the fill against the longest row (or the threshold).
+    .stats_bar {
+        width: 200px;
+        height: 4px;
+        flex-shrink: 0;
+        border-radius: 2px;
+        background: var(--bb-field);
+        overflow: hidden;
+        &.stats_bar--short {
+            width: 104px;
+        }
+    }
+    .stats_bar__fill {
+        height: 100%;
+        background: var(--bb-info);
+    }
+    .stats_row--locked .stats_bar__fill {
+        background: var(--bb-text-muted);
+    }
+
+    // The badge tile: quiet while locked, the LTS teal once unlocked.
+    .stats_tile {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bb-field);
+        color: var(--bb-text-muted);
+        svg {
+            fill: currentColor;
+        }
+        &.stats_tile--unlocked {
+            background: var(--bb-tag-lts-bg);
+            color: var(--bb-tag-lts-fg);
+        }
+    }
+}

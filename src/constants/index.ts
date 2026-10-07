@@ -26,6 +26,7 @@ export const PHYSICAL_ADDONS_URL = "https://www.physicaladdons.com";
 export const WIKI_URL = `${GITHUB_REPOSITORY_URL}/wiki`;
 export const SETTINGS_DOCUMENTATION_URL = `${WIKI_URL}/03.-Settings-Tab`;
 export const SYNC_DOCUMENTATION_URL = `${WIKI_URL}/09.-Sync`;
+export const STATS_DOCUMENTATION_URL = `${WIKI_URL}/11.-Stats`;
 export const STATUS_OFF = "off"
 export const STATUS_ON = "on"
 /** File-picker filter for Blenderbase setup files. */

@@ -3,9 +3,9 @@ use tauri::AppHandle;
 
 use crate::{
     core::{
-        format_command_error, setup_file_argument, LanHub, LanStatus, SeriesApplyReport, SetupApplyOptions,
-        SetupBundleInfo, SetupExportOptions, SetupServiceImpl, SetupSyncStatus, TSetupService, TransferSent,
-        COLON_SEPERATOR,
+        bump_app_counter, format_command_error, setup_file_argument, LanHub, LanStatus, SeriesApplyReport,
+        SetupApplyOptions, SetupBundleInfo, SetupExportOptions, SetupServiceImpl, SetupSyncStatus,
+        TSetupService, TransferSent, APP_COUNTER_SETUP_APPLIED, APP_COUNTER_SETUP_SHARED, COLON_SEPERATOR,
     },
     AppState,
 };
@@ -18,11 +18,15 @@ pub async fn cmd_export_setup_bundle(
     file_path: String,
     options: Option<SetupExportOptions>,
 ) -> Result<SetupBundleInfo, String> {
+    let pool = state.pool.clone();
     match SetupServiceImpl
         .export_setup_bundle(app, state, file_path, options.unwrap_or_default())
         .await
     {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            bump_app_counter(&pool, APP_COUNTER_SETUP_SHARED).await;
+            Ok(v)
+        }
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }
@@ -51,11 +55,15 @@ pub async fn cmd_apply_setup_bundle(
     file_path: String,
     options: Option<SetupApplyOptions>,
 ) -> Result<Vec<SeriesApplyReport>, String> {
+    let pool = state.pool.clone();
     match SetupServiceImpl
         .apply_setup_bundle(app, state, file_path, options.unwrap_or_default())
         .await
     {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            bump_app_counter(&pool, APP_COUNTER_SETUP_APPLIED).await;
+            Ok(v)
+        }
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }
@@ -110,11 +118,15 @@ pub async fn cmd_save_setup_to_sync_folder(
     state: tauri::State<'_, AppState>,
     options: Option<SetupExportOptions>,
 ) -> Result<SetupBundleInfo, String> {
+    let pool = state.pool.clone();
     match SetupServiceImpl
         .save_setup_to_sync_folder(app, state, options.unwrap_or_default())
         .await
     {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            bump_app_counter(&pool, APP_COUNTER_SETUP_SHARED).await;
+            Ok(v)
+        }
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }
@@ -139,11 +151,15 @@ pub async fn cmd_send_setup_transfer(
     state: tauri::State<'_, AppState>,
     options: Option<SetupExportOptions>,
 ) -> Result<TransferSent, String> {
+    let pool = state.pool.clone();
     match SetupServiceImpl
         .send_setup_transfer(app, state, options.unwrap_or_default())
         .await
     {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            bump_app_counter(&pool, APP_COUNTER_SETUP_SHARED).await;
+            Ok(v)
+        }
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }
@@ -185,11 +201,15 @@ pub async fn cmd_lan_share_start(
     hub: tauri::State<'_, LanHub>,
     options: Option<SetupExportOptions>,
 ) -> Result<LanStatus, String> {
+    let pool = state.pool.clone();
     match SetupServiceImpl
         .lan_share_start(app, state, hub, options.unwrap_or_default())
         .await
     {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            bump_app_counter(&pool, APP_COUNTER_SETUP_SHARED).await;
+            Ok(v)
+        }
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }

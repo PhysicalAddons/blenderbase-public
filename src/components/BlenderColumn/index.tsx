@@ -6,6 +6,7 @@ import { IBlenderVersion } from '../../models';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
 import { useAddonStore } from '../../store/addonStore';
+import { formatBlenderHours, useActivityStore } from '../../store/activityStore';
 import { BlenderService } from '../../services/blenderService';
 import { addonLabel, applyTargetOf, blenderVersionLabel, buildChannel, describeApplyTargets, describeBuildVariant, formatBuildDate, resolveSelectedBlenderVersion, shareAddonFolder, shortHash } from '../../utility';
 import { applyAddonToVersion, dragStartHint, postDragHint } from '../../utility/applyAddon';
@@ -177,14 +178,22 @@ const BlenderColumn = () => {
 			.filter((v) => v !== null && v !== undefined && v !== "")
 			.join(" · ");
 
+	// Stats: hours in each version sit at the right of its title line, the total in the subtitle.
+	// Both stay away until something has been counted.
+	const timeByVersion = useActivityStore((s) => s.timeByVersion)
+	const totalOpenSeconds = useActivityStore((s) => s.totalOpenSeconds)
+	const hoursOf = (x: IBlenderVersion): string => formatBlenderHours(timeByVersion[x.id]?.open_seconds ?? 0);
+	const totalHours = formatBlenderHours(totalOpenSeconds);
+
 	// While Settings, Sync or What to share has the middle column, the list is dimmed and out of
 	// reach, so a click on it lands on the column itself: that click is the way back.
-	const isAsideOpen = useUiControlsStore((s) => s.isSettingsOpen || s.isSyncOpen || s.isShareSetupOpen)
+	const isAsideOpen = useUiControlsStore((s) => s.isSettingsOpen || s.isSyncOpen || s.isShareSetupOpen || s.isStatsOpen)
 	const closeAsides = () => {
 		const controls = useUiControlsStore.getState();
 		controls.setIsSettingsOpen(false);
 		controls.setIsSyncOpen(false);
 		controls.setIsShareSetupOpen(false);
+		controls.setIsStatsOpen(false);
 	};
 
 	return (
@@ -195,7 +204,7 @@ const BlenderColumn = () => {
 					<span className='column_header__subtitle'>
 						{installedBuilds.length === 0
 							? "No versions installed"
-							: `${installedBuilds.length} installed`}
+							: `${installedBuilds.length} installed${totalHours ? ` · ${totalHours}` : ""}`}
 					</span>
 				</div>
 				{isRefreshing && <InlineLoading className="column_header__loading" iconDescription="Refreshing" />}
@@ -257,6 +266,9 @@ const BlenderColumn = () => {
 									)}
 									{isNew && (
 										<span className='blender_tag blender_tag--small blender_tag--new'>New</span>
+									)}
+									{hoursOf(x) && (
+										<span className='blender_row__hours'>{hoursOf(x)}</span>
 									)}
 								</div>
 								<span className='blender_row__meta'>{metaLine(x)}</span>

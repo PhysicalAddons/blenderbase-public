@@ -49,6 +49,7 @@ pub enum AppSettingCodeKind {
     SetDownloadableBlenderVersionLimitForScraping,
     SetRecentFilesBlenderSeriesLimitForScraping,
     CreateAppLibraryDirectoryAutomatically,
+    CountBlenderActivity,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]

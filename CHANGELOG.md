@@ -4,6 +4,36 @@ Release notes for Blenderbase. The section matching a version tag is
 copied into the GitHub release by the release workflow, so keep the
 `## X.Y.Z` headings exact.
 
+## 1.5.0
+
+### Added
+- Stats: Blenderbase can count the time spent in each installed Blender
+  version. Turn on **Count time and events in Blender** under Settings ›
+  Launch and a small script goes into every Blender series' startup folder
+  (2.80 and later); it notes when Blender runs, saves, renders, undoes,
+  deletes the default cube or adds a Suzanne, and writes that to a log on
+  this computer. Blenderbase reads the logs when it starts and whenever it
+  comes back into focus, shows the hours on each Blender row and the total
+  in the column subtitle, and keeps the numbers when the switch goes off
+  again. Nothing leaves the computer.
+- A Stats view, behind the trophy button in the title bar: hours today and
+  this week, then the total, active time, the longest session and the default
+  cubes deleted over the chosen range (today, this week, the last 30 days or
+  all time), and time by Blender version with a bar for each. Sessions of
+  versions no longer installed keep their hours under one row.
+- The script also measures what the viewport and the objects do: units
+  panned, degrees orbited and zoom steps in the 3D views, units objects and
+  the camera moved, degrees objects turned, and addons enabled inside
+  Blender.
+- Achievements: 33 badges read off those numbers and off what Blenderbase
+  does itself, from First Steps, Cube Slayer, Centurion, Night Shift and
+  Crash Survivor to Dizzy, Globetrotter, Director, Plugged In, Collector,
+  Well Connected, In Sync, First Download, Hoarder and Full Spectrum (LTS,
+  Stable, Beta and Alpha installed at once). The Achievements tab shows each
+  one with its progress or the day it was unlocked; a new unlock is
+  announced in the status line and marked with a dot on the trophy button
+  until the view is opened.
+
 ## 1.4.0
 
 ### Added

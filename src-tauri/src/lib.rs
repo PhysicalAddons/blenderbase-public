@@ -65,6 +65,7 @@ async fn init_app_state() -> Result<AppState, String> {
         http_client,
         action_timeouts: Mutex::new(action_timeouts),
         release_scrape_cache: Mutex::new(None),
+        activity_import_lock: tokio::sync::Mutex::new(()),
     })
 }
 
@@ -392,6 +393,11 @@ pub async fn run() {
             cmd_delete_addon,
             cmd_reveal_addon_in_file_explorer,
             cmd_apply_addon,
+            cmd_import_activity,
+            cmd_fetch_blender_version_time,
+            cmd_fetch_activity_summary,
+            cmd_fetch_achievements,
+            cmd_mark_achievements_seen,
             cmd_refresh_blender_version_details,
             cmd_confirm_blender_installation_location,
             cmd_reveal_in_file_explorer,

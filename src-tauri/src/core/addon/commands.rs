@@ -2,7 +2,10 @@ use function_name::named;
 use tauri::AppHandle;
 
 use crate::{
-    core::{format_command_error, AddonServiceImpl, ApplyAddonOutcome, TAddonService, COLON_SEPERATOR},
+    core::{
+        bump_app_counter, format_command_error, AddonServiceImpl, ApplyAddonOutcome, TAddonService,
+        APP_COUNTER_ADDON_INSTALLS, COLON_SEPERATOR,
+    },
     database::Addon,
     AppState,
 };
@@ -61,11 +64,15 @@ pub async fn cmd_install_addon(
     blender_version_id: String,
     file_path: String,
 ) -> Result<Vec<Addon>, String> {
+    let pool = state.pool.clone();
     match AddonServiceImpl
         .install_addon(app, state, blender_version_id, file_path)
         .await
     {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            bump_app_counter(&pool, APP_COUNTER_ADDON_INSTALLS).await;
+            Ok(v)
+        }
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }
@@ -78,11 +85,15 @@ pub async fn cmd_symlink_addon(
     blender_version_id: String,
     directory_path: String,
 ) -> Result<Vec<Addon>, String> {
+    let pool = state.pool.clone();
     match AddonServiceImpl
         .symlink_addon(app, state, blender_version_id, directory_path)
         .await
     {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            bump_app_counter(&pool, APP_COUNTER_ADDON_INSTALLS).await;
+            Ok(v)
+        }
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }
@@ -127,11 +138,17 @@ pub async fn cmd_apply_addon(
     blender_version_id: String,
     replace: bool,
 ) -> Result<ApplyAddonOutcome, String> {
+    let pool = state.pool.clone();
     match AddonServiceImpl
         .apply_addon(app, state, id, blender_version_id, replace)
         .await
     {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            if matches!(v, ApplyAddonOutcome::Applied) {
+                bump_app_counter(&pool, APP_COUNTER_ADDON_INSTALLS).await;
+            }
+            Ok(v)
+        }
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }

@@ -8,7 +8,7 @@ use crate::{
     database::{
         AddonRepository, AppSettingActionTypeRepository, AppSettingRepository,
         AppSettingTypeRepository, AppState, BlendFileBlenderSeriesRepository, BlendFileRepository,
-        BlenderInstallationLocationRepository, BlenderSeriesRepository,
+        BlenderInstallationLocationRepository, BlenderSeriesRepository, BlenderSessionRepository,
         BlenderVersionBuildTypeRepository, BlenderVersionRepository, DownloadStatusTypeRepository,
         InputValueTypeRepository, MeasurementUnitTypeRepository, SetupSyncRepository,
     },
@@ -40,6 +40,9 @@ impl AppState {
     }
     pub fn blender_series_repository(&self) -> BlenderSeriesRepository<'_> {
         BlenderSeriesRepository::new(&self.pool)
+    }
+    pub fn blender_session_repository(&self) -> BlenderSessionRepository<'_> {
+        BlenderSessionRepository::new(&self.pool)
     }
     pub fn blender_version_build_type_repository(&self) -> BlenderVersionBuildTypeRepository<'_> {
         BlenderVersionBuildTypeRepository::new(&self.pool)

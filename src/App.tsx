@@ -9,6 +9,7 @@ import { WebUtilityService } from "./services/webUtilityService";
 import { SettingsService } from "./services/settingsService";
 import { DatabaseService } from "./services/databaseService";
 import { useThemeStore } from "./store/themeStore";
+import { useActivityStore } from "./store/activityStore";
 
 const webUtilityService = new WebUtilityService();
 const settingsService = new SettingsService();
@@ -32,6 +33,13 @@ const AppContent = () => {
             } catch (e) {
                 console.error(e);
             }
+            // Stats: sessions Blender logged while the app was closed are read now. Its own
+            // try: a stats hiccup must not look like a startup failure.
+            try {
+                await useActivityStore.getState().importAndRefresh(true);
+            } catch (e) {
+                console.error(e);
+            }
         }
         init();
     }, [])
@@ -42,9 +50,15 @@ const AppContent = () => {
                 setHasInternetConnection(a);
             }
         };
+        // Coming back from Blender is when its log has grown: read it then.
+        const importActivityHandler = () => {
+            useActivityStore.getState().importAndRefresh().catch((e) => console.error(e));
+        };
         window.addEventListener("focus", checkInternetConnectionHandler);
+        window.addEventListener("focus", importActivityHandler);
         return () => {
             window.removeEventListener("focus", checkInternetConnectionHandler);
+            window.removeEventListener("focus", importActivityHandler);
         };
     }, []);
     // The webview's own drag-and-drop handling is off (dragDropEnabled in tauri.conf.json):

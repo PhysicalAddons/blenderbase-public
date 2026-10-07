@@ -4,8 +4,8 @@ use tauri::AppHandle;
 
 use crate::{
     core::{
-        format_command_error, BlenderInstallServiceImpl, DownloadableBlenderVersion,
-        TBlenderInstallService, COLON_SEPERATOR,
+        bump_app_counter, format_command_error, BlenderInstallServiceImpl, DownloadableBlenderVersion,
+        TBlenderInstallService, APP_COUNTER_BLENDER_INSTALLS, COLON_SEPERATOR,
     },
     database::{BlenderInstallationLocation, BlenderVersion},
     AppState,
@@ -41,11 +41,15 @@ pub async fn cmd_install_blender_version(
     id: Option<String>,
     archive_file_path: std::path::PathBuf,
 ) -> Result<String, String> {
+    let pool = state.pool.clone();
     match BlenderInstallServiceImpl
         .install_blender_version(app, state, id, archive_file_path)
         .await
     {
-        Ok(v) => Ok(v),
+        Ok(v) => {
+            bump_app_counter(&pool, APP_COUNTER_BLENDER_INSTALLS).await;
+            Ok(v)
+        }
         Err(e) => return Err(format_command_error(function_name!(), COLON_SEPERATOR, e).await),
     }
 }

@@ -449,3 +449,64 @@ export interface ILanStatus {
     share: ILanShareStatus | null,
     peers: ILanPeer[],
 }
+
+/**
+ * Stats: time in Blender per installed version, summed over its sessions.
+ * `blender_version_id` is null for the sessions of versions no longer installed.
+ */
+export interface IBlenderVersionTime {
+    blender_version_id: string | null,
+    /** Seconds Blender was open, from the session logs. */
+    open_seconds: number,
+    /** Seconds of minutes in which something changed. */
+    active_seconds: number,
+    sessions: number,
+    /** `started_at` of the newest session, UTC ISO 8601; empty when none. */
+    last_used: string,
+}
+
+/** One rule of the achievement catalogue, with where the user stands on it. */
+export interface IAchievement {
+    id: string,
+    name: string,
+    description: string,
+    metric: string,
+    threshold: number,
+    scope: string,
+    /** A name the Stats view maps to an icon. */
+    icon: string,
+    /** The metric as it stands, in whole units (hours or counts). */
+    value: number,
+    /** UTC ISO 8601 when unlocked; null while locked. */
+    unlocked_at: string | null,
+    is_seen: boolean,
+}
+
+/** The figures row of the Stats view, over the sessions started since a date. */
+export interface IActivitySummary {
+    open_seconds: number,
+    active_seconds: number,
+    longest_session_seconds: number,
+    sessions: number,
+    /** Open time of the sessions started since local midnight, whatever the range. */
+    today_open_seconds: number,
+    /** Open time of the sessions started since the start of this week, whatever the range. */
+    week_open_seconds: number,
+    /** Every counter kind summed over the range: cube_deleted, undo, render_seconds, ... */
+    counters: Record<string, number>,
+    unseen_unlocks: number,
+}
+
+/** What one run of the activity import did. */
+export interface IActivityImportReport {
+    /** The Settings switch is on. */
+    is_counting: boolean,
+    scripts_written: number,
+    files_seen: number,
+    sessions_updated: number,
+    sessions_finished: number,
+    /** Achievements this run crossed, for the status line. */
+    unlocked: Pick<IAchievement, 'id' | 'name' | 'description' | 'metric' | 'threshold' | 'scope' | 'icon'>[],
+    /** Unlocks nobody has looked at yet, for the title-bar badge. */
+    unseen_unlocks: number,
+}

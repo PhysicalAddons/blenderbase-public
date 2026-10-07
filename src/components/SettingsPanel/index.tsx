@@ -393,12 +393,20 @@ const SettingsPanel = () => {
 	);
 
 	const renderLaunch = () => (
-		toggleRow(
-			AppSettingCode.MINIMIZE_BLENDERBASE_ON_LAUNCH,
-			"setting-minimize-on-launch",
-			"Minimise Blenderbase when launching Blender",
-			"The window minimises after Blender starts",
-		)
+		<>
+			{toggleRow(
+				AppSettingCode.MINIMIZE_BLENDERBASE_ON_LAUNCH,
+				"setting-minimize-on-launch",
+				"Minimise Blenderbase when launching Blender",
+				"The window minimises after Blender starts",
+			)}
+			{toggleRow(
+				AppSettingCode.COUNT_BLENDER_ACTIVITY,
+				"setting-count-activity",
+				"Count time and events in Blender",
+				"A small script in each Blender series counts hours and a few events. The numbers stay on this computer.",
+			)}
+		</>
 	);
 
 	const renderUpdates = () => (

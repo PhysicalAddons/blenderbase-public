@@ -6,7 +6,7 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::{
     AppState, core::{
-        AppSettingActionKind, AppSettingCodeKind, BLENDERBASE_APPS, BLENDERBASE_LIBRARY, GITHUB_COM_PHYSICALADDONS_BLENDERBASE_PUBLIC, InputValueCodeKind, create_directory_path, get_main_storage_device_root_path,
+        AppSettingActionKind, AppSettingCodeKind, BLENDERBASE_APPS, BLENDERBASE_LIBRARY, GITHUB_COM_PHYSICALADDONS_BLENDERBASE_PUBLIC, InputValueCodeKind, apply_activity_switch, create_directory_path, get_main_storage_device_root_path,
         instance_native_ask_dialog_window, instance_native_ok_dialog_window,
     }, database::{AppSetting, AppSettingType, InputValueType}
 };
@@ -298,12 +298,19 @@ impl AppSettingsServiceImpl {
         //         return Err(format!("Failed to toggle app setting: {:?}", e));
         //     }
         // };
-        match r.update(&app_setting).await {
-            Ok(v) => return Ok(v),
-            Err(e) => {
-                return Err(format!("Failed to toggle app setting: {:?}", e));
-            }
-        };
+        if let Err(e) = r.update(&app_setting).await {
+            return Err(format!("Failed to toggle app setting: {:?}", e));
+        }
+        // The Stats switch puts the counting script into every Blender series, or takes it out.
+        // The setting is saved first: a folder that cannot be written is reported, and the next
+        // import run tries the install again.
+        if matches!(
+            AppSettingCodeKind::from_str(&app_setting.code),
+            Ok(AppSettingCodeKind::CountBlenderActivity)
+        ) {
+            apply_activity_switch(&state.pool, app_setting.int_value.unwrap_or(0) != 0).await?;
+        }
+        Ok(())
     }
     async fn input_decimal(
         _app: AppHandle,

@@ -97,6 +97,8 @@ export enum AppSettingCode {
     CHECK_FOR_UPDATE = "CHECK_FOR_UPDATE",
     OPEN_APP_VERSION_ONLINE_REPOSITORY = "OPEN_APP_VERSION_ONLINE_REPOSITORY",
     SET_CHECK_INTERNET_CONNECTION_TIMEOUT = "SET_CHECK_INTERNET_CONNECTION_TIMEOUT",
+    /** Stats: the startup script that counts time and events sits in every Blender series. */
+    COUNT_BLENDER_ACTIVITY = "COUNT_BLENDER_ACTIVITY",
 }
 
 

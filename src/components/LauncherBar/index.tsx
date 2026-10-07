@@ -36,8 +36,8 @@ const LauncherBar = () => {
     const { selectedBlenderVersionId, clearNewlyInstalledBlenderId } = useUiControlsStore(
         useShallow((s) => ({ selectedBlenderVersionId: s.selectedBlenderVersionId, clearNewlyInstalledBlenderId: s.clearNewlyInstalledBlenderId }))
     )
-    // Settings, Sync, What to share or a restore has the middle column: launching waits.
-    const isAsideOpen = useUiControlsStore((s) => s.isSettingsOpen || s.isSyncOpen || s.isShareSetupOpen || s.isRestoreSetupOpen)
+    // Settings, Sync, Stats, What to share or a restore has the middle column: launching waits.
+    const isAsideOpen = useUiControlsStore((s) => s.isSettingsOpen || s.isSyncOpen || s.isShareSetupOpen || s.isRestoreSetupOpen || s.isStatsOpen)
     const { launchWithConsole, setLaunchWithConsole } = useUiControlsStore(
         useShallow((s) => ({ launchWithConsole: s.launchWithConsole, setLaunchWithConsole: s.setLaunchWithConsole }))
     )

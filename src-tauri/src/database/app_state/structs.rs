@@ -11,4 +11,7 @@ pub struct AppState {
     /// The last release scrape and when it ran: refreshes within a minute of it
     /// are answered from here without touching the mirror at all.
     pub release_scrape_cache: Mutex<Option<(Instant, Vec<DownloadableBlenderVersion>)>>,
+    /// One activity import at a time: app start and the first window focus fire together,
+    /// and two runs over the same log lines would count them twice.
+    pub activity_import_lock: tokio::sync::Mutex<()>,
 }
