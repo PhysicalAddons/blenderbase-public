@@ -51,7 +51,7 @@ async fn init_app_state() -> Result<AppState, String> {
     };
     let pool = open_pool(options, &base_dir).await?;
     reconcile_migration_checksums(&pool).await?;
-    if let Err(e) = sqlx::migrate!().run(&pool).await {
+    if let Err(e) = migrate(&pool).await {
         return Err(format!(
             "Could not update the database {}: {}",
             base_dir.display(),
@@ -67,6 +67,16 @@ async fn init_app_state() -> Result<AppState, String> {
         release_scrape_cache: Mutex::new(None),
         activity_import_lock: tokio::sync::Mutex::new(()),
     })
+}
+
+/// Applies this build's migrations. A database a newer Blenderbase has already updated carries
+/// migrations this build does not know; those are left alone instead of refusing to start, so
+/// stepping back to an older version keeps working as long as the newer one only added to the
+/// schema (every migration so far has).
+async fn migrate(pool: &sqlx::SqlitePool) -> Result<(), sqlx::migrate::MigrateError> {
+    let mut migrator = sqlx::migrate!();
+    migrator.set_ignore_missing(true);
+    migrator.run(pool).await
 }
 
 /// Why the database could not be used, as [`open_pool`] sees it.
@@ -606,6 +616,36 @@ mod tests {
 
         reconcile_migration_checksums(&pool).await.unwrap();
         sqlx::migrate!().run(&pool).await.unwrap();
+        pool.close().await;
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A database a newer build has updated records a migration this build does not carry.
+    /// sqlx would refuse it ("previously applied but is missing"); the app must open it.
+    #[tokio::test]
+    async fn opens_a_database_touched_by_a_newer_build() {
+        use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+        use std::str::FromStr;
+        let dir = std::env::temp_dir().join(format!("blenderbase-newer-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let url = format!("sqlite://{}", dir.join("t.db").to_string_lossy());
+        let opts = SqliteConnectOptions::from_str(&url).unwrap().create_if_missing(true);
+        let pool = SqlitePoolOptions::new().max_connections(1).connect_with(opts).await.unwrap();
+
+        migrate(&pool).await.unwrap();
+        sqlx::query(
+            "INSERT INTO _sqlx_migrations (version, description, installed_on, success, checksum, execution_time) VALUES (99991231235959, 'from the future', CURRENT_TIMESTAMP, 1, X'00', 0)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        assert!(
+            sqlx::migrate!().run(&pool).await.is_err(),
+            "a plain run refuses the unknown migration"
+        );
+        migrate(&pool).await.unwrap();
+        let ok: String = sqlx::query_scalar("PRAGMA quick_check").fetch_one(&pool).await.unwrap();
+        assert_eq!(ok, "ok");
         pool.close().await;
         let _ = std::fs::remove_dir_all(&dir);
     }

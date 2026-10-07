@@ -34,6 +34,11 @@ copied into the GitHub release by the release workflow, so keep the
   announced in the status line and marked with a dot on the trophy button
   until the view is opened.
 
+### Changed
+- Blenderbase opens a database that a newer version has already updated,
+  as long as the newer version only added to it. Stepping back to an older
+  build no longer fails with "migration … is missing".
+
 ## 1.4.0
 
 ### Added
