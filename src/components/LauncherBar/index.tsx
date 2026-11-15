@@ -18,7 +18,7 @@ const blenderService = new BlenderService();
 const settingsService = new SettingsService();
 
 /** Whether the "Minimise Blenderbase when launching Blender" setting is on; false when it cannot be read. */
-const shouldMinimizeOnLaunch = async (): Promise<boolean> => {
+export const shouldMinimizeOnLaunch = async (): Promise<boolean> => {
     try {
         const [setting] = await settingsService.fetchAppSetting(null, 1, AppSettingCode.MINIMIZE_BLENDERBASE_ON_LAUNCH, null, null);
         return Boolean(setting?.int_value);

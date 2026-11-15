@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Button, InlineLoading } from '@carbon/react';
 import { Add, Star, StarFilled, TrashCan } from '@carbon/react/icons';
 import { useShallow } from 'zustand/react/shallow';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { IBlenderVersion } from '../../models';
 import { useBlenderManagerStore } from '../../store/blenderManagerStore';
 import { useUiControlsStore } from '../../store/uiControlsStore';
@@ -13,6 +14,7 @@ import { applyAddonToVersion, dragStartHint, postDragHint } from '../../utility/
 import { usePagedScroll } from '../../utility/usePagedScroll';
 import { showContextMenu } from '../../utility/contextMenu';
 import { postStatus, postStatusError } from '../../store/statusStore';
+import { shouldMinimizeOnLaunch } from '../LauncherBar';
 
 const blenderService = new BlenderService();
 
@@ -39,6 +41,8 @@ const BlenderColumn = () => {
 		newlyInstalledBlenderIds,
 		setIsInstallBlenderOpen,
 		setSelectedBlenderVersionId,
+		launchWithConsole,
+		clearNewlyInstalledBlenderId,
 	} = useUiControlsStore(
 		useShallow((s) => ({
 			isInstallBlenderOpen: s.isInstallBlenderOpen,
@@ -46,6 +50,8 @@ const BlenderColumn = () => {
 			newlyInstalledBlenderIds: s.newlyInstalledBlenderIds,
 			setIsInstallBlenderOpen: s.setIsInstallBlenderOpen,
 			setSelectedBlenderVersionId: s.setSelectedBlenderVersionId,
+			launchWithConsole: s.launchWithConsole,
+			clearNewlyInstalledBlenderId: s.clearNewlyInstalledBlenderId,
 		}))
 	)
 	const { draggingAddon, setDraggingAddon } = useAddonStore(
@@ -173,6 +179,30 @@ const BlenderColumn = () => {
 		}
 	}
 
+	const launchSelectedBlender = async (id: string) => {
+		if (isAsideOpen) {
+			return;
+		}
+		const label = blenderVersionLabel(resolveSelectedBlenderVersion(installedBuilds, id));
+		clearNewlyInstalledBlenderId(id);
+		postStatus(`Launching Blender ${label}…`, true);
+		try {
+			await blenderService.launchInstalledBlender(id, launchWithConsole)
+			useAddonStore.getState().noteBlenderLaunched(id);
+			postStatus(launchWithConsole ? `Launched Blender ${label} with console` : `Launched Blender ${label}`);
+		} catch (e) {
+			console.error(e);
+			postStatusError(`Could not launch Blender: ${e}`);
+			return;
+		}
+		// Launching may change the row (last used); reload quietly, keep the launch status.
+		setInstalledBuilds().catch((e) => console.error(e));
+		// Read the setting at launch time: the panel may have changed it since the app started.
+		if (await shouldMinimizeOnLaunch()) {
+			getCurrentWindow().minimize().catch((e) => console.error(e));
+		}
+	};
+
 	const metaLine = (x: IBlenderVersion) =>
 		[x.architecture, formatBuildDate(x.file_mtime), buildChannel(x), shortHash(x.hash)]
 			.filter((v) => v !== null && v !== undefined && v !== "")
@@ -250,6 +280,7 @@ const BlenderColumn = () => {
 							className={`blender_row ${isSelected ? "blender_row--selected" : ""} ${dropStateOf(x)}`}
 							title={`Blender ${blenderVersionLabel(x)}`}
 							onClick={() => selectVersion(x.id)}
+							onDoubleClick={() => launchSelectedBlender(x.id)}
 							onDragEnter={(e) => dragOverRow(e, x)}
 							onDragOver={(e) => dragOverRow(e, x)}
 							onDragLeave={(e) => dragLeaveRow(e, x)}
